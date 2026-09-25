@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { config } from "../config/config";
 import { ProxycheckLookupLogModel } from "../models/proxycheckLookupLogModel";
 import { ProxycheckQuotaModel } from "../models/proxycheckQuotaModel";
-import { ProxycheckRiskCacheModel } from "../models/proxycheckRiskCacheModel";
+import { type ProxycheckRiskCacheDoc, ProxycheckRiskCacheModel } from "../models/proxycheckRiskCacheModel";
 import { isLocalIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 import { mongoose } from "./mongoService";
@@ -193,7 +193,39 @@ async function readCachedRisk(ip: string): Promise<IpRiskResult | null> {
     .lean()
     .exec();
   if (!doc) return null;
-  return toRiskResult(docToParsed(doc), true, "cache");
+  return resultFromCachedDoc(doc);
+}
+
+/**
+ * 缓存文档 → 结论，并把旧解析器写错的 risk 回填掉。
+ *
+ * 修解析器只能保住以后的查询；已经存下来的那一行仍然写着 risk=0（真分在 detectionsRaw 里），
+ * 不回填就得等 TTL 过期重查。这里发现不一致就顺手把真分写回去，面板与后面的读取才能立刻对齐。
+ */
+function resultFromCachedDoc(doc: ProxycheckRiskCacheDoc): IpRiskResult {
+  const parsed = docToParsed(doc);
+  const storedRisk = toScore(doc.risk);
+  if (parsed.risk !== storedRisk) {
+    void backfillCachedRisk(doc.ip, parsed.risk, storedRisk);
+  }
+  return toRiskResult(parsed, true, "cache");
+}
+
+async function backfillCachedRisk(ip: string, risk: number, storedRisk: number): Promise<void> {
+  try {
+    await ProxycheckRiskCacheModel.updateOne({ ip }, { $set: { risk } }).exec();
+    logger.info("[IpRisk] 已回填 proxycheck 风险缓存的 risk（旧解析只读顶层字段，把真分丢成了 0）", {
+      ip,
+      storedRisk,
+      risk,
+    });
+  } catch (error) {
+    // 回填失败不影响本次结论（内存里已经是真分），下一轮读取会再试。
+    logger.warn("[IpRisk] 回填 proxycheck 风险缓存 risk 失败", {
+      ip,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 /**
@@ -600,7 +632,7 @@ export async function getIpRiskBatch(ips: string[], caller: IpRiskCaller): Promi
         .lean()
         .exec();
       for (const doc of cached) {
-        const result = toRiskResult(docToParsed(doc), true, "cache");
+        const result = resultFromCachedDoc(doc as unknown as ProxycheckRiskCacheDoc);
         resolved.set(doc.ip, result);
         // 批量路径同样要能看出「这一条是缓存给的」，不是真的向上游查了 N 个地址。
         recordCachedLookup(result, caller, 0);

@@ -54,12 +54,12 @@ const RECENT_WINDOW_MS = DAY_MS;
 const MAX_QUOTA_HISTORY_ROWS = 500;
 
 /**
- * 缓存页（risk-cache tab）没有逐行的历史 decision：那里展示的是缓存文档本身，只能按当前阈值重算，
- * 所以 caller 固定 "api"（缓存页展示的是 GET /api/ip-risk 视角）。
- * 注意这与「命中缓存时写的那行 status=cache 日志」不矛盾：日志行记的是当时真实交给调用方的决策，
- * 缓存页记的是这份缓存现在会怎么判。
+ * 缓存页（risk-cache tab）没有逐行的历史 decision：那里展示的是缓存文档本身，只能按当前阈值重算。
+ * caller 固定 "first_visit_gate"：那一页要回答的是「现在有人拿这个 IP 过首访闸门，会被要求验证吗」。
+ * 按 api 口径重算的话 action 永远只是「仅上报」，risk 再高也看着像什么都没干（以前就这样误用过）。
+ * 当时的真实决策去 proxycheck_lookup_logs 看（含 status=cache 的命中缓存行）。
  */
-const CACHE_DERIVED_CALLER: IpRiskCaller = "api";
+const CACHE_DERIVED_CALLER: IpRiskCaller = "first_visit_gate";
 
 interface OverviewCounts {
   /** 决策日志总行数（含 status=cache 的命中缓存行与 status=deduped 的 in-flight 合并行）。 */
@@ -401,14 +401,15 @@ export class IpRiskLogController {
       const entries = toLooseDocs(docs).map((doc) => {
         const cached = doc as unknown as ProxycheckRiskCacheDoc;
         const expiresAt = readDate(doc.expiresAt);
+        const parsed = docToParsed(cached);
 
         return {
           ...doc,
+          // risk 用解析后的值：旧解析器把真分写成过 0，直读 doc.risk 会让表上一个分、
+          // 下面重算的决策又一个分，管理员无从判断哪个是真的。
+          risk: parsed.risk,
           expired: expiresAt === null || expiresAt.getTime() <= now.getTime(),
-          derivedDecision: buildIpRiskDecision(
-            toRiskResult(docToParsed(cached), true, "cache"),
-            CACHE_DERIVED_CALLER,
-          ),
+          derivedDecision: buildIpRiskDecision(toRiskResult(parsed, true, "cache"), CACHE_DERIVED_CALLER),
         };
       });
 

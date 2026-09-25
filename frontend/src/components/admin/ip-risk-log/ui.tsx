@@ -321,7 +321,7 @@ export const DecisionBlock: React.FC<{
         <FaInfoCircle className="mt-0.5 shrink-0" />
         <span>
           {derived
-            ? '本行决策是「按当前配置重算」的结果，不是历史上的记录：proxycheck_risk_cache 只存风险文档，不存当时算给前端的决策。caller 固定按 API 口径计算，所以 action 恒为「仅上报」。'
+            ? '本行决策是「按当前配置重算」的结果，不是历史上的记录：proxycheck_risk_cache 只存风险文档，不存当时算给前端的决策。caller 固定按首访闸门口径计算，所以 action 就是「现在放不放行」。'
             : '本行决策是写入这条 lookup 日志时，真实算给前端（闸门 / API）的决策快照。'}
         </span>
       </div>

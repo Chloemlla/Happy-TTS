@@ -119,7 +119,8 @@ const RiskCacheTab: React.FC<Props> = ({ refreshNonce }) => {
           本页每行的决策是按当前配置重算的，不是历史记录
         </span>
         ：缓存文档本身不存决策。重算用的是当下的 <code>challengeRiskScore</code> / <code>failOpen</code>，
-        caller 固定按 API 口径（所以 action 恒为「仅上报」）。想看在某个时间点真实给出的决策（包括当时是不是走缓存），请看「判定决策日志」页。
+        caller 固定按<span className="font-semibold">首访闸门</span>口径，所以 <code>action</code> 就是「现在放不放行」（不是「仅上报」）。
+        想看在某个时间点真实给出的决策（包括当时是不是走缓存），请看「判定决策日志」页。
       </SectionNote>
 
       <InfoPanel compact>

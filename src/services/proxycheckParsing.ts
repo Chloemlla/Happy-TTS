@@ -152,6 +152,49 @@ export function levelFromRisk(risk: number): IpRiskLevel {
   return "low";
 }
 
+/** 单个 risk 字段可以是数字、数字字符串，或一个带 number / score / value 键的对象；拿不到回 null（不是 0）。 */
+function riskNumber(value: unknown): number | null {
+  const direct = toNullableNumber(value);
+  if (direct !== null) return toScore(direct);
+  if (isRecord(value)) {
+    for (const key of ["number", "score", "value"]) {
+      const nested = toNullableNumber(value[key]);
+      if (nested !== null) return toScore(nested);
+    }
+  }
+  return null;
+}
+
+/**
+ * 从一份上游对象里把 risk 分捧出来。
+ *
+ * 上游不只一种形状：常见是顶层 "risk": 100，也有节点把 risk/confidence 连同各个检测项
+ * 一起放在 "detections" 对象里（线上实际存到 detectionsRaw 的就是这一种），
+ * 另有节点把 risk 包成对象（如 {"number": 95, "description": "..."}）或直接给 null。
+ *
+ * 旧代码只读顶层 raw.risk，形状不对时 toScore 静默回退 0 —— 一个 risk=100 的机房
+ * VPN 地址就这样被落库成 risk=0、低风险，而且只有靠 vpn 标志才没被漏掉；如果对方只中了
+ * hosting/compromised（不在 CHALLENGE_FLAGS 里），首访闸门就直接放行。
+ * 所以这里取所有候选里的最大值：解析形状不确定时，安全信号宁可往高了信，
+ * 绝不允许「读不到」静默变成「0 分低风险」。
+ */
+export function resolveRiskScore(raw: Record<string, unknown> | undefined): number {
+  if (!isRecord(raw)) return 0;
+
+  const groups: Array<Record<string, unknown> | undefined> = [raw];
+  for (const key of ["detections", "security"]) {
+    if (isRecord(raw[key])) groups.push(raw[key] as Record<string, unknown>);
+  }
+
+  let best = 0;
+  for (const group of groups) {
+    if (!group) continue;
+    const value = riskNumber(group.risk);
+    if (value !== null && value > best) best = value;
+  }
+  return best;
+}
+
 function flagsFromDetections(detections: IpRiskDetections): string[] {
   return DETECTION_FLAGS.filter((flag) => detections[flag]);
 }
@@ -212,23 +255,30 @@ export function toRiskResult(parsed: ParsedRisk, cached: boolean, source: "cache
   };
 }
 
-/** raw 是响应里该地址键下的对象：{ risk, network{...}, location{...}, detections{...}, last_updated }。 */
+/**
+ * raw 是响应里该地址键下的对象。字段位置不固定：
+ * 检测项可能在 detections / security 容器里，也可能摊在顶层；
+ * risk 同样可能在顶层、在容器里、或被包成 {"number": n}（解析见 resolveRiskScore）。
+ */
 export function parseV3Result(ip: string, raw: Record<string, unknown>, queriedAt: Date): ParsedRisk {
   const network = isRecord(raw.network) ? raw.network : {};
   const location = isRecord(raw.location) ? raw.location : {};
-  const detectionsRaw = isRecord(raw.detections) ? raw.detections : undefined;
+  const container = detectionContainer(raw);
+  // 检测项可能整块在 detections / security 里，也可能直接摊在顶层（v2 风格）。
+  // 与 risk 同理：只认一个固定路径的话，形状一变就是「全部 false + risk=0」的假低风险。
+  const source = container ?? raw;
 
   const detections: IpRiskDetections = {
-    anonymous: toDetectionFlag(detectionsRaw?.anonymous),
-    proxy: toDetectionFlag(detectionsRaw?.proxy),
-    vpn: toDetectionFlag(detectionsRaw?.vpn),
-    tor: toDetectionFlag(detectionsRaw?.tor),
-    hosting: toDetectionFlag(detectionsRaw?.hosting),
-    scraper: toDetectionFlag(detectionsRaw?.scraper),
-    compromised: toDetectionFlag(detectionsRaw?.compromised),
-    confidence: toScore(detectionsRaw?.confidence),
+    anonymous: toDetectionFlag(source.anonymous),
+    proxy: toDetectionFlag(source.proxy),
+    vpn: toDetectionFlag(source.vpn),
+    tor: toDetectionFlag(source.tor),
+    hosting: toDetectionFlag(source.hosting),
+    scraper: toDetectionFlag(source.scraper),
+    compromised: toDetectionFlag(source.compromised),
+    confidence: toScore(source.confidence),
   };
-  const risk = toScore(raw.risk);
+  const risk = resolveRiskScore(raw);
 
   return {
     ip,
@@ -250,13 +300,35 @@ export function parseV3Result(ip: string, raw: Record<string, unknown>, queriedA
     latitude: toNullableNumber(location.latitude),
     longitude: toNullableNumber(location.longitude),
     timezone: toStringField(location.timezone),
-    detectionsRaw,
+    detectionsRaw: container ?? pickDetectionFields(raw),
     lastUpdated: toDate(raw.last_updated),
     queriedAt,
   };
 }
 
+/** 装检测项的容器：detections（线上常见）→ security（v2/部分节点）→ 没有。 */
+function detectionContainer(
+  raw: Record<string, unknown> | undefined | null,
+): Record<string, unknown> | null {
+  if (isRecord(raw)) {
+    if (isRecord(raw.detections)) return raw.detections;
+    if (isRecord(raw.security)) return raw.security;
+  }
+  return null;
+}
+
+/** 没有容器时只存认识的几个字段，不把整个响应体当 detectionsRaw 存下来。 */
+function pickDetectionFields(raw: Record<string, unknown>): Record<string, unknown> | undefined {
+  const keys = ["anonymous", "proxy", "vpn", "tor", "hosting", "scraper", "compromised", "risk", "confidence"];
+  const picked: Record<string, unknown> = {};
+  for (const key of keys) {
+    if (raw[key] !== undefined) picked[key] = raw[key];
+  }
+  return Object.keys(picked).length > 0 ? picked : undefined;
+}
+
 export function docToParsed(doc: ProxycheckRiskCacheDoc): ParsedRisk {
+  const detectionsContainer = detectionContainer(doc.detectionsRaw);
   const detections: IpRiskDetections = {
     anonymous: Boolean(doc.anonymous),
     proxy: Boolean(doc.proxy),
@@ -265,9 +337,12 @@ export function docToParsed(doc: ProxycheckRiskCacheDoc): ParsedRisk {
     hosting: Boolean(doc.hosting),
     scraper: Boolean(doc.scraper),
     compromised: Boolean(doc.compromised),
-    confidence: toScore(doc.confidence),
+    confidence: toScore(detectionsContainer?.confidence ?? doc.confidence),
   };
-  const risk = toScore(doc.risk);
+  // 自愈：修解析器之前写下的行已经把真分弄丢了（存成 0），但 detectionsRaw 里还是上游原字节。
+  // 只修解析不读原始对象的话，这批脏行会跟着 24 小时 TTL 继续把高风险地址判成低风险。
+  // 取大值的口径与 resolveRiskScore 一致，不会出现「读一次一个分」。
+  const risk = Math.max(toScore(doc.risk), resolveRiskScore(doc.detectionsRaw));
 
   return {
     ip: doc.ip,
