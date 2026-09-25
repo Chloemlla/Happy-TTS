@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaExclamationTriangle, FaCheck, FaTimes } from 'react-icons/fa';
+import { studioModalCardClassName, studioModalOverlayClassName, studioSecondaryButtonClassName } from './studioTheme';
 
 interface ConfirmModalProps {
   open: boolean;
@@ -26,22 +27,22 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   const getIcon = () => {
     switch (type) {
       case 'danger':
-        return <FaExclamationTriangle className="w-8 h-8 text-red-500" />;
+        return <FaExclamationTriangle className="w-8 h-8 text-rose-500" />;
       case 'info':
         return <FaExclamationTriangle className="w-8 h-8 text-emerald-500" />;
       default:
-        return <FaExclamationTriangle className="w-8 h-8 text-orange-500" />;
+        return <FaExclamationTriangle className="w-8 h-8 text-amber-500" />;
     }
   };
 
   const getConfirmButtonClass = () => {
     switch (type) {
       case 'danger':
-        return 'bg-red-500 hover:bg-red-600 text-white';
+        return 'bg-rose-500 hover:bg-rose-600';
       case 'info':
-        return 'bg-emerald-500 hover:bg-emerald-600 text-white';
+        return 'bg-emerald-500 hover:bg-emerald-600';
       default:
-        return 'bg-orange-500 hover:bg-orange-600 text-white';
+        return 'bg-amber-500 hover:bg-amber-600';
     }
   };
 
@@ -49,7 +50,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[10050] flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm"
+          className={studioModalOverlayClassName}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -57,7 +58,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
           onClick={onClose}
         >
           <motion.div
-            className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-200 p-6 w-full max-w-md mx-4 relative max-h-[90vh] overflow-y-auto"
+            className={`${studioModalCardClassName} max-w-md mx-4 relative max-h-[90vh] overflow-y-auto`}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -76,7 +77,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <motion.button
                 onClick={onClose}
-                className="px-6 py-3 border border-slate-300 text-slate-700 rounded-2xl hover:bg-slate-50/80 transition-colors font-medium flex items-center gap-2"
+                className={studioSecondaryButtonClassName}
                 whileTap={{ scale: 0.95 }}
               >
                 <FaTimes className="w-4 h-4" />
@@ -87,7 +88,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                   onConfirm();
                   onClose();
                 }}
-                className={`px-6 py-3 rounded-2xl transition-colors font-medium flex items-center gap-2 ${getConfirmButtonClass()}`}
+                className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-semibold text-white transition ${getConfirmButtonClass()}`}
                 whileTap={{ scale: 0.95 }}
               >
                 <FaCheck className="w-4 h-4" />

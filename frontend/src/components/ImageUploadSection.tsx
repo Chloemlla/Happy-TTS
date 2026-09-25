@@ -1,6 +1,7 @@
 
 import React, { useRef, useState, ChangeEvent } from 'react';
 import { FaUpload, FaUser } from 'react-icons/fa';
+import { studioFieldClassName, studioMutedPrimaryButtonClassName } from './studioTheme';
 
 interface ImageUploadSectionProps {
   photoPreview: string;
@@ -106,7 +107,7 @@ const ImageUploadSection: React.FC<ImageUploadSectionProps> = ({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50"
+            className={studioMutedPrimaryButtonClassName}
           >
             <FaUpload />
             {loading ? '上传中...' : '上传图片'}
@@ -123,7 +124,7 @@ const ImageUploadSection: React.FC<ImageUploadSectionProps> = ({
                 onUrlChange(normalized);
                 onPreviewChange(normalized);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+              className={studioFieldClassName}
               placeholder="或输入图片URL"
             />
           </div>

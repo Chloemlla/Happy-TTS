@@ -5,6 +5,16 @@ import getApiBaseUrl from "../api";
 import { useAuth } from "../hooks/useAuth";
 import type { User } from "../types/auth";
 import { queuePostRedirectNotification, useNotification } from "./Notification";
+import {
+  authBackLinkClassName,
+  authCardClassName,
+  authDescriptionClassName,
+  authFrameClassName,
+  authPageShellClassName,
+  authPrimaryButtonClassName,
+  authSecondaryButtonClassName,
+  authTitleClassName,
+} from "./authStudioTheme";
 
 function buildSynapseAndroidDeepLink(searchParams: URLSearchParams): string {
   const deepLink = new URL("synapse://linuxdo-callback");
@@ -165,26 +175,26 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
   }, [loginWithToken, navigate, searchParams, setNotification]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-8 px-4 sm:px-6">
-      <div className="w-full max-w-md min-w-0 rounded-2xl border border-[#8ECAE6]/30 bg-white/85 p-4 sm:p-6 md:p-8 text-center shadow-xl backdrop-blur-sm">
+    <div className={`${authPageShellClassName} bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10`}>
+      <div className={`${authFrameClassName} ${authCardClassName} text-center`}>
         <div className="mx-auto mb-5 h-10 w-10 sm:h-12 sm:w-12 animate-spin rounded-full border-4 border-[#8ECAE6]/40 border-t-[#219EBC]" />
-        <h1 className="text-2xl font-bold text-[#023047]">正在登录 Linux.do</h1>
-        <p className="mt-3 text-sm text-[#023047]/70">{status}</p>
+        <h1 className={authTitleClassName}>正在登录 Linux.do</h1>
+        <p className={authDescriptionClassName}>{status}</p>
         {deepLinkUrl ? (
           <div className="mt-4 space-y-3 text-left">
-            <p className="text-xs leading-5 text-[#023047]/60">
+            <p className={authDescriptionClassName}>
               如果没有自动打开 App，请点击下方按钮，或返回 Synapse Mobile 粘贴 ticket。
             </p>
             <a
               href={deepLinkUrl}
-              className="inline-flex w-full items-center justify-center rounded-xl bg-[#219EBC] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#1b86a1]"
+              className={authPrimaryButtonClassName}
             >
               打开 Synapse Mobile
             </a>
             {ticketForCopy ? (
               <button
                 type="button"
-                className="inline-flex w-full items-center justify-center rounded-xl border border-[#8ECAE6]/50 bg-white px-4 py-2.5 text-sm font-medium text-[#023047] transition-colors hover:bg-[#8ECAE6]/10"
+                className={authSecondaryButtonClassName}
                 onClick={() => {
                   void navigator.clipboard?.writeText(ticketForCopy);
                   setNotification({ message: "已复制 Linux.do ticket", type: "success" });
@@ -195,13 +205,13 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
             ) : null}
           </div>
         ) : (
-          <p className="mt-2 text-xs leading-5 text-[#023047]/50">
+          <p className={authDescriptionClassName}>
             如果没有自动跳转，请返回登录页重试。
           </p>
         )}
         <Link
           to="/login"
-          className="mt-6 inline-flex items-center gap-2 text-sm text-[#023047]/50 hover:text-[#023047] transition-colors"
+          className={`mt-6 ${authBackLinkClassName}`}
         >
           <FaArrowLeft className="h-3.5 w-3.5" />
           返回登录页

@@ -153,7 +153,7 @@ export default function WsConnector() {
       <div
         className={`w-10 h-10 rounded-full shadow-lg flex items-center justify-center transition-colors ${
           connected
-            ? 'bg-green-500'
+            ? 'bg-emerald-500'
             : 'bg-slate-400'
         }`}
         title={connected ? 'WebSocket 已连接' : 'WebSocket 未连接'}

@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import mermaid from 'mermaid';
 import DOMPurify from 'dompurify';
+import {
+  studioModalCardClassName,
+  studioModalOverlayClassName,
+  studioSubPanelClassName,
+  studioSurfaceClassName,
+} from './studioTheme';
 
 interface MermaidProps {
   code: string;
@@ -120,12 +126,10 @@ const Mermaid: React.FC<MermaidProps> = ({ code }) => {
     }
 
     const modal = document.createElement('div');
-    modal.className =
-      'fixed inset-0 z-[9999] flex cursor-pointer items-center justify-center bg-black/80 p-4';
+    modal.className = `${studioModalOverlayClassName} cursor-pointer`;
 
     const container = document.createElement('div');
-    container.className =
-      'max-h-[95%] max-w-[95%] overflow-auto rounded-lg bg-white/90 p-4 shadow-2xl';
+    container.className = `${studioModalCardClassName} max-h-[95%] max-w-[95%] overflow-auto`;
     container.innerHTML = svg;
 
     modal.appendChild(container);
@@ -151,8 +155,8 @@ const Mermaid: React.FC<MermaidProps> = ({ code }) => {
 
   if (isRendering) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-slate-50 p-8">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+      <div className={`${studioSubPanelClassName} flex flex-col items-center justify-center gap-3`}>
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-500 border-t-transparent" />
         <span className="text-sm text-slate-500">正在渲染图表...</span>
       </div>
     );
@@ -160,18 +164,18 @@ const Mermaid: React.FC<MermaidProps> = ({ code }) => {
 
   if (error || !svg) {
     return (
-      <div className="rounded-lg border border-red-100 bg-red-50 p-4">
-        <div className="mb-2 font-medium text-red-800">图表渲染失败</div>
+      <div className="rounded-lg border border-rose-100 bg-rose-50 p-4">
+        <div className="mb-2 font-medium text-rose-800">图表渲染失败</div>
         <div className="mb-3 flex gap-2">
           <button
             type="button"
             onClick={() => void handleCopy()}
-            className="rounded bg-red-600 px-2 py-1 text-xs text-white transition-colors hover:bg-red-700"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-600 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-rose-700"
           >
             复制原始代码
           </button>
         </div>
-        <pre className="overflow-x-auto rounded border border-red-200 bg-white/50 p-2 font-mono text-xs text-red-900">
+        <pre className="overflow-x-auto rounded border border-rose-200 bg-white/50 p-2 font-mono text-xs text-rose-900">
           {code}
         </pre>
       </div>
@@ -180,14 +184,14 @@ const Mermaid: React.FC<MermaidProps> = ({ code }) => {
 
   return (
     <div
-      className="group relative my-4 cursor-zoom-in overflow-hidden rounded-xl border border-gray-100 bg-white/90 p-4 shadow-sm"
+      className={`${studioSurfaceClassName} group my-4 cursor-zoom-in p-4`}
       onClick={handleZoom}
     >
       <div
         className="mermaid-svg flex max-h-[600px] justify-center overflow-auto"
         dangerouslySetInnerHTML={{ __html: svg }}
       />
-      <div className="pointer-events-none absolute right-2 top-2 rounded border border-gray-100 bg-white/90 px-2 py-1 text-[10px] font-medium text-slate-500 opacity-0 shadow-sm backdrop-blur transition-opacity group-hover:opacity-100">
+      <div className="pointer-events-none absolute right-2 top-2 rounded border border-slate-100 bg-white/90 px-2 py-1 text-[10px] font-medium text-slate-500 opacity-0 shadow-sm backdrop-blur transition-opacity group-hover:opacity-100">
         点击放大
       </div>
     </div>

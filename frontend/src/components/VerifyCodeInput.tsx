@@ -10,7 +10,7 @@ interface VerifyCodeInputProps {
 }
 
 const BOX_STYLE =
-  'w-10 h-12 sm:w-14 sm:h-16 mx-0.5 sm:mx-1 rounded-xl border-2 border-blue-400 bg-white text-blue-700 text-lg sm:text-3xl text-center font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-500 placeholder-blue-200 transition-all duration-150 flex-1 min-w-0 shadow-none';
+  'w-10 h-12 sm:w-14 sm:h-16 mx-0.5 sm:mx-1 rounded-xl border-2 border-slate-400 bg-white text-slate-700 text-lg sm:text-3xl text-center font-mono font-bold focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-slate-500 placeholder-slate-200 transition-all duration-150 flex-1 min-w-0 shadow-none';
 
 export const VerifyCodeInput: React.FC<VerifyCodeInputProps> = ({
   length = 8,
@@ -99,7 +99,7 @@ export const VerifyCodeInput: React.FC<VerifyCodeInputProps> = ({
             inputMode="text"
             autoComplete="one-time-code"
             maxLength={1}
-            className={BOX_STYLE + (error ? ' border-red-400' : '') + ' ' + inputClassName}
+            className={BOX_STYLE + (error ? ' border-rose-400' : '') + ' ' + inputClassName}
             value={values[idx]}
             onChange={(e) => handleChange(idx, e.target.value)}
             onKeyDown={(e) => handleKeyDown(idx, e)}
@@ -117,7 +117,7 @@ export const VerifyCodeInput: React.FC<VerifyCodeInputProps> = ({
       <AnimatePresence>
         {error && (
           <motion.div
-            className="text-red-500 text-xs text-center mb-1"
+            className="text-rose-500 text-xs text-center mb-1"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}

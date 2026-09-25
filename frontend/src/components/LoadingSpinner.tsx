@@ -135,7 +135,7 @@ export const UnifiedLoadingSpinner: React.FC<{
   return (
     <div className={`text-center py-8 text-slate-500 ${className}`}>
       <svg 
-        className={`animate-spin ${sizeClasses[size]} mx-auto mb-4 text-blue-500`} 
+        className={`animate-spin ${sizeClasses[size]} mx-auto mb-4 text-slate-900`}
         fill="none" 
         viewBox="0 0 24 24"
       >

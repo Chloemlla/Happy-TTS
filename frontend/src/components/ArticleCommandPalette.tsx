@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { markdownArticleApi, type MarkdownArticleSummary } from '../api/markdownArticles';
+import { studioSurfaceClassName } from './studioTheme';
 
 const ArticleCommandPalette: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -54,7 +55,7 @@ const ArticleCommandPalette: React.FC = () => {
   return (
     <div className="fixed inset-0 z-[9990] bg-slate-950/36 p-3 backdrop-blur-sm sm:p-4" onClick={() => setIsOpen(false)}>
       <div
-        className="mx-auto mt-[8vh] w-full max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white/96 shadow-sm sm:mt-[12vh] sm:max-w-2xl"
+        className={`${studioSurfaceClassName} mx-auto mt-[8vh] w-full max-w-full sm:mt-[12vh] sm:max-w-2xl`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3">

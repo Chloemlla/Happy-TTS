@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion as m } from 'framer-motion';
 import { ReturnableHCaptchaVerificationPage } from './HCaptchaVerificationPage';
+import { studioPanelClassName, studioPrimaryButtonClassName } from './studioTheme';
 
 interface VerificationResult {
   success: boolean;
@@ -75,7 +76,7 @@ const HCaptchaVerificationExample: React.FC = () => {
       <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/90 rounded-2xl shadow-xl p-4 sm:p-8 w-full max-w-md"
+        className={`${studioPanelClassName} w-full max-w-md`}
       >
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-gradient-to-r from-slate-500 to-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -90,16 +91,16 @@ const HCaptchaVerificationExample: React.FC = () => {
         <div className="space-y-4">
           <button
             onClick={startVerification}
-            className="w-full px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium transition-colors"
+            className={`${studioPrimaryButtonClassName} w-full`}
           >
             开始验证
           </button>
 
           {/* 显示上次验证结果 */}
           {verificationResult && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-              <h3 className="font-semibold text-green-800 mb-2">上次验证结果</h3>
-              <div className="text-sm text-green-700 space-y-1">
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
+              <h3 className="font-semibold text-emerald-800 mb-2">上次验证结果</h3>
+              <div className="text-sm text-emerald-700 space-y-1">
                 <p>状态: {verificationResult.success ? '成功' : '失败'}</p>
                 <p>消息: {verificationResult.message}</p>
                 {verificationResult.score && (
@@ -114,9 +115,9 @@ const HCaptchaVerificationExample: React.FC = () => {
 
           {/* 显示错误信息 */}
           {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-              <h3 className="font-semibold text-red-800 mb-2">验证错误</h3>
-              <p className="text-sm text-red-700">{error}</p>
+            <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl">
+              <h3 className="font-semibold text-rose-800 mb-2">验证错误</h3>
+              <p className="text-sm text-rose-700">{error}</p>
             </div>
           )}
         </div>
