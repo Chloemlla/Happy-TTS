@@ -18,6 +18,7 @@ import { FirstVisitVerification } from './components/FirstVisitVerification';
 import { useFingerprintRequest } from './hooks/useFingerprintRequest';
 import FingerprintRequestModal from './components/FingerprintRequestModal';
 import { setFirstVisitVerificationEnabled } from './utils/firstVisitVerificationConfig';
+import { recordRecentFeature } from './utils/recentFeature';
 import { fetchWithTimeout } from './utils/fetchWithTimeout';
 import ArticleCommandPalette from './components/ArticleCommandPalette';
 import { isAdminRole } from './utils/rbac';
@@ -49,6 +50,7 @@ const ForgotPasswordPage = React.lazy(() => import('./components/ForgotPasswordP
 const EmailVerifyPage = React.lazy(() => import('./components/EmailVerifyPage').then(module => ({ default: module.EmailVerifyPage })));
 const ResetPasswordLinkPage = React.lazy(() => import('./components/ResetPasswordLinkPage').then(module => ({ default: module.ResetPasswordLinkPage })));
 const TtsPage = React.lazy(() => import('./components/TtsPage').then(module => ({ default: module.TtsPage })));
+const HomeHub = React.lazy(() => import('./components/HomeHub').then(module => ({ default: module.HomeHub })));
 const LegacyApiChoicePage = React.lazy(() => import('./components/LegacyApiChoicePage'));
 const PolicyPage = React.lazy(() => import('./components/PolicyPage'));
 const Footer = React.lazy(() => import('./components/Footer'));
@@ -617,6 +619,10 @@ const App: React.FC = () => {
     && enableFirstVisitVerification
     && Boolean(fingerprint)
     && (isIpBanned || (isFirstVisit && !isVerified));
+  // 记录最近进入的用户功能页，供综合服务平台首页给出「继续上次」一键回跳。
+  useEffect(() => {
+    recordRecentFeature(location.pathname);
+  }, [location.pathname]);
   // Single breakpoint source (md: 768px) — no overflow heuristic for shell/toast.
   // Sync init avoids desktop first-paint flash of mobile chrome (CSR app).
   const [isDesktopViewport, setIsDesktopViewport] = useState(
@@ -693,7 +699,8 @@ const App: React.FC = () => {
         <Route path="/forgot-password" element={renderAnimatedRoute(<ForgotPasswordPage />)} />
         <Route path="/reset-password" element={renderAnimatedRoute(<ResetPasswordLinkPage />)} />
         <Route path="/verify-email" element={renderAnimatedRoute(<EmailVerifyPage />)} />
-        <Route path="/" element={renderAnimatedRoute(<TtsPage />)} />
+        <Route path="/" element={renderAnimatedRoute(<HomeHub />)} />
+        <Route path="/tts" element={renderAnimatedRoute(<TtsPage />)} />
         <Route path="/lottery" element={renderAnimatedRoute(<LotteryPage />)} />
         <Route path="/anti-counterfeit" element={renderAnimatedRoute(<AntiCounterfeitPage />)} />
         {/* Static admin routes first (higher specificity than /admin/:module) */}
@@ -749,7 +756,8 @@ const App: React.FC = () => {
   // React 19 文档元数据：路由配置优化，避免每次重新创建
   const routeConfig = React.useMemo(() => ({
     titles: {
-      '/': 'Synapse - 首页',
+      '/': 'Synapse - 综合服务平台',
+      '/tts': 'Synapse - 语音合成',
       '/welcome': 'Synapse - 欢迎页面',
       '/login': 'Synapse - 登录',
       '/register': 'Synapse - 注册',
@@ -801,7 +809,7 @@ const App: React.FC = () => {
       '/public-shortlink': 'Synapse - 公共短链创建',
     },
     descriptions: {
-      '/': 'Synapse智能语音合成平台，提供高质量的文本转语音服务',
+      '/': 'Synapse综合服务平台，汇集语音合成、文本翻译、资源商店、效率工具与信息查询',
       '/tts': '使用Synapse进行高质量的文本转语音合成',
       '/translate': '使用 DeepLX 进行双栏文本翻译与候选译文对比',
       '/lottery': '参与Synapse抽奖活动，赢取丰厚奖励',
@@ -1046,6 +1054,7 @@ const App: React.FC = () => {
     const schedule = win && win.requestIdleCallback ? win.requestIdleCallback : (cb: () => void) => setTimeout(cb, 300);
     const cancel = win && win.cancelIdleCallback ? win.cancelIdleCallback : (id: any) => clearTimeout(id);
     const id = schedule(() => {
+      import('./components/HomeHub');
       import('./components/TtsPage');
       import('./components/MobileNav');
       import('./components/Footer');

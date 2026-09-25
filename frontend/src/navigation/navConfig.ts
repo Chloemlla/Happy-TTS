@@ -21,6 +21,7 @@ import {
   FaGavel,
   FaGift,
   FaHeadset,
+  FaHome,
   FaImage,
   FaLanguage,
   FaLink,
@@ -74,7 +75,8 @@ export function getRootNavGroups(ctx: NavVisibilityContext): NavGroup[] {
       title: '核心功能',
       items: filterByVisibility(
         [
-          { title: '语音合成', url: '/', icon: FaVolumeUp as IconType },
+          { title: '首页', url: '/', icon: FaHome as IconType },
+          { title: '语音合成', url: '/tts', icon: FaVolumeUp as IconType },
           {
             title: '资源商店',
             url: '/store',

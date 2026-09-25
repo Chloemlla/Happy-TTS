@@ -171,6 +171,7 @@ function generateSitemapXml() {
     // 注意：仅列出静态公共路由；排除需要鉴权的管理/用户页与动态参数路由
     const routes: string[] = [
       "/",
+      "/tts",
       "/welcome",
       "/policy",
       "/api-docs",
