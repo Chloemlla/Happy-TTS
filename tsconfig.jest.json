@@ -10,6 +10,10 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
+    // TS6 把 moduleResolution=node（node10）降为硬错 TS5107，TS7 直接删掉了这个取值。
+    // ts-jest 跟的是这份 jest 专用配置（module: CommonJS）；换成 node16 / bundler 都要连
+    // module 一起改，会改变编译产物语义，所以按报错提示显式忽略弃用，保持现有 CJS 行为。
+    "ignoreDeprecations": "6.0",
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "jsx": "react-jsx",

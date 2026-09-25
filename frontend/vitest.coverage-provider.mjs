@@ -1,6 +1,7 @@
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { BaseCoverageProvider } from "vitest/node";
 
@@ -195,8 +196,24 @@ const providerModule = {
       }
     }
   },
-  takeCoverage() {
-    return globalThis[coverageStoreKey];
+  /**
+   * vitest 5 的契约：worker 侧必须交回「一个已经落盘的 JSON 文件名」（字符串），
+   * 主进程会 readFile + JSON.parse 后喂给 provider 的 readCoverageFiles/onFileRead。
+   * 直接返回覆盖率对象会被 onAfterSuiteRun 拒掉：
+   * "TypeError: Expected string coverage payload, received object"，覆盖率永远是 0%。
+   */
+  takeCoverage(context) {
+    const coverageMap = globalThis[coverageStoreKey];
+    if (!coverageMap) return undefined;
+
+    const directory = context?.coverageFilesDirectory || tmpdir();
+    const filename = join(
+      directory,
+      `repo-istanbul-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
+    );
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(filename, JSON.stringify(coverageMap), "utf8");
+    return filename;
   },
   getProvider() {
     return new ExistingIstanbulCoverageProvider();

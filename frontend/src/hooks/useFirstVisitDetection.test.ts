@@ -2,10 +2,20 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useFirstVisitDetection } from './useFirstVisitDetection';
 
-const getFingerprint = vi.fn();
-const initializeIpVerificationSession = vi.fn();
-const getStoredIpVerificationExpiry = vi.fn();
-const onIpVerificationRequired = vi.fn();
+// vi.mock 会被提到文件顶部执行，工厂里引用的变量必须同时在 vi.hoisted 里创建。
+// 之前这几个 vi.fn() 是顶层 const，导入被测 hook 时它们还在 TDZ 里，
+// 整个套件直接死在 "Cannot access 'getFingerprint' before initialization"。
+const {
+  getFingerprint,
+  initializeIpVerificationSession,
+  getStoredIpVerificationExpiry,
+  onIpVerificationRequired,
+} = vi.hoisted(() => ({
+  getFingerprint: vi.fn(),
+  initializeIpVerificationSession: vi.fn(),
+  getStoredIpVerificationExpiry: vi.fn(),
+  onIpVerificationRequired: vi.fn(),
+}));
 
 vi.mock('../utils/fingerprint', () => ({
   getFingerprint,

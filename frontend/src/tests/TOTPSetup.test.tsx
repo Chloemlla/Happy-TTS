@@ -32,16 +32,18 @@ describe('TOTPSetup 组件', () => {
   it('弹窗打开时能正常渲染', async () => {
     render(<TOTPSetup isOpen={true} onClose={vi.fn()} onSuccess={vi.fn()} />);
     await waitFor(() => {
-      expect(screen.getByText('二次验证')).toBeInTheDocument();
+      // 标题现在是「启用 TOTP」（旧断言钉的是已经被改掉的文案「二次验证」）。
+      expect(screen.getByText('启用 TOTP')).toBeInTheDocument();
     });
   });
 
   it('显示二维码说明文字', async () => {
     render(<TOTPSetup isOpen={true} onClose={vi.fn()} onSuccess={vi.fn()} />);
     await waitFor(() => {
-      expect(
-        screen.getByText(/使用认证器应用扫描QR码|使用Google Authenticator/)
-      ).toBeInTheDocument();
+      // 组件里只有「使用认证器应用扫描」这一句（旧正则要求的整串包了「QR码」与 Google
+      // Authenticator 字样，文案改版后就不存在了）。这里必须用单一精确串：
+      // getByText 传正则时会把所有文本节点去匹配，多命中会抛 Found multiple elements。
+      expect(screen.getByText('使用认证器应用扫描')).toBeInTheDocument();
     });
   });
 

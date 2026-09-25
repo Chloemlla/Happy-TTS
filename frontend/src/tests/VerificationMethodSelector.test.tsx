@@ -5,13 +5,10 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import VerificationMethodSelector from '../components/VerificationMethodSelector';
 
-// Mock framer-motion
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-  },
-  AnimatePresence: ({ children }: any) => <div>{children}</div>,
-}));
+// framer-motion 的替身由 vitest.setup.ts 统一提供（按标签惰性生成透传组件）。
+// 这里曾经本身再 mock 一遗，而且只列了 motion.div：组件里的 motion.button / motion.p
+// 拿到 undefined，React 报 "Element type is invalid"，10 个用例全部在渲染阶段就挂。
+// 保留重复 mock 只会让两边不一致，所以删掉，让全局生效。
 
 describe('VerificationMethodSelector', () => {
   const mockOnClose = vi.fn();
