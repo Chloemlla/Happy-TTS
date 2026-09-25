@@ -1,5 +1,7 @@
 import React from 'react';
 
+import { getInfoToneClasses } from '../../studioTheme';
+
 export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ');
 }
@@ -57,30 +59,30 @@ function badgeClass(color: string): string {
 }
 
 export function eventBadge(event: string, verdict?: string): EventBadgeView {
-  let color = 'border-slate-200 bg-slate-100 text-slate-600';
+  let color = getInfoToneClasses('slate').badge;
   if (event === 'moderate') {
     color =
       verdict === 'violated'
-        ? 'border-rose-200 bg-rose-50 text-rose-700'
-        : 'border-amber-200 bg-amber-50 text-amber-700';
+        ? getInfoToneClasses('rose').badge
+        : getInfoToneClasses('amber').badge;
   } else if (event === 'recalled' || event === 'review_violated' || event === 'violation') {
-    color = 'border-rose-200 bg-rose-50 text-rose-700';
+    color = getInfoToneClasses('rose').badge;
   } else if (event === 'bot_offline') {
-    color = 'border-rose-200 bg-rose-50 text-rose-700';
+    color = getInfoToneClasses('rose').badge;
   } else if (event === 'recall_failed' || event === 'dm_failed') {
-    color = 'border-orange-200 bg-orange-50 text-orange-700';
+    color = getInfoToneClasses('amber').badge;
   } else if (event === 'dm_sent' || event === 'dm') {
-    color = 'border-sky-200 bg-sky-50 text-sky-700';
+    color = getInfoToneClasses('sky').badge;
   } else if (event === 'dm_suppressed') {
-    color = 'border-slate-200 bg-slate-100 text-slate-500';
+    color = getInfoToneClasses('slate').badge;
   } else if (event === 'pass' || event === 'review_clean') {
-    color = 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    color = getInfoToneClasses('emerald').badge;
   } else if (event === 'bot_recovered') {
-    color = 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    color = getInfoToneClasses('emerald').badge;
   } else if (event === 'review_pending') {
-    color = 'border-amber-200 bg-amber-50 text-amber-700';
+    color = getInfoToneClasses('amber').badge;
   } else if (event === 'exempted') {
-    color = 'border-violet-200 bg-violet-50 text-violet-700';
+    color = getInfoToneClasses('violet').badge;
   }
   const baseLabel = EVENT_LABELS[event] ?? event;
   let label = baseLabel;

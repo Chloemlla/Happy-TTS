@@ -1,26 +1,29 @@
 import React from 'react';
 import type { MediaJobStatus, MediaJobStage } from '../../../api/mediaTool';
+import {
+  studioDangerButtonClassName,
+  studioFieldClassName,
+  studioPrimaryButtonClassName,
+  studioSecondaryButtonClassName,
+  studioTextareaClassName,
+} from '../../studioTheme';
 
 export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ');
 }
 
-export const inputCls =
-  'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:opacity-60';
+export const inputCls = `${studioFieldClassName} disabled:cursor-not-allowed disabled:opacity-60`;
 
-export const textareaCls = `${inputCls} font-mono text-xs leading-6`;
+export const textareaCls = `${studioTextareaClassName} font-mono disabled:cursor-not-allowed disabled:opacity-60`;
 
 export const btnBase =
   'inline-flex items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50';
 
-export const btnPrimary = cx(btnBase, 'bg-slate-900 text-white hover:bg-slate-800 shadow-sm');
-export const btnIndigo = cx(btnBase, 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm');
+export const btnPrimary = studioPrimaryButtonClassName;
+export const btnIndigo = studioPrimaryButtonClassName;
 export const btnViolet = cx(btnBase, 'bg-violet-600 text-white hover:bg-violet-700 shadow-sm');
-export const btnDanger = cx(btnBase, 'bg-rose-600 text-white hover:bg-rose-700 shadow-sm');
-export const btnGhost = cx(
-  btnBase,
-  'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-800',
-);
+export const btnDanger = studioDangerButtonClassName;
+export const btnGhost = studioSecondaryButtonClassName;
 export const btnTiny = cx(
   btnBase,
   'rounded-lg px-2 py-1 text-[11px]',
@@ -72,7 +75,7 @@ export const Toggle: React.FC<{ checked: boolean; onChange: (v: boolean) => void
 
 const STATUS_VIEW: Record<MediaJobStatus, { label: string; cls: string }> = {
   queued: { label: '排队中', cls: 'border-slate-200 bg-slate-100 text-slate-600' },
-  running: { label: '运行中', cls: 'border-indigo-200 bg-indigo-50 text-indigo-700' },
+  running: { label: '运行中', cls: 'border-sky-200 bg-sky-50 text-sky-700' },
   succeeded: { label: '已完成', cls: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
   failed: { label: '失败', cls: 'border-rose-200 bg-rose-50 text-rose-700' },
   cancelled: { label: '已取消', cls: 'border-amber-200 bg-amber-50 text-amber-700' },
@@ -89,7 +92,7 @@ export const StatusBadge: React.FC<{ status: MediaJobStatus; pulse?: boolean }> 
       )}
     >
       {status === 'running' ? (
-        <span className="size-1.5 animate-ping rounded-full bg-indigo-500" />
+        <span className="size-1.5 animate-ping rounded-full bg-sky-500" />
       ) : (
         <span className="size-1.5 rounded-full bg-current opacity-70" />
       )}
@@ -154,7 +157,7 @@ export const ProgressBar: React.FC<{ percent: number; tone?: 'indigo' | 'emerald
       <div
         className={cx(
           'h-full rounded-full transition-all duration-300',
-          tone === 'emerald' ? 'bg-emerald-500' : 'bg-indigo-500',
+          tone === 'emerald' ? 'bg-emerald-500' : 'bg-sky-500',
         )}
         style={{ width: `${p}%` }}
       />

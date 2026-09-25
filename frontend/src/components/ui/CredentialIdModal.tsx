@@ -1,6 +1,12 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useState } from 'react';
 
+import {
+  studioModalCardClassName,
+  studioModalOverlayClassName,
+  studioPrimaryButtonClassName,
+} from '../studioTheme';
+
 // 纯 motion 弹窗渲染函数
 export function renderCredentialIdModal({ open, credentialId, onClose }: { open: boolean; credentialId: string; onClose: () => void }) {
   const [copied, setCopied] = React.useState(false);
@@ -15,7 +21,7 @@ export function renderCredentialIdModal({ open, credentialId, onClose }: { open:
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4"
+          className={studioModalOverlayClassName}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -23,7 +29,7 @@ export function renderCredentialIdModal({ open, credentialId, onClose }: { open:
           onClick={onClose}
         >
           <motion.div
-            className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto"
+            className={`${studioModalCardClassName} max-w-md max-h-[90vh] overflow-y-auto`}
             initial={{ scale: 0.92, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.92, opacity: 0 }}
@@ -40,7 +46,7 @@ export function renderCredentialIdModal({ open, credentialId, onClose }: { open:
               <div className="break-all text-sm bg-slate-100 p-2 rounded select-all mb-4">{credentialId}</div>
               <div className="flex justify-center gap-3">
                 <motion.button
-                  className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-semibold"
+                  className={studioPrimaryButtonClassName}
                   whileTap={{ scale: 0.96 }}
                   whileHover={{ scale: 1.04 }}
                   onClick={onClose}

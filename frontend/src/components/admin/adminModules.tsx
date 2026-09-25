@@ -1,13 +1,14 @@
 import React, { Suspense } from 'react';
 
 import { SimpleLoadingSpinner } from '@/components/LoadingSpinner';
+import { studioEyebrowClassName, studioPanelClassName } from '@/components/studioTheme';
 
 const LOADING_CARD_CLASS =
-  'w-full rounded-2xl border border-slate-200 bg-white/88 px-6 py-8 text-center shadow-sm backdrop-blur-xl';
+  `${studioPanelClassName} w-full text-center`;
 const LOADING_BADGE_CLASS =
   'mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500';
 const LOADING_EYEBROW_CLASS =
-  'mt-5 text-sm font-semibold uppercase tracking-[0.26em] text-slate-400';
+  `${studioEyebrowClassName} mt-5`;
 
 export const AdminModuleLoadingShell: React.FC<{ label?: string }> = ({
   label = '正在加载管理模块内容...',

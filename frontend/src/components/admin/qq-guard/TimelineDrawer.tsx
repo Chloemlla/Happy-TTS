@@ -3,6 +3,7 @@ import { FaTimes } from 'react-icons/fa';
 import { qqGuardApi } from '../../../api/qqGuard';
 import type { QqGuardAuditRow } from '../../../api/qqGuard';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
+import { studioBadgeClassName, studioModalOverlayClassName, studioSurfaceClassName } from '../../studioTheme';
 import { cx, eventBadge, formatDateTime, shortText } from './ui';
 
 /**
@@ -42,9 +43,9 @@ export const TimelineDrawer: React.FC<{ traceId: string; onClose: () => void }> 
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-      <div className="relative flex max-h-[86vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+    <div className={studioModalOverlayClassName}>
+      <div className="absolute inset-0" onClick={onClose} aria-hidden="true" />
+      <div className={`${studioSurfaceClassName} flex max-h-[86vh] w-full max-w-3xl flex-col`}>
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-6 py-4">
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-900">操作时间线</div>
@@ -82,7 +83,7 @@ export const TimelineDrawer: React.FC<{ traceId: string; onClose: () => void }> 
                       <span className={badge.className}>{badge.label}</span>
                       <span className="text-xs text-slate-400">{formatDateTime(ev.createdAt)}</span>
                       {typeof ev.attempt === 'number' && (
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+                        <span className={studioBadgeClassName('slate')}>
                           attempt #{ev.attempt}
                         </span>
                       )}
@@ -92,7 +93,7 @@ export const TimelineDrawer: React.FC<{ traceId: string; onClose: () => void }> 
                     </div>
                     {(ev.reason || ev.error) && (
                       <div className="mt-1 text-xs text-slate-600">
-                        {ev.error ? <span className="text-orange-600">错误：{shortText(ev.error, 160)}</span> : null}
+                        {ev.error ? <span className="text-rose-600">错误：{shortText(ev.error, 160)}</span> : null}
                         {ev.error && ev.reason ? ' · ' : null}
                         {ev.reason ? <span>原因：{shortText(ev.reason, 160)}</span> : null}
                       </div>

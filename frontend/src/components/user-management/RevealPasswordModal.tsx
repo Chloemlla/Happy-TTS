@@ -1,5 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import {
+  studioFieldClassName,
+  studioModalCardClassName,
+  studioModalOverlayClassName,
+  studioMutedPrimaryButtonClassName,
+  studioPrimaryButtonClassName,
+  studioTextareaClassName,
+} from '../studioTheme';
 
 export type RevealPasswordMethod = 'password' | 'totp' | 'passkey';
 
@@ -43,13 +51,13 @@ export function RevealPasswordModal({
 
   return (
     <motion.div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4"
+      className={studioModalOverlayClassName}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
       <motion.div
-        className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto overscroll-contain"
+        className={`${studioModalCardClassName} max-w-lg max-h-[90vh] overflow-y-auto overscroll-contain`}
         initial={{ scale: 0.95, y: 20, opacity: 0 }}
         animate={{ scale: 1, y: 0, opacity: 1 }}
         exit={{ scale: 0.95, y: 20, opacity: 0 }}
@@ -75,7 +83,7 @@ export function RevealPasswordModal({
               rows={3}
               value={state.reason}
               onChange={(e) => onChange({ reason: e.target.value })}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
+              className={studioTextareaClassName}
               placeholder="请输入查看原因（4-200字符）"
             />
           </div>
@@ -93,7 +101,7 @@ export function RevealPasswordModal({
                   revealedPassword: '',
                 })
               }
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
+              className={studioFieldClassName}
             >
               <option value="password">管理员密码</option>
               <option value="totp">TOTP 验证码</option>
@@ -108,7 +116,7 @@ export function RevealPasswordModal({
                 type="password"
                 value={state.password}
                 onChange={(e) => onChange({ password: e.target.value })}
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
+                className={studioFieldClassName}
                 placeholder="请输入当前管理员密码"
               />
             </div>
@@ -119,7 +127,7 @@ export function RevealPasswordModal({
                 type="text"
                 value={state.verificationCode}
                 onChange={(e) => onChange({ verificationCode: e.target.value })}
-                className="w-full px-3 py-2 border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
+                className={studioFieldClassName}
                 placeholder="请输入 6 位验证码"
               />
             </div>
@@ -130,17 +138,17 @@ export function RevealPasswordModal({
           )}
 
           {state.revealedPassword ? (
-            <div className="p-3 rounded-2xl border border-indigo-200 bg-indigo-50">
-              <div className="text-sm font-semibold text-indigo-700 mb-1">明文密码</div>
+            <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50">
+              <div className="text-sm font-semibold text-slate-700 mb-1">明文密码</div>
               <div className="font-mono text-sm break-all text-slate-800">{state.revealedPassword}</div>
-              <div className="mt-2 text-xs text-indigo-600">30 秒后自动隐藏</div>
+              <div className="mt-2 text-xs text-slate-600">30 秒后自动隐藏</div>
             </div>
           ) : null}
 
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <motion.button
               type="button"
-              className="w-full sm:w-auto px-4 py-2 bg-indigo-500 text-white rounded-2xl hover:bg-indigo-600 transition font-medium disabled:opacity-60"
+              className={`${studioPrimaryButtonClassName} w-full sm:w-auto`}
               onClick={onVerify}
               disabled={state.loading}
               whileHover={hoverScale?.(1.02)}
@@ -150,7 +158,7 @@ export function RevealPasswordModal({
             </motion.button>
             <motion.button
               type="button"
-              className="w-full sm:w-auto px-4 py-2 bg-slate-500 text-white rounded-2xl hover:bg-slate-600 transition font-medium"
+              className={`${studioMutedPrimaryButtonClassName} w-full sm:w-auto`}
               onClick={onClose}
               whileHover={hoverScale?.(1.02)}
               whileTap={tapScale?.(0.95)}

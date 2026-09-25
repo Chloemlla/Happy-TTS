@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FaCheck, FaChevronDown, FaChevronUp, FaCopy, FaDownload } from 'react-icons/fa';
 import { useNotification } from '@/components/Notification';
+import { studioPillClassName, studioSecondaryButtonClassName } from '@/components/studioTheme';
 import { isAppFrame } from './format';
 
 /** navigator.clipboard is unavailable on plain-HTTP admin hosts, hence the fallback. */
@@ -53,8 +54,7 @@ export const useCopyAction = () => {
   return { copied, run };
 };
 
-const chipButtonClass =
-  'inline-flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50';
+const chipButtonClass = studioSecondaryButtonClassName;
 
 export const CopyButton: React.FC<{
   getValue: () => string;
@@ -113,11 +113,7 @@ export const FilterChip: React.FC<{
   <button
     type="button"
     onClick={onClick}
-    className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
-      active
-        ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
-        : 'border-slate-200 bg-white/80 text-slate-600 hover:border-slate-300'
-    }`}
+    className={studioPillClassName(active)}
   >
     {label}
   </button>

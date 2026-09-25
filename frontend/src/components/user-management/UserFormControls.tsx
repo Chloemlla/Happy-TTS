@@ -15,6 +15,13 @@ import {
   FaChevronDown,
   FaChevronUp,
 } from 'react-icons/fa';
+import {
+  studioEyebrowClassName,
+  studioFieldClassName,
+  studioMutedPrimaryButtonClassName,
+  studioSurfaceClassName,
+  studioTextareaClassName,
+} from '../studioTheme';
 
 interface FingerprintRecord {
   id: string;
@@ -350,7 +357,7 @@ export const UserFormSection: React.FC<UserFormSectionProps> = ({
   );
 
   return (
-    <div className="border border-slate-200 rounded-2xl overflow-hidden">
+    <div className={studioSurfaceClassName}>
       {onToggle ? (
         <button
           type="button"
@@ -407,7 +414,7 @@ export const UserTextField: React.FC<UserTextFieldProps> = ({
       value={String(value ?? '')}
       onChange={onChange}
       placeholder={placeholder}
-      className="w-full px-3 py-2 border-2 border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
+      className={studioFieldClassName}
     />
   </div>
 );
@@ -425,7 +432,7 @@ export const UserSelectField: React.FC<UserSelectFieldProps> = ({
       name={String(name)}
       value={value}
       onChange={onChange}
-      className="w-full px-3 py-2 border-2 border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all appearance-none bg-white text-sm"
+      className={`${studioFieldClassName} appearance-none`}
     >
       {options.map(option => (
         <option key={option.value} value={option.value}>{option.label}</option>
@@ -466,7 +473,7 @@ const IdentitySection: React.FC<{
 }> = ({ mode, form, onFieldChange }) => (
   <UserFormSection
     title="基本信息"
-    icon={<FaUser className="text-blue-500" />}
+    icon={<FaUser className="text-slate-500" />}
   >
     <UserTextField
       label="用户名"
@@ -537,7 +544,7 @@ const TokenSection: React.FC<{
 }> = ({ form, onFieldChange, collapsed, onToggle }) => (
   <UserFormSection
     title="Token 信息"
-    icon={<FaKey className="text-yellow-500" />}
+    icon={<FaKey className="text-amber-500" />}
     collapsed={collapsed}
     onToggle={onToggle}
   >
@@ -567,13 +574,13 @@ const SecuritySection: React.FC<{
 }> = ({ form, onFieldChange, collapsed, onToggle }) => (
   <UserFormSection
     title="安全配置"
-    icon={<FaShieldAlt className="text-green-500" />}
+    icon={<FaShieldAlt className="text-emerald-500" />}
     collapsed={collapsed}
     onToggle={onToggle}
     contentClassName="px-4 pb-4 pt-2 bg-white/80 backdrop-blur-xl border-t border-slate-100 space-y-5"
   >
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div className="md:col-span-2 text-xs font-semibold uppercase tracking-wide text-slate-400">TOTP 两步验证</div>
+      <div className={`${studioEyebrowClassName} md:col-span-2`}>TOTP 两步验证</div>
       <UserCheckboxField
         label="启用 TOTP"
         name="totpEnabled"
@@ -590,7 +597,7 @@ const SecuritySection: React.FC<{
     </div>
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 pt-5">
-      <div className="md:col-span-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Passkey 配置</div>
+      <div className={`${studioEyebrowClassName} md:col-span-2`}>Passkey 配置</div>
       <UserCheckboxField
         label="启用 Passkey"
         name="passkeyEnabled"
@@ -629,7 +636,7 @@ const FingerprintSection: React.FC<{
 }> = ({ form, onFieldChange, collapsed, onToggle }) => (
   <UserFormSection
     title="指纹配置"
-    icon={<FaCog className="text-red-500" />}
+    icon={<FaCog className="text-rose-500" />}
     collapsed={collapsed}
     onToggle={onToggle}
   >
@@ -670,7 +677,7 @@ const TicketRestrictionSection: React.FC<{
 }> = ({ form, onFieldChange }) => (
   <UserFormSection
     title="工单限制管理"
-    icon={<FaShieldAlt className="text-orange-500" />}
+    icon={<FaShieldAlt className="text-amber-500" />}
   >
     <UserTextField
       label="工单违规次数"
@@ -696,7 +703,7 @@ const TranslationAccessSection: React.FC<{
 }> = ({ form, onFieldChange }) => (
   <UserFormSection
     title="翻译权限管理"
-    icon={<FaShieldAlt className="text-cyan-500" />}
+    icon={<FaShieldAlt className="text-sky-500" />}
   >
     <UserCheckboxField
       label="启用翻译页面"
@@ -729,7 +736,7 @@ const BackupCodesSection: React.FC<{
 }> = ({ backupCodes, collapsed, onToggle, onChange }) => (
   <UserFormSection
     title="备份码（backupCodes）"
-    icon={<FaKey className="text-orange-500" />}
+    icon={<FaKey className="text-amber-500" />}
     collapsed={collapsed}
     onToggle={onToggle}
     contentClassName="px-4 pb-4 pt-2 bg-white/80 backdrop-blur-xl border-t border-slate-100"
@@ -739,7 +746,7 @@ const BackupCodesSection: React.FC<{
     </label>
     <textarea
       rows={4}
-      className="w-full px-3 py-2 border-2 border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm font-mono"
+      className={`${studioTextareaClassName} font-mono`}
       value={backupCodes.join('\n')}
       onChange={event => onChange(event.target.value)}
       placeholder="每行一个备份码"
@@ -789,7 +796,7 @@ export const UserFormScaffold: React.FC<{
       </motion.button>
       <motion.button
         type="button"
-        className="px-6 py-2 bg-slate-500 text-white rounded-2xl hover:bg-slate-600 transition font-medium flex items-center gap-2"
+        className={studioMutedPrimaryButtonClassName}
         onClick={onCancel}
         whileHover={hoverScale(1.02)}
         whileTap={tapScale(0.95)}
@@ -815,7 +822,7 @@ export const CreateUserForm: React.FC<SharedUserFormProps> = ({
 }) => (
   <UserFormScaffold
     title="新增用户"
-    icon={<FaUserPlus className="text-blue-500" />}
+    icon={<FaUserPlus className="text-slate-500" />}
     submitLabel="添加用户"
     loading={loading}
     onSubmit={onSubmit}
@@ -868,7 +875,7 @@ export const EditUserForm: React.FC<SharedUserFormProps & { username: string }> 
 }) => (
   <UserFormScaffold
     title={`编辑用户：${username}`}
-    icon={<FaEdit className="text-yellow-500" />}
+    icon={<FaEdit className="text-amber-500" />}
     submitLabel="保存修改"
     loading={loading}
     onSubmit={onSubmit}
