@@ -6,12 +6,18 @@ import { FaVolumeUp, FaCheckCircle, FaTimesCircle, FaUser, FaInfoCircle } from '
 import getApiBaseUrl from '../api';
 import { getFingerprint } from '../utils/fingerprint';
 import {
-    studioMainSurfaceClassName,
-    studioPageClassName,
-    studioPrimaryButtonClassName,
-    studioSecondaryButtonClassName,
-    studioSubPanelClassName,
-} from './studioTheme';
+    authBackLinkClassName,
+    authBrandBlockClassName,
+    authBrandSubtitleClassName,
+    authBrandTitleClassName,
+    authCardClassName,
+    authFrameClassName,
+    authInfoPanelClassName,
+    authPageShellClassName,
+    authPrimaryButtonClassName,
+    authSecondaryButtonClassName,
+} from './authStudioTheme';
+import { cn } from '../utils/cn';
 
 export const EmailVerifyPage: React.FC = () => {
     const { user } = useAuth();
@@ -77,21 +83,21 @@ export const EmailVerifyPage: React.FC = () => {
     }, [searchParams, navigate, setNotification]);
 
     return (
-        <div className={`${studioPageClassName} flex min-h-screen items-center justify-center`}>
-            <div className="w-full max-w-md min-w-0">
+        <div className={authPageShellClassName}>
+            <div className={cn(authFrameClassName, 'min-w-0')}>
                 {/* Header */}
-                <div className="mb-8 text-center animate-slideInUp">
+                <div className={cn(authBrandBlockClassName, 'animate-slideInUp')}>
                     <div className="mb-4 inline-flex items-center gap-3">
                         <FaVolumeUp className="h-8 w-8 sm:h-10 sm:w-10 text-slate-900" />
-                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Synapse</h1>
+                        <h1 className={authBrandTitleClassName}>Synapse</h1>
                     </div>
-                    <p className="text-slate-600">邮箱验证</p>
+                    <p className={authBrandSubtitleClassName}>邮箱验证</p>
                 </div>
 
                 {/* Card */}
-                <div className={`${studioMainSurfaceClassName} hover:shadow-2xl transition-all duration-300`}>
+                <div className={cn(authCardClassName, 'hover:shadow-2xl transition-all duration-300')}>
                     {user && (
-                        <div className={`${studioSubPanelClassName} mb-6 flex items-start gap-3 text-left animate-fadeIn`}>
+                        <div className={cn(authInfoPanelClassName, 'mb-6 flex items-start gap-3 animate-fadeIn')}>
                             <FaInfoCircle className="mt-1 flex-shrink-0 text-slate-500" />
                             <div>
                                 <p className="text-xs font-bold text-slate-900">您当前登录为 {user.username}</p>
@@ -127,7 +133,7 @@ export const EmailVerifyPage: React.FC = () => {
 
                             <Link
                                 to="/login"
-                                className={`${studioPrimaryButtonClassName} w-full hover:scale-105`}
+                                className={cn(authPrimaryButtonClassName, 'hover:scale-105')}
                             >
                                 立即登录
                             </Link>
@@ -160,13 +166,13 @@ export const EmailVerifyPage: React.FC = () => {
                             <div className="space-y-3">
                                 <Link
                                     to="/register"
-                                    className={`${studioPrimaryButtonClassName} w-full hover:scale-105`}
+                                    className={cn(authPrimaryButtonClassName, 'hover:scale-105')}
                                 >
                                     重新注册
                                 </Link>
                                 <Link
                                     to="/login"
-                                    className={`${studioSecondaryButtonClassName} w-full`}
+                                    className={authSecondaryButtonClassName}
                                 >
                                     返回登录
                                 </Link>
@@ -177,7 +183,7 @@ export const EmailVerifyPage: React.FC = () => {
 
                 {/* Back to Home */}
                 <div className="mt-6 text-center">
-                    <Link to="/" className="text-sm text-slate-600 hover:text-slate-900 transition-colors">
+                    <Link to="/" className={authBackLinkClassName}>
                         返回首页
                     </Link>
                 </div>
