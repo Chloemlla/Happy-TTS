@@ -44,7 +44,8 @@ const ProxycheckLookupLogDecisionSchema = new mongoose.Schema<ProxycheckLookupLo
     caller: { type: String, required: true },
     action: { type: String, required: true },
     shouldChallenge: { type: Boolean, required: true, default: false },
-    reason: { type: String, required: true, default: "" },
+    // 见下面 `error` 的说明：Mongoose 的 String required 会把 "" 判为缺失。
+    reason: { type: String, default: "" },
     risk: { type: Number, required: true, default: 0 },
     level: { type: String, required: true },
     flags: { type: [String], default: [] },
@@ -66,7 +67,11 @@ const ProxycheckLookupLogSchema = new mongoose.Schema<ProxycheckLookupLogDoc>(
     risk: { type: Number, default: null },
     deduped: { type: Boolean, required: true, default: false },
     durationMs: { type: Number, required: true, default: 0 },
-    error: { type: String, required: true, default: "" },
+    // 绝不加 required：Mongoose 对 String 的 required 判据是「非空字符串」
+    // （SchemaString._checkRequired = v => ... && v.length），而「成功」「命中缓存」
+    // 这两条主路径的 error 本来就是 ""。加上 required 会让 logLookup 的 create() 抛
+    // ValidationError，被 catch 吞成一行 warn —— 表现为「每次外呼都没落库」。
+    error: { type: String, default: "" },
     createdAt: { type: Date, default: Date.now },
     // 单嵌套子文档而非 Mixed：管理端面板要按字段展示 decision，类型必须显式。
     // default: undefined = 该行没有决策时字段根本不落库（旧行也不受影响）。
