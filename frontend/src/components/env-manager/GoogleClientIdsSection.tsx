@@ -1,9 +1,14 @@
 import { m } from 'framer-motion';
 import { FaSync } from 'react-icons/fa';
 import CollapsibleSection from './CollapsibleSection';
+import {
+  studioDangerButtonClassName,
+  studioFieldClassName,
+  studioPrimaryButtonClassName,
+  studioSubPanelClassName,
+} from '../studioTheme';
 
-const REFRESH_BUTTON_CLASS =
-  'inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60';
+const REFRESH_BUTTON_CLASS = studioPrimaryButtonClassName;
 
 interface GoogleClientIdsSectionProps {
   isOpen: boolean;
@@ -67,7 +72,7 @@ export default function GoogleClientIdsSection({
         </m.button>
       }
     >
-      <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 px-4 py-3 text-xs leading-5 text-indigo-900">
+      <div className={`${studioSubPanelClassName} text-xs leading-5 text-slate-700`}>
         <p>
           <code className="rounded bg-white/80 px-1">GOOGLE_CLIENT_ID</code>
           ：主站 Google Identity Services（GSI）Web Client ID。
@@ -80,7 +85,7 @@ export default function GoogleClientIdsSection({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">GOOGLE_CLIENT_ID</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">GOOGLE_CLIENT_ID</label>
           <input
             value={googleClientIdInput}
             onChange={(event) => onGoogleClientIdInputChange(event.target.value)}
@@ -88,15 +93,15 @@ export default function GoogleClientIdsSection({
             placeholder="xxxx.apps.googleusercontent.com"
             autoComplete="off"
             spellCheck={false}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 sm:text-base"
+            className={`${studioFieldClassName} sm:text-base`}
           />
-          <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
             当前生效：
             {loading ? '加载中...' : googleClientIdCurrent || '未设置'}
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">NEXAI_GOOGLE_CLIENT_ID</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">NEXAI_GOOGLE_CLIENT_ID</label>
           <input
             value={nexaiGoogleClientIdInput}
             onChange={(event) => onNexaiGoogleClientIdInputChange(event.target.value)}
@@ -104,9 +109,9 @@ export default function GoogleClientIdsSection({
             placeholder="xxxx.apps.googleusercontent.com"
             autoComplete="off"
             spellCheck={false}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 sm:text-base"
+            className={`${studioFieldClassName} sm:text-base`}
           />
-          <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
             当前生效：
             {loading
               ? '加载中...'
@@ -119,7 +124,7 @@ export default function GoogleClientIdsSection({
         <m.button
           onClick={onReset}
           disabled={isDisabled}
-          className="rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed sm:px-4"
+          className={studioDangerButtonClassName}
           whileTap={{ scale: 0.96 }}
         >
           {deleting ? '重置中...' : '重置'}
@@ -127,14 +132,14 @@ export default function GoogleClientIdsSection({
         <m.button
           onClick={onSave}
           disabled={isDisabled}
-          className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed sm:px-4"
+          className={studioPrimaryButtonClassName}
           whileTap={{ scale: 0.96 }}
         >
           {saving ? '保存中...' : '保存/更新'}
         </m.button>
       </div>
 
-      <div className="mt-1 text-xs text-gray-500">
+      <div className="mt-1 text-xs text-slate-500">
         最后更新时间：
         {updatedAt ? new Date(updatedAt).toLocaleString() : '-'}
       </div>

@@ -10,11 +10,11 @@ import InfoBox from './InfoBox';
 import { API_URL, getAuthHeaders, authFetch } from './api';
 import { decryptAES256 } from './utils';
 import { getBackendErrorMessage } from '../../utils/backendError';
+import { studioPrimaryButtonClassName, studioTileClassName } from '../studioTheme';
 
 const SECTION_KEY = 'mediaTool';
 
-const REFRESH_BUTTON_CLASS =
-  'inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400';
+const REFRESH_BUTTON_CLASS = studioPrimaryButtonClassName;
 
 interface MediaToolEnvField {
   key: string;
@@ -273,7 +273,7 @@ export default function MediaToolConfigSection({
         <div key={group.title} className="space-y-3">
           <h4 className="text-sm font-semibold text-slate-700">{group.title}</h4>
           {group.fields.map((field) => (
-            <div key={field.key} className="rounded-2xl border border-slate-200 bg-white/80 p-3 sm:p-4">
+            <div key={field.key} className={`${studioTileClassName} p-3 sm:p-4`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-sm font-semibold text-slate-700">{field.label}</span>
                 <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-600">{field.key}</code>

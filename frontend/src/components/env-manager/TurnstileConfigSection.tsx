@@ -1,11 +1,11 @@
 import { m } from 'framer-motion';
 import { FaSync } from 'react-icons/fa';
 import CollapsibleSection from './CollapsibleSection';
+import { studioPrimaryButtonClassName, studioSubPanelClassName } from '../studioTheme';
 import type { TurnstileConfigSetting } from './types';
 import ConfigFieldRow from './ConfigFieldRow';
 
-const REFRESH_BUTTON_CLASS =
-  'inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400';
+const REFRESH_BUTTON_CLASS = studioPrimaryButtonClassName;
 
 export interface TurnstileConfigSectionProps {
   isOpen: boolean;
@@ -87,7 +87,7 @@ export default function TurnstileConfigSection({
                 </div>
 
                 {/* 状态信息 */}
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 sm:p-4">
+                <div className={studioSubPanelClassName}>
                   <div className="flex items-center gap-2 text-sm text-slate-700">
                     <div className={`w-2 h-2 rounded-full ${config?.enabled ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
                     <span className="font-medium">

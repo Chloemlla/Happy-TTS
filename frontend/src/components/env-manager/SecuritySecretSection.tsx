@@ -10,9 +10,9 @@ import { API_URL, getAuthHeaders, authFetch } from './api';
 import { decryptAES256 } from './utils';
 import ConfigFieldRow from './ConfigFieldRow';
 import InfoBox from './InfoBox';
+import { studioPrimaryButtonClassName, studioTileClassName } from '../studioTheme';
 
-const REFRESH_BUTTON_CLASS =
-  'inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400';
+const REFRESH_BUTTON_CLASS = studioPrimaryButtonClassName;
 
 const SECTION_KEY = 'securitySecrets';
 
@@ -308,7 +308,7 @@ export default function SecuritySecretSection({
 
       <div className="space-y-4">
         {SECRET_FIELDS.map((field) => (
-          <div key={field.key} className="rounded-2xl border border-slate-200 bg-white/80 p-3 sm:p-4">
+          <div key={field.key} className={`${studioTileClassName} p-3 sm:p-4`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h4 className="text-sm font-semibold text-slate-700">{field.label}</h4>
               <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-600">

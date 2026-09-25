@@ -1,6 +1,11 @@
 import { m } from 'framer-motion';
 import { FaSync } from 'react-icons/fa';
 import CollapsibleSection from './CollapsibleSection';
+import {
+  studioDangerButtonClassName,
+  studioFieldClassName,
+  studioPrimaryButtonClassName,
+} from '../studioTheme';
 
 interface NexaiSigningConfigSectionProps {
   isOpen: boolean;
@@ -26,8 +31,7 @@ interface NexaiSigningConfigSectionProps {
   onReset: () => void;
 }
 
-const REFRESH_BUTTON_CLASS =
-  'inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60';
+const REFRESH_BUTTON_CLASS = studioPrimaryButtonClassName;
 
 export default function NexaiSigningConfigSection({
   isOpen,
@@ -76,7 +80,7 @@ export default function NexaiSigningConfigSection({
         </m.button>
       }
     >
-      <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-xs leading-5 text-emerald-900">
+      <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-xs leading-5 text-emerald-900">
         <p>
           <code className="mx-1 rounded bg-white/80 px-1">NEXAI_REQUEST_SIGNING</code>
           支持 off / soft / enforce（未设置时默认 soft）。
@@ -87,12 +91,12 @@ export default function NexaiSigningConfigSection({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">NEXAI_REQUEST_SIGNING</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">NEXAI_REQUEST_SIGNING</label>
           <select
             value={modeInput}
             onChange={(event) => onModeInputChange(event.target.value as 'off' | 'soft' | 'enforce')}
             disabled={disabled}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 sm:text-base"
+            className={`${studioFieldClassName} sm:text-base`}
           >
             <option value="off">off（关闭签名校验）</option>
             <option value="soft">soft（校验但不阻断，默认）</option>
@@ -100,7 +104,7 @@ export default function NexaiSigningConfigSection({
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">NEXAI_SIG_MAX_DRIFT_MS</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">NEXAI_SIG_MAX_DRIFT_MS</label>
           <input
             type="number"
             min={1000}
@@ -111,9 +115,9 @@ export default function NexaiSigningConfigSection({
             placeholder="300000"
             autoComplete="off"
             spellCheck={false}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 sm:text-base"
+            className={`${studioFieldClassName} sm:text-base`}
           />
-          <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
             允许的时间戳最大漂移（毫秒），默认 300000（5 分钟）
           </div>
         </div>
@@ -121,7 +125,7 @@ export default function NexaiSigningConfigSection({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">NEXAI_APP_SIGN_SECRET</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">NEXAI_APP_SIGN_SECRET</label>
           <input
             value={appSignSecretInput}
             onChange={(event) => onAppSignSecretInputChange(event.target.value)}
@@ -129,14 +133,14 @@ export default function NexaiSigningConfigSection({
             placeholder="请输入应用签名密钥（仅用于 HMAC 校验，不会回显明文，留空表示保持现有）"
             autoComplete="off"
             spellCheck={false}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 sm:text-base"
+            className={`${studioFieldClassName} sm:text-base`}
           />
-          <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
             当前配置（脱敏）：{loading ? '加载中...' : currentAppSignSecret || '未设置'}
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">NEXAI_APP_SIGN_SECRET_PREV（可选，用于轮换）</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">NEXAI_APP_SIGN_SECRET_PREV（可选，用于轮换）</label>
           <input
             value={appSignSecretPrevInput}
             onChange={(event) => onAppSignSecretPrevInputChange(event.target.value)}
@@ -144,9 +148,9 @@ export default function NexaiSigningConfigSection({
             placeholder="轮换期间的旧密钥，留空表示保持现有"
             autoComplete="off"
             spellCheck={false}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 sm:text-base"
+            className={`${studioFieldClassName} sm:text-base`}
           />
-          <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
             当前配置（脱敏）：{loading ? '加载中...' : currentAppSignSecretPrev || '未设置'}
           </div>
         </div>
@@ -156,7 +160,7 @@ export default function NexaiSigningConfigSection({
         <m.button
           onClick={onReset}
           disabled={isDisabled}
-          className="rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed sm:px-4"
+          className={studioDangerButtonClassName}
           whileTap={{ scale: 0.96 }}
         >
           {deleting ? '重置中...' : '重置'}
@@ -164,14 +168,14 @@ export default function NexaiSigningConfigSection({
         <m.button
           onClick={onSave}
           disabled={isDisabled}
-          className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed sm:px-4"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
           whileTap={{ scale: 0.96 }}
         >
           {saving ? '保存中...' : '保存/更新'}
         </m.button>
       </div>
 
-      <div className="mt-1 text-xs text-gray-500">
+      <div className="mt-1 text-xs text-slate-500">
         最后更新时间：{updatedAt ? new Date(updatedAt).toLocaleString() : '-'}
       </div>
     </CollapsibleSection>
