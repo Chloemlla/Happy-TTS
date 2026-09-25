@@ -2,6 +2,7 @@ import "../lang/index.js"; // 自动生成的语言配置，需置于入口第�
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { VercelAnalytics } from "./components/VercelAnalytics";
 import "./index.css";
 // 副作用导入：构造 integrityChecker 单例（DOM/网络完整性监控），
 // 其 fetch 补丁已收敛为仅在严格模式下 clone（G9-07）。
@@ -656,8 +657,11 @@ export function runDangerousExtensionCheck(): ClientIntegrityCheckResult {
 
 // G9-28：移除对不存在的 criticalElements 的 setIntegrity 调用（死校验）。
 
+// 挂在 <App/> 之外：App 内部有多个提前 return 的分支（加载态 / 分享页 / 404），
+// 放这里才能保证每个页面都计数；inject() 自带重复脚本检测，StrictMode 双跑也不会注入两份。
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
+    <VercelAnalytics />
     <App />
   </React.StrictMode>
 );
