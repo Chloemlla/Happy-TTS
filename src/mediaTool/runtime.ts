@@ -71,6 +71,12 @@ export interface SpawnResult {
 }
 
 export function runTool(bin: string, args: string[], opts: { cwd?: string; maxBuffer?: number } = {}): SpawnResult {
+  // spawnSync("") 抛 ERR_INVALID_ARG_VALUE(The argument 'file' cannot be empty),
+  // 会把"未配置可执行路径"(如空的 MEDIA_TOOL_YTDLP)变成健康检查整个 500;
+  // 在此归一成"退出码 -1 + 说明",与 ensureDir 的空值兜底同口径。
+  if (!bin || !bin.trim()) {
+    return { status: -1, stdout: "", stderr: "可执行文件路径为空,无法启动外部程序(请在设置页填写路径)" };
+  }
   const r = spawnSync(bin, args, {
     cwd: opts.cwd,
     maxBuffer: opts.maxBuffer ?? 32 * 1024 * 1024,
