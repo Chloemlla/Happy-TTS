@@ -16,6 +16,7 @@ import {
   type NexaiSigningRuntimeConfig,
   type CdictSigningRuntimeConfig,
   type ProxycheckRuntimeConfig,
+  type FirstVisitVerificationRuntimeConfig,
   type TtsRuntimeConfig,
 } from "./runtimeConfigDefaults";
 import type { TtsProviderRuntimeConfig } from "./ttsProviderConfig";
@@ -412,6 +413,13 @@ runtimeDefaults.registrationInvite = {
   required: (process.env.REGISTRATION_INVITE_REQUIRED || "").trim().toLowerCase() === "true",
 };
 
+// 首访验证闸门的默认值来自 env；已存 FIRST_VISIT_VERIFICATION 文档覆盖之。
+// 该开关仅支持在 env-manager 的「首访验证闸门」分区配置，env 只是启动默认值（同注册邀请码）。
+runtimeDefaults.firstVisitVerification = {
+  ...runtimeDefaults.firstVisitVerification,
+  enabled: parsedEnv.ENABLE_FIRST_VISIT_VERIFICATION ?? runtimeDefaults.firstVisitVerification.enabled,
+};
+
 // Project Lumen server-side config defaults come from env; a stored LUMEN doc
 // overrides them at runtime (see src/config/lumen.ts).
 runtimeDefaults.lumen = buildLumenConfigFromEnv();
@@ -505,6 +513,9 @@ export const runtimeMutableConfig = {
   get proxycheck(): ProxycheckRuntimeConfig {
     return RuntimeConfigService.getCachedConfig().proxycheck;
   },
+  get firstVisitVerification(): FirstVisitVerificationRuntimeConfig {
+    return RuntimeConfigService.getCachedConfig().firstVisitVerification;
+  },
   get linuxdo(): LinuxDoRuntimeConfig {
     return RuntimeConfigService.getCachedConfig().linuxdo;
   },
@@ -560,7 +571,11 @@ export const config = {
   turnstile: startupConfig.turnstile,
   redis: startupConfig.redis,
   ipBanStorage: startupConfig.ipBanStorage,
-  enableFirstVisitVerification: startupConfig.security.enableFirstVisitVerification,
+  // 运行期可改：读 FIRST_VISIT_VERIFICATION 缓存，env-manager 保存后无需重启即生效（多实例 ≤ 10s 收敛）。
+  // startupConfig.security.enableFirstVisitVerification 仍是启动时 env 声明值，只供诊断/日志用。
+  get enableFirstVisitVerification() {
+    return runtimeMutableConfig.firstVisitVerification.enabled;
+  },
   frontendBaseUrl: startupConfig.frontendBaseUrl,
   auditLogMasking: startupConfig.security.auditLogMasking,
   get adminOperationPassword() {

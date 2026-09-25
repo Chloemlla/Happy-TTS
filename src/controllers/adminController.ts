@@ -1931,6 +1931,47 @@ export const adminController = {
     }
   },
 
+  // 首访验证闸门（FIRST_VISIT_VERIFICATION）。仅 env-manager 的「首访验证闸门」分区可改，
+  // 保存后 config.enableFirstVisitVerification 立即按新值判定，无需重启。
+  async getFirstVisitVerificationSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      const result = await RuntimeConfigService.getFirstVisitVerificationSetting();
+      return res.json({ success: true, ...result });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "获取首访验证配置失败",
+      });
+    }
+  },
+
+  async setFirstVisitVerificationSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      const result = await RuntimeConfigService.setFirstVisitVerificationSetting(req.body || {});
+      return res.json({ success: true, setting: result });
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: error instanceof Error ? error.message : "保存首访验证配置失败",
+      });
+    }
+  },
+
+  async deleteFirstVisitVerificationSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      await RuntimeConfigService.deleteFirstVisitVerificationSetting();
+      return res.json({ success: true });
+    } catch (_error) {
+      return res.status(500).json({ success: false, error: "重置首访验证配置失败" });
+    }
+  },
+
   async getCdictSigningSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });

@@ -5,6 +5,7 @@ import {
   type CdictSigningRuntimeConfig,
   type DeepLXRuntimeConfig,
   type EmailRuntimeConfig,
+  type FirstVisitVerificationRuntimeConfig,
   type GoogleAuthRuntimeConfig,
   type IpqsRuntimeConfig,
   type LinuxDoRuntimeConfig,
@@ -449,6 +450,7 @@ const RUNTIME_CONFIG_KEY_TO_PROP: Partial<Record<RuntimeConfigKey, keyof Runtime
   QQ_GUARD_SIGNING: "qqGuardSigning",
   PROXYCHECK: "proxycheck",
   REGISTRATION_INVITE: "registrationInvite",
+  FIRST_VISIT_VERIFICATION: "firstVisitVerification",
   LUMEN: "lumen",
   NEXAI: "nexai",
 };
@@ -704,6 +706,17 @@ function normalizeStoredRegistrationInviteConfig(
   };
 }
 
+function normalizeStoredFirstVisitVerificationConfig(
+  value: unknown,
+  defaults = runtimeConfigDefaults.firstVisitVerification,
+): FirstVisitVerificationRuntimeConfig {
+  const raw = asObject(value);
+
+  return {
+    enabled: normalizeBoolean(raw.enabled, defaults.enabled),
+  };
+}
+
 // G5-37: 纯函数——只写传入的 target 缓存，不在遍历中改在用的 runtimeConfigCache。
 function applyCacheForKey(target: RuntimeConfigDefaults, key: RuntimeConfigKey, value: unknown): void {
   switch (key) {
@@ -749,6 +762,9 @@ function applyCacheForKey(target: RuntimeConfigDefaults, key: RuntimeConfigKey, 
     case "REGISTRATION_INVITE":
       target.registrationInvite = normalizeStoredRegistrationInviteConfig(value);
       return;
+    case "FIRST_VISIT_VERIFICATION":
+      target.firstVisitVerification = normalizeStoredFirstVisitVerificationConfig(value);
+      return;
     case "LUMEN": {
       const config = normalizeStoredLumenConfig(value, target.lumen);
       target.lumen = config;
@@ -782,6 +798,7 @@ const RUNTIME_CONFIG_KEYS: readonly RuntimeConfigKey[] = [
   "LUMEN",
   "PROXYCHECK",
   "REGISTRATION_INVITE",
+  "FIRST_VISIT_VERIFICATION",
 ];
 
 // G5-03: 周期刷新定时器——多实例部署下每个实例每 ~10s 重载一次 DB 配置，
@@ -853,6 +870,9 @@ export class RuntimeConfigService {
     }
     if (!loadedKeys.has("REGISTRATION_INVITE")) {
       runtimeConfigCache.registrationInvite = cloneRuntimeConfigDefaults(defaults).registrationInvite;
+    }
+    if (!loadedKeys.has("FIRST_VISIT_VERIFICATION")) {
+      runtimeConfigCache.firstVisitVerification = cloneRuntimeConfigDefaults(defaults).firstVisitVerification;
     }
     if (!loadedKeys.has("LUMEN")) {
       runtimeConfigCache.lumen = cloneRuntimeConfigDefaults(defaults).lumen;
@@ -1555,6 +1575,68 @@ export class RuntimeConfigService {
     runtimeConfigCache.registrationInvite = cloneRuntimeConfigDefaults(runtimeConfigDefaults).registrationInvite;
     loadedKeys.delete("REGISTRATION_INVITE");
     invalidateHotCache("REGISTRATION_INVITE");
+  }
+
+  // 首访验证闸门（FIRST_VISIT_VERIFICATION）。只能在 env-manager 的「首访验证闸门」分区改；
+  // 保存后 config.enableFirstVisitVerification 立即读到新缓存值，无需重启即生效。
+  // 它是所有「未验证是否要卡」判据的同一个开关（/api/ip-verification 中间件、Turnstile/hCaptcha
+  // 校验、访问令牌签发、以及 proxycheck 的 first_visit_gate），所以这里不提供任何「只关某一环」的细粒度字段。
+  static async getFirstVisitVerificationSetting(): Promise<{
+    setting: {
+      config: FirstVisitVerificationRuntimeConfig;
+      updatedAt?: string;
+    };
+  }> {
+    const doc = await readRuntimeConfigDoc("FIRST_VISIT_VERIFICATION");
+    const config = doc
+      ? normalizeStoredFirstVisitVerificationConfig(doc.value)
+      : runtimeConfigDefaults.firstVisitVerification;
+    runtimeConfigCache.firstVisitVerification = config;
+
+    return {
+      setting: {
+        config: {
+          enabled: config.enabled,
+        },
+        updatedAt: doc?.updatedAt?.toISOString(),
+      },
+    };
+  }
+
+  static async setFirstVisitVerificationSetting(
+    input: Partial<FirstVisitVerificationRuntimeConfig> | Record<string, unknown>,
+  ): Promise<{ updatedAt: string }> {
+    const currentDoc = await readRuntimeConfigDoc("FIRST_VISIT_VERIFICATION");
+    const current = currentDoc
+      ? normalizeStoredFirstVisitVerificationConfig(currentDoc.value)
+      : runtimeConfigCache.firstVisitVerification;
+    const raw = asObject(input);
+
+    const nextConfig: FirstVisitVerificationRuntimeConfig = {
+      enabled: hasOwnKey(raw, "enabled") ? normalizeBoolean(raw.enabled, current.enabled) : current.enabled,
+    };
+
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "FIRST_VISIT_VERIFICATION",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
+
+    runtimeConfigCache.firstVisitVerification = nextConfig;
+    loadedKeys.add("FIRST_VISIT_VERIFICATION");
+    invalidateHotCache("FIRST_VISIT_VERIFICATION");
+    initialized = true;
+
+    return { updatedAt: persistedAt.toISOString() };
+  }
+
+  static async deleteFirstVisitVerificationSetting(): Promise<void> {
+    await RuntimeConfigModel.deleteOne({ key: "FIRST_VISIT_VERIFICATION" }).exec();
+    runtimeConfigCache.firstVisitVerification = cloneRuntimeConfigDefaults(
+      runtimeConfigDefaults,
+    ).firstVisitVerification;
+    loadedKeys.delete("FIRST_VISIT_VERIFICATION");
+    invalidateHotCache("FIRST_VISIT_VERIFICATION");
   }
 
   static async getCdictSigningSetting(): Promise<{

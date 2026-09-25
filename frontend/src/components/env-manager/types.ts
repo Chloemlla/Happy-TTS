@@ -148,6 +148,11 @@ export interface RegistrationInviteConfigSetting {
   required: boolean;
 }
 
+/** GET /api/admin/first-visit-verification/setting 返回体里的 config 对象（updatedAt 在其同级 setting 下）。 */
+export interface FirstVisitVerificationConfigSetting {
+  enabled: boolean;
+}
+
 export interface TtsProviderAdminConfig {
   provider: TtsProviderId;
   defaultModel: string;

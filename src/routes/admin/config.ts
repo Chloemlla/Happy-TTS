@@ -384,6 +384,23 @@ router.delete(
   auditLog({ module: "config", action: "config.registration-invite.delete" }),
   adminController.deleteRegistrationInviteSetting,
 );
+// 首访验证闸门（ENABLE_FIRST_VISIT_VERIFICATION）。只在 env-manager 的「首访验证闸门」分区暴露，
+// 保存后立即生效（多实例 ≤ 10s 收敛）；重置回退到部署环境变量 ENABLE_FIRST_VISIT_VERIFICATION（未设置则开启）。
+router.get("/first-visit-verification/setting", adminController.getFirstVisitVerificationSetting);
+router.post(
+  "/first-visit-verification/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.first-visit-verification.set", captureBody: false }),
+  adminController.setFirstVisitVerificationSetting,
+);
+router.delete(
+  "/first-visit-verification/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.first-visit-verification.delete" }),
+  adminController.deleteFirstVisitVerificationSetting,
+);
 router.get("/cdict-signing/setting", adminController.getCdictSigningSetting);
 router.post(
   "/cdict-signing/setting",

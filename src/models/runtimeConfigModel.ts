@@ -18,6 +18,7 @@ export const RUNTIME_CONFIG_KEYS = [
   "LUMEN",
   "PROXYCHECK",
   "REGISTRATION_INVITE",
+  "FIRST_VISIT_VERIFICATION",
 ] as const;
 
 export type RuntimeConfigKey = (typeof RUNTIME_CONFIG_KEYS)[number];

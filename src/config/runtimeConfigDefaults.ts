@@ -218,6 +218,19 @@ export interface RegistrationInviteRuntimeConfig {
   required: boolean;
 }
 
+/**
+ * 首访验证闸门（`config.enableFirstVisitVerification`）。**仅由 env-manager 的「首访验证闸门」分区维护**；
+ * ENABLE_FIRST_VISIT_VERIFICATION 环境变量只作启动默认值（见 src/config/config.ts），
+ * 运行期一律以本运行时配置为准。它同时是 proxycheck `first_visit_gate` 的前置开关：
+ * 关闭后 `ipVerificationService.initializeSession` 直接放行，proxycheck 那条闸门也不再评估
+ * （proxycheck 自身的开关在 PROXYCHECK 分区）。影响面比名字大：Turnstile/hCaptcha 校验、
+ * 访问令牌签发、`/api/ip-verification` 中间件全部读同一个值。
+ */
+export interface FirstVisitVerificationRuntimeConfig {
+  /** true = 首访需通过 IP/Turnstile 验证；false = 一律视为已验证（放行）。 */
+  enabled: boolean;
+}
+
 export interface RuntimeConfigDefaults {
   ipqs: IpqsRuntimeConfig;
   linuxdo: LinuxDoRuntimeConfig;
@@ -235,6 +248,7 @@ export interface RuntimeConfigDefaults {
   qqGuardSigning: QqGuardSigningRuntimeConfig;
   proxycheck: ProxycheckRuntimeConfig;
   registrationInvite: RegistrationInviteRuntimeConfig;
+  firstVisitVerification: FirstVisitVerificationRuntimeConfig;
   lumen: LumenRuntimeConfig;
 }
 
@@ -407,6 +421,11 @@ export function buildRuntimeConfigDefaults(options: {
     registrationInvite: {
       required: false,
     },
+    // 默认开启：与「ENABLE_FIRST_VISIT_VERIFICATION 未设置 = true」的历史默认值一致，
+    // 存量部署未显式配置时不得凭空放宽首访验证（env 由 config.ts 覆盖）。
+    firstVisitVerification: {
+      enabled: true,
+    },
     lumen: {
       enabled: false,
       adminUsername: "admin",
@@ -510,6 +529,9 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
     },
     registrationInvite: {
       ...config.registrationInvite,
+    },
+    firstVisitVerification: {
+      ...config.firstVisitVerification,
     },
     lumen: {
       ...config.lumen,
