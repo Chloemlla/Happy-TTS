@@ -96,8 +96,35 @@ RUN apk upgrade --no-cache && \
 # 与视频模式（--merge-output-format mp4）都要 ffmpeg，ffprobe 亦由 ffmpeg 包提供。
 # 不装的话该功能在镜像里 100% 不可用（yt-dlp 不存在 + 探针永远报缺失）；
 # 用户侧「语音转文本」走 LASR HTTP 接口，不依赖这两个二进制。
-# 代价：yt-dlp 是 Python 包会拉入 python3，ffmpeg 体积亦大；这是刻意接受的取舍。
-RUN apk add --no-cache yt-dlp ffmpeg
+#
+# yt-dlp 不走 apk：Alpine 仓库里的版本常年滞后于上游 release，改为直接取官方仓库 release 的
+# musllinux 独立二进制（自带解释器，不再需要 python3，也不拉入 python3 的依赖树）。
+# 资产名按构建机架构选（本文件不固定 --platform）：x86_64 → yt-dlp_musllinux，aarch64 → yt-dlp_musllinux_aarch64。
+# 落点 /usr/local/bin/yt-dlp 即在 PATH 上，沿用设置页「留空自动探测 PATH」的约定。
+# YT_DLP_VERSION 默认 latest（上游最新 release）；要钉版本、或让这一层重新拉取，用
+#   --build-arg YT_DLP_VERSION=2026.08.19
+# 注意 Docker 按 URL 缓存层，默认 latest 在缓存命中时不会自动追新 release。
+# ca-certificates 是给 openssl 系工具留的系统 CA 库；curl 只在下载期用，装完即卸，避免把它的 CVE 带进运行镜像。
+ARG YT_DLP_VERSION=latest
+RUN set -eu; \
+    apk add --no-cache ffmpeg ca-certificates; \
+    apk add --no-cache --virtual .yt-dlp-fetch curl; \
+    case "$(uname -m)" in \
+      x86_64) asset=yt-dlp_musllinux ;; \
+      aarch64) asset=yt-dlp_musllinux_aarch64 ;; \
+      *) echo "ERROR: 上游未提供该架构的 musllinux 二进制: $(uname -m)" >&2; exit 1 ;; \
+    esac; \
+    base="https://github.com/yt-dlp/yt-dlp/releases/${YT_DLP_VERSION}/download"; \
+    curl -fsSL --retry 3 --retry-delay 2 "$base/$asset" -o "/tmp/$asset"; \
+    curl -fsSL --retry 3 --retry-delay 2 "$base/SHA2-256SUMS" -o /tmp/SHA2-256SUMS; \
+    awk -v a="$asset" '$2 == a' /tmp/SHA2-256SUMS > /tmp/want.sums; \
+    test -s /tmp/want.sums; \
+    ( cd /tmp && sha256sum -c want.sums ); \
+    cp "/tmp/$asset" /usr/local/bin/yt-dlp; \
+    chmod 0755 /usr/local/bin/yt-dlp; \
+    rm -f "/tmp/$asset" /tmp/SHA2-256SUMS /tmp/want.sums; \
+    apk del .yt-dlp-fetch; \
+    yt-dlp --version
 
 ENV TZ=Asia/Shanghai \
     NODE_ENV=production \
