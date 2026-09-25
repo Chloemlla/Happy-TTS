@@ -407,7 +407,6 @@ function hasDangerousExtension(): ClientIntegrityCheckResult {
     "MarkdownExportPage",
     "MarkdownPreview",
     "ResourceStoreList",
-    "ResourceStoreApp",
     "ResourceStoreManager",
     "ShortLinkManager",
     "CDKStoreManager",

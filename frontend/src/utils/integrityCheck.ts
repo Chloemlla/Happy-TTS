@@ -131,7 +131,6 @@ class IntegrityChecker {
     "MarkdownExportPage",
     "MarkdownPreview",
     "ResourceStoreList",
-    "ResourceStoreApp",
     "ResourceStoreManager",
     "ShortLinkManager",
     "CDKStoreManager",
