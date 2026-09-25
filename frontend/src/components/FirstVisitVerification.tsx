@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { CaptchaType } from '../utils/captchaSelection';
 import { completeIpVerification } from '../utils/ipVerification';
 import { useSecureCaptchaSelection } from '../hooks/useSecureCaptchaSelection';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useNotification } from './Notification';
 import { PenaltyAppealActions } from './PenaltyAppealActions';
 
@@ -29,6 +30,131 @@ interface BanState {
   expiresAt?: Date;
 }
 
+/**
+ * 验证圆环的单一几何来源：静态轨道与旋转弧共用同一个 <circle>
+ * （同圆心、同半径、同线宽），弧只用 strokeDasharray 截出来。
+ *
+ * 旧实现是「border 圆环 + border-top 弧」两层 DOM：弧的两端走 45° 斜接、
+ * 内外半径不等，元素越大越明显偏离轨道圆 —— 这就是宽屏（sm:h-11）下
+ * 「圆圈和绕动的环不是一样的」的根因。改成 SVG 后任何断点都同心等粗。
+ */
+const RING_VIEWBOX = 44;
+const RING_CENTER = RING_VIEWBOX / 2;
+/** 留出描边空间，弧不会被容器裁切（22 + 20 + 1.25 < 44）。 */
+const RING_RADIUS = RING_CENTER - 2;
+const RING_TRACK_COLOR = '#f7d2b4';
+const RING_ARC_COLOR = '#f48120';
+const RING_ARC_FRACTION = 0.28;
+
+/** 徽标圆与圆环共用同一组尺寸常量，避免两者在大屏上直径打架。 */
+const ACCENT_BADGE_SHELL_CLASS =
+  'flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#ffd6c2] bg-[#fff4ef] text-sm font-semibold text-[#f48120]';
+const RING_SHELL_CLASS = 'pointer-events-none relative h-11 w-11 shrink-0';
+
+const VerificationRing: React.FC<{
+  className?: string;
+  reducedMotion: boolean;
+  trackColor?: string;
+  arcColor?: string;
+  strokeWidth?: number;
+  label?: string;
+}> = ({
+  className = RING_SHELL_CLASS,
+  reducedMotion,
+  trackColor = RING_TRACK_COLOR,
+  arcColor = RING_ARC_COLOR,
+  strokeWidth = 2.5,
+  label,
+}) => {
+  const circumference = 2 * Math.PI * RING_RADIUS;
+  const arcLength = circumference * RING_ARC_FRACTION;
+
+  return (
+    <div
+      className={className}
+      aria-hidden={label ? undefined : true}
+      role={label ? 'status' : undefined}
+      aria-label={label}
+      aria-busy={label ? true : undefined}
+    >
+      <motion.div
+        className="absolute inset-0"
+        animate={reducedMotion ? undefined : { rotate: 360 }}
+        transition={{
+          duration: 1.4,
+          ease: 'linear',
+          repeat: reducedMotion ? 0 : Number.POSITIVE_INFINITY,
+        }}
+      >
+        <svg
+          viewBox={`0 0 ${RING_VIEWBOX} ${RING_VIEWBOX}`}
+          className="h-full w-full"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <circle
+            cx={RING_CENTER}
+            cy={RING_CENTER}
+            r={RING_RADIUS}
+            fill="none"
+            stroke={trackColor}
+            strokeWidth={strokeWidth}
+          />
+          <circle
+            cx={RING_CENTER}
+            cy={RING_CENTER}
+            r={RING_RADIUS}
+            fill="none"
+            stroke={arcColor}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeDasharray={`${arcLength} ${circumference - arcLength}`}
+          />
+        </svg>
+      </motion.div>
+    </div>
+  );
+};
+
+const REVIEW_STEPS = [
+  { id: 'scan', label: 'Network scan' },
+  { id: 'challenge', label: 'Human check' },
+  { id: 'token', label: 'Session token' },
+] as const;
+
+const ReviewSteps: React.FC<{ activeIndex: number }> = ({ activeIndex }) => (
+  <ol className="mt-5 flex flex-wrap items-center gap-2">
+    {REVIEW_STEPS.map((step, index) => {
+      const done = index < activeIndex;
+      const current = index === activeIndex;
+
+      return (
+        <li key={step.id} className="flex items-center gap-2">
+          {index > 0 && <span aria-hidden="true" className="h-px w-4 bg-[#e2e8f0]" />}
+          <span
+            aria-current={current ? 'step' : undefined}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+              done
+                ? 'border-[#cbe8d6] bg-[#f4fbf7] text-[#2f7a4b]'
+                : current
+                  ? 'border-[#ffd9c8] bg-[#fff4ef] text-[#f48120]'
+                  : 'border-[#eaeef5] bg-white text-[#94a1b0]'
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`h-1.5 w-1.5 rounded-full ${
+                done ? 'bg-[#3f9d63]' : current ? 'animate-pulse bg-[#f48120]' : 'bg-[#d3dbe5]'
+              }`}
+            />
+            {done ? 'Passed' : step.label}
+          </span>
+        </li>
+      );
+    })}
+  </ol>
+);
+
 export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   onVerificationComplete,
   fingerprint,
@@ -39,6 +165,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   challengeReason,
 }) => {
   const { setNotification } = useNotification();
+  const reducedMotion = useReducedMotion();
   const {
     captchaConfig: secureCaptchaConfig,
     loading: secureSelectionLoading,
@@ -109,6 +236,9 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     if (verificationMode === 'hcaptcha') return hcaptchaToken;
     return '';
   }, [hcaptchaToken, turnstileToken, verificationMode]);
+
+  // 0 = 解析验证码配置，1 = 等待人机挑战，2 = 挑战已过、正在换发会话令牌
+  const reviewStepIndex = secureSelectionLoading || !verificationMode ? 0 : isVerified ? 2 : 1;
 
   const resetChallenge = useCallback(
     (mode: VerificationMode = verificationMode) => {
@@ -205,34 +335,37 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
 
   if (banState.isBanned) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#f6f8fb] p-4">
-        <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto overscroll-contain rounded-2xl border border-[#d6dbe5] bg-white px-8 py-10 shadow-sm">
-          <div className="mb-8 flex items-center gap-3">
-            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-[#ffd6c2] bg-[#fff4ef] text-sm font-semibold text-[#f48120]">
-              !
+      <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-[#f6f8fb]">
+        <div className="pointer-events-none fixed inset-x-0 top-0 h-52 bg-[radial-gradient(circle_at_top,rgba(244,129,32,0.18),transparent_58%)]" />
+        <div className="relative flex min-h-full items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
+          <div className="relative w-full max-w-xl rounded-2xl border border-[#dde3ec] bg-white/95 px-6 py-8 shadow-[0_28px_70px_rgba(15,23,42,0.08)] backdrop-blur sm:px-9 sm:py-10">
+            <div className="mb-8 flex items-center gap-3">
+              <div className={ACCENT_BADGE_SHELL_CLASS}>
+                !
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#f48120]">Security Check</p>
+                <h1 className="text-xl sm:text-2xl font-semibold text-[#1d2735]">Access temporarily restricted</h1>
+              </div>
             </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#f48120]">Security Check</p>
-              <h1 className="text-xl sm:text-2xl font-semibold text-[#1d2735]">Access temporarily restricted</h1>
-            </div>
-          </div>
 
-          <div className="space-y-4 text-sm leading-6 text-[#526071]">
-            <p>{banState.reason || 'This IP is currently restricted because of repeated abnormal traffic.'}</p>
-            {banState.expiresAt && (
-              <p className="rounded-2xl border border-[#e7ecf3] bg-[#f8fafc] px-4 py-3 text-[#2c3948]">
-                Retry after: {banState.expiresAt.toLocaleString()}
-              </p>
-            )}
-            {clientIP && clientIP !== 'unknown' && (
-              <p className="font-mono text-xs text-[#7b8796]">IP {clientIP}</p>
-            )}
-            <PenaltyAppealActions
-              kind="ip_ban"
-              reason={banState.reason}
-              remainingText={banState.expiresAt ? banState.expiresAt.toLocaleString() : undefined}
-              details={clientIP && clientIP !== 'unknown' ? `IP: ${clientIP}` : undefined}
-            />
+            <div className="space-y-4 text-sm leading-6 text-[#526071]">
+              <p>{banState.reason || 'This IP is currently restricted because of repeated abnormal traffic.'}</p>
+              {banState.expiresAt && (
+                <p className="rounded-2xl border border-[#e7ecf3] bg-[#f8fafc] px-4 py-3 text-[#2c3948]">
+                  Retry after: {banState.expiresAt.toLocaleString()}
+                </p>
+              )}
+              {clientIP && clientIP !== 'unknown' && (
+                <p className="font-mono text-xs text-[#7b8796]">IP {clientIP}</p>
+              )}
+              <PenaltyAppealActions
+                kind="ip_ban"
+                reason={banState.reason}
+                remainingText={banState.expiresAt ? banState.expiresAt.toLocaleString() : undefined}
+                details={clientIP && clientIP !== 'unknown' ? `IP: ${clientIP}` : undefined}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -240,28 +373,32 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-[#f6f8fb]">
+    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-[#f6f8fb]">
       <div
-        className="absolute inset-0 opacity-60"
+        className="pointer-events-none fixed inset-0 opacity-70"
         style={{
           backgroundImage:
             'linear-gradient(rgba(15,23,42,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.035) 1px, transparent 1px)',
-          backgroundSize: '34px 34px',
+          backgroundSize: '36px 36px',
+          maskImage: 'radial-gradient(circle at 50% 28%, #000 0%, rgba(0,0,0,0.35) 55%, transparent 78%)',
+          WebkitMaskImage:
+            'radial-gradient(circle at 50% 28%, #000 0%, rgba(0,0,0,0.35) 55%, transparent 78%)',
         }}
       />
-      <div className="absolute inset-x-0 top-0 h-48 bg-[radial-gradient(circle_at_top,rgba(244,129,32,0.16),transparent_55%)]" />
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-60 bg-[radial-gradient(circle_at_top,rgba(244,129,32,0.18),transparent_58%)]" />
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 h-40 bg-[linear-gradient(180deg,transparent,rgba(226,232,240,0.55))]" />
 
-      <div className="relative flex min-h-screen items-center justify-center p-4">
+      <div className="relative flex min-h-full items-center justify-center px-4 py-8 sm:px-6 sm:py-12 xl:py-16">
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: 'easeOut' }}
-          className="w-full max-w-[820px] max-h-[90vh] overflow-y-auto overscroll-contain rounded-2xl border border-[#dde3ec] bg-white/95 shadow-sm backdrop-blur"
+          className="relative w-full max-w-[860px] xl:max-w-[980px] rounded-2xl border border-[#dde3ec] bg-white/95 shadow-[0_28px_70px_rgba(15,23,42,0.08)] backdrop-blur"
         >
           <div className="grid gap-0 md:grid-cols-[1.18fr_0.82fr]">
-            <div className="border-b border-[#edf1f5] px-4 py-6 md:border-b-0 md:border-r md:px-10 md:py-10">
-              <div className="mb-8 flex items-center gap-3">
-                <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full border border-[#ffd6c2] bg-[#fff4ef] text-sm font-semibold text-[#f48120]">
+            <div className="border-b border-[#edf1f5] px-4 py-6 md:border-b-0 md:border-r md:px-10 md:py-10 xl:px-12 xl:py-12">
+              <div className="mb-7 flex items-center gap-3">
+                <div className={ACCENT_BADGE_SHELL_CLASS}>
                   CF
                 </div>
                 <div>
@@ -270,20 +407,15 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 </div>
               </div>
 
-              <div className="mb-8 flex items-center gap-4 rounded-2xl border border-[#eceff4] bg-[#fbfcfe] px-5 py-4">
-                <div className="relative h-9 w-9 sm:h-11 sm:w-11">
-                  <span className="absolute inset-0 rounded-full border-2 border-[#f4c7aa]/80" />
-                  <motion.span
-                    className="absolute inset-0 rounded-full border-2 border-t-[#f48120] border-r-transparent border-b-transparent border-l-transparent"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1.1, ease: 'linear', repeat: Number.POSITIVE_INFINITY }}
-                  />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-[#253140]">Review in progress</p>
-                  <p className="mt-1 text-sm text-[#637082]">
-                    The server requested a one-time human verification before your session token can be renewed.
+              <div className="mb-7 flex items-start gap-4 rounded-2xl border border-[#eceff4] bg-[#fbfcfe] px-5 py-4">
+                <VerificationRing reducedMotion={reducedMotion} label="Security review in progress" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[#253140]">Review in progress</p>
+                  <p className="mt-1 text-sm leading-6 text-[#637082]">
+                    The server requested a one-time human verification before your session token can be
+                    renewed.
                   </p>
+                  <ReviewSteps activeIndex={reviewStepIndex} />
                 </div>
               </div>
 
@@ -298,10 +430,16 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
               </div>
 
               <div className="rounded-2xl border border-[#eceff4] bg-[#fbfcfe] px-5 py-5">
-                <div className="mb-5 flex items-center justify-between">
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-[#253140]">Complete the security challenge</p>
-                  <span className="rounded-full border border-[#ffd9c8] bg-[#fff4ef] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#f48120]">
-                    Required
+                  <span
+                    className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
+                      isVerified
+                        ? 'border-[#cbe8d6] bg-[#f4fbf7] text-[#2f7a4b]'
+                        : 'border-[#ffd9c8] bg-[#fff4ef] text-[#f48120]'
+                    }`}
+                  >
+                    {isVerified ? 'Challenge passed' : 'Required'}
                   </span>
                 </div>
 
@@ -317,14 +455,18 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                     <button
                       type="button"
                       onClick={() => window.location.reload()}
-                      className="rounded-2xl border border-[#1d2735] px-4 py-3 text-sm font-semibold text-[#1d2735] transition hover:bg-[#1d2735] hover:text-white"
+                      className="rounded-2xl border border-[#1d2735] px-4 py-3 text-sm font-semibold text-[#1d2735] transition hover:bg-[#1d2735] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
                     >
                       Reload page
                     </button>
                   </div>
                 ) : (
                   <>
-                    <div className="flex min-h-[82px] items-center justify-center rounded-2xl border border-dashed border-[#dfe5ee] bg-white px-4 py-4">
+                    <div
+                      className={`flex min-h-[86px] items-center justify-center rounded-2xl border border-dashed px-4 py-4 transition-colors ${
+                        isVerified ? 'border-[#bfe3cd] bg-[#f5fbf7]' : 'border-[#dfe5ee] bg-white'
+                      }`}
+                    >
                       <Suspense fallback={<div className="h-[78px] w-full animate-pulse rounded-2xl bg-[#f3f6fa]" />}>
                         {verificationMode === 'turnstile' ? (
                           <TurnstileWidget
@@ -354,6 +496,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -8 }}
                           className="mt-4 rounded-2xl border border-[#f4d2c7] bg-[#fff5f1] px-4 py-3 text-sm text-[#a34516]"
+                          role="alert"
                         >
                           {error}
                         </motion.div>
@@ -365,12 +508,22 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                         type="button"
                         onClick={handleVerify}
                         disabled={!isVerified || verifying}
-                        className={`flex-1 rounded-2xl px-5 py-3.5 text-sm font-semibold transition ${
+                        className={`flex flex-1 items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f48120]/45 focus-visible:ring-offset-2 ${
                           !isVerified || verifying
                             ? 'cursor-not-allowed bg-[#e9edf3] text-[#9aa5b1]'
                             : 'bg-[#f48120] text-white shadow-[0_18px_30px_rgba(244,129,32,0.24)] hover:bg-[#de6f12]'
                         }`}
+                        aria-busy={verifying}
                       >
+                        {verifying && (
+                          <VerificationRing
+                            className="pointer-events-none h-4 w-4 shrink-0"
+                            reducedMotion={reducedMotion}
+                            trackColor="rgba(255,255,255,0.35)"
+                            arcColor="#ffffff"
+                            strokeWidth={5}
+                          />
+                        )}
                         {verifying ? 'Finalizing check...' : 'Continue to site'}
                       </button>
 
@@ -381,7 +534,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                           resetChallenge();
                         }}
                         disabled={verifying}
-                        className="rounded-2xl border border-[#d7dde6] px-5 py-3.5 text-sm font-semibold text-[#253140] transition hover:border-[#bcc6d3] hover:bg-[#f6f8fb] disabled:cursor-not-allowed disabled:opacity-60"
+                        className="rounded-2xl border border-[#d7dde6] px-5 py-3.5 text-sm font-semibold text-[#253140] transition hover:border-[#bcc6d3] hover:bg-[#f6f8fb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Reload challenge
                       </button>
@@ -391,19 +544,23 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
               </div>
             </div>
 
-            <div className="px-4 py-6 md:px-9 md:py-10">
+            <div className="px-4 py-6 md:px-9 md:py-10 xl:px-11 xl:py-12">
               <div className="rounded-2xl border border-[#eceff4] bg-[#fbfcfe] px-5 py-5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#7f8a98]">Session Context</p>
 
                 <div className="mt-5 space-y-5">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-[0.14em] text-[#8b97a6]">Fingerprint</p>
-                    <p className="mt-2 font-mono text-xs text-[#334155]">{fingerprintPreview}</p>
+                    <p className="mt-2 truncate rounded-xl border border-[#eaeef5] bg-white px-3 py-2 font-mono text-xs text-[#334155]">
+                      {fingerprintPreview}
+                    </p>
                   </div>
 
                   <div>
                     <p className="text-xs font-medium uppercase tracking-[0.14em] text-[#8b97a6]">IP Address</p>
-                    <p className="mt-2 font-mono text-xs text-[#334155]">{clientIP || 'Detecting...'}</p>
+                    <p className="mt-2 truncate rounded-xl border border-[#eaeef5] bg-white px-3 py-2 font-mono text-xs text-[#334155]">
+                      {clientIP || 'Detecting...'}
+                    </p>
                   </div>
 
                   <div>
@@ -419,9 +576,19 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
               <div className="mt-6 rounded-2xl border border-[#eceff4] bg-white px-5 py-5">
                 <p className="text-sm font-semibold text-[#253140]">Why this page appears</p>
                 <ul className="mt-4 space-y-3 text-sm leading-6 text-[#637082]">
-                  <li>Backend fraud scoring marked the current network as risky enough to step up verification.</li>
-                  <li>The challenge is one-time and bound to the current IP plus browser fingerprint.</li>
-                  <li>Refreshing the site without a valid token will trigger the check again.</li>
+                  {[
+                    'Backend fraud scoring marked the current network as risky enough to step up verification.',
+                    'The challenge is one-time and bound to the current IP plus browser fingerprint.',
+                    'Refreshing the site without a valid token will trigger the check again.',
+                  ].map((item) => (
+                    <li key={item} className="flex gap-2.5">
+                      <span
+                        aria-hidden="true"
+                        className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#f4c7aa]"
+                      />
+                      <span>{item}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>
