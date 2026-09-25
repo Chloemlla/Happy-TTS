@@ -75,6 +75,7 @@ export const ADMIN_MODULE_LOADERS = {
   'tts-history': () => import('@/components/TtsGenerationManager'),
   system: () => import('@/components/SystemManager'),
   'bilibili-sync': () => import('@/components/BilibiliSyncAdmin'),
+  'ip-risk-logs': () => import('@/components/admin/IpRiskLogPanel'),
 } as const;
 
 export type AdminModuleKey = keyof typeof ADMIN_MODULE_LOADERS;

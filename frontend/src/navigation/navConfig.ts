@@ -534,6 +534,12 @@ export function getAdminNavGroups(ctx: NavVisibilityContext): NavGroup[] {
             requiredRole: 'superadmin',
           },
           {
+            title: 'IP 风险日志',
+            url: '/admin/ip-risk-logs',
+            icon: FaShieldAlt as IconType,
+            requiredRole: 'superadmin',
+          },
+          {
             title: '系统管理',
             url: '/admin/system',
             icon: FaBars as IconType,
@@ -604,6 +610,7 @@ export const ADMIN_TAB_TO_PATH: Record<string, string> = {
   'github-billing-cache': '/admin/github-billing-cache',
   'ip-ban': '/admin/ip-ban',
   fingerprint: '/admin/fingerprint',
+  'ip-risk-logs': '/admin/ip-risk-logs',
   broadcast: '/admin/broadcast',
   oauth: '/admin/oauth',
   apikeys: '/admin/apikeys',

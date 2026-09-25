@@ -5,7 +5,7 @@
     "This map is the machine-readable contract for fingerprint/IP privacy governance.",
     "Retention is enforced by Mongo TTL indexes, scheduled cleanup jobs, or documented manual admin actions.",
     "User account deletion currently removes the user_datas document; linked fingerprint/IP telemetry cleanup is tracked as a long-term debt item.",
-    "proxycheck-* datasets were added 2026-09-25 with the proxycheck.io IP-risk integration. The risk cache is TTL-bounded; the lookup-log and probe-report collections are write-only and still await a retention job (declared as an acknowledged gap)."
+    "proxycheck-* datasets were added 2026-09-25 with the proxycheck.io IP-risk integration. The risk cache is TTL-bounded; the lookup-log and probe-report collections are read-only superadmin surfaces and still await a retention job (declared as an acknowledged gap). The lookup log additionally stores the decision handed to the caller."
   ],
   "datasets": [
     {
@@ -304,7 +304,7 @@
       "id": "proxycheck-risk-cache",
       "collection": "proxycheck_risk_cache",
       "fields": ["ip", "risk", "proxy", "vpn", "tor", "hosting", "scraper", "compromised", "anonymous", "confidence", "networkType", "provider", "asn", "range", "organisation", "hostname", "continent", "country", "isocode", "region", "city", "latitude", "longitude", "timezone", "detectionsRaw", "lastUpdated", "queriedAt", "expiresAt", "source"],
-      "purpose": "Per-IP proxycheck.io reputation cache that also de-duplicates upstream lookups (one upstream request per IP per TTL window)",
+      "purpose": "Per-IP proxycheck.io reputation cache that also de-duplicates upstream lookups (one upstream request per IP per TTL window); read-only in the superadmin IP-risk log panel, which shows the current-threshold verdict each row would produce",
       "legalBasis": "security_and_abuse_prevention",
       "retention": {
         "type": "ttl",
@@ -321,19 +321,19 @@
       },
       "export": {
         "supported": false,
-        "reason": "Third-party reputation data keyed by IP, not part of user data export"
+        "reason": "Third-party reputation data keyed by IP, not part of user data export; also exposed read-only to superadmins through /api/admin/proxycheck/risk-cache"
       },
-      "evidence": ["src/models/proxycheckRiskCacheModel.ts", "src/services/ipRiskService.ts"]
+      "evidence": ["src/models/proxycheckRiskCacheModel.ts", "src/services/ipRiskService.ts", "src/controllers/ipRiskLogController.ts", "src/routes/admin/ipRiskLogs.ts"]
     },
     {
       "id": "proxycheck-lookup-logs",
       "collection": "proxycheck_lookup_logs",
-      "fields": ["ip", "apiKeySlot", "apiKeyHash", "status", "ok", "risk", "deduped", "durationMs", "error", "createdAt"],
-      "purpose": "Third-party IP reputation decision audit and daily-quota accounting; never stores the raw proxycheck.io response",
+      "fields": ["ip", "apiKeySlot", "apiKeyHash", "status", "ok", "risk", "deduped", "durationMs", "error", "createdAt", "decision"],
+      "purpose": "Third-party IP reputation decision audit and daily-quota accounting; never stores the raw proxycheck.io response. The decision sub-document records the exact verdict handed to the caller (which frontend path asked, the action taken, the reason, the threshold and fail-open setting in force)",
       "legalBasis": "security_and_abuse_prevention",
       "retention": {
         "type": "operational",
-        "description": "No TTL today; write-only collection with no secondary indexes. Should be capped (recommended 30-90d) in a follow-up cleanup job"
+        "description": "No TTL today; readable by the superadmin IP-risk log panel (/admin/ip-risk-logs), which added a {createdAt:-1} index for newest-first paging. Still should be capped (recommended 30-90d) in a follow-up cleanup job"
       },
       "delete": {
         "onUserDelete": "not_linked",
@@ -342,9 +342,9 @@
       },
       "export": {
         "supported": false,
-        "reason": "Security telemetry, not part of user data export"
+        "reason": "Security telemetry, not part of user data export; also exposed read-only to superadmins through /api/admin/proxycheck/lookups"
       },
-      "evidence": ["src/models/proxycheckLookupLogModel.ts", "src/services/ipRiskService.ts"]
+      "evidence": ["src/models/proxycheckLookupLogModel.ts", "src/services/ipRiskService.ts", "src/controllers/ipRiskLogController.ts", "src/routes/admin/ipRiskLogs.ts"]
     },
     {
       "id": "proxycheck-probe-reports",
@@ -354,7 +354,7 @@
       "legalBasis": "security_and_abuse_prevention",
       "retention": {
         "type": "operational",
-        "description": "No TTL today; write-only collection. Should be capped in a follow-up cleanup job"
+        "description": "No TTL today; readable by the superadmin IP-risk log panel (/admin/ip-risk-logs), which added a {createdAt:-1} index for newest-first paging. Still should be capped in a follow-up cleanup job"
       },
       "delete": {
         "onUserDelete": "not_linked",
@@ -364,9 +364,9 @@
       },
       "export": {
         "supported": false,
-        "reason": "Anti-abuse telemetry, not part of user data export"
+        "reason": "Anti-abuse telemetry, not part of user data export; also exposed read-only to superadmins through /api/admin/proxycheck/probe-reports"
       },
-      "evidence": ["src/models/proxycheckProbeReportModel.ts", "src/controllers/ipRiskController.ts", "frontend/src/components/ClientOriginProbe.tsx"]
+      "evidence": ["src/models/proxycheckProbeReportModel.ts", "src/controllers/ipRiskController.ts", "src/controllers/ipRiskLogController.ts", "frontend/src/components/ClientOriginProbe.tsx"]
     }
   ]
 }

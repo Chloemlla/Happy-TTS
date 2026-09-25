@@ -56,6 +56,71 @@ export interface IpRiskEvaluation {
   reason: string;
 }
 
+/** 这一次决策是谁问的：闸门 / 公开 API / 批量路径。 */
+export type IpRiskCaller = "api" | "first_visit_gate" | "batch";
+
+/** 实际交给前端的动作。`report` 只上报结论、不拦截（GET /api/ip-risk 就是这种）。 */
+export type IpRiskDecisionAction = "report" | "challenge" | "allow" | "fail_open" | "fail_closed";
+
+/**
+ * 「这次查询交给前端的决策」的完整快照，用于落库供管理端日志面板展示。
+ * threshold / failOpen / closedOnFailure 一并记下，是因为配置随时会变：只有把当时的
+ * 生效值存下来，事后才解释得清这一行为什么这么判。
+ */
+export interface IpRiskDecision {
+  caller: IpRiskCaller;
+  action: IpRiskDecisionAction;
+  shouldChallenge: boolean;
+  reason: string;
+  risk: number;
+  level: IpRiskLevel;
+  flags: string[];
+  source: "cache" | "proxycheck" | "unavailable";
+  threshold: number;
+  failOpen: boolean;
+  closedOnFailure: boolean;
+}
+
+/**
+ * 决策的唯一产出点：闸门判定（evaluateIpRisk）与落库日志都取这里的返回值，
+ * 不允许两处各写一遍判据 —— 否则日志里记的和真正回给前端的话会悄悄分叉。
+ *
+ * shouldChallenge 判据：上游给出了结论，且 risk >= challengeRiskScore，或命中 vpn/proxy/tor
+ * 三类明确检测之一（hosting 单独命中不触发，机房出口太常见）。source 为 unavailable
+ * （开关关闭 / 非法或内网地址 / 上游失败降级）时一律不挑战，只在 failOpen=false 时失败关闭。
+ */
+export function buildIpRiskDecision(result: IpRiskResult, caller: IpRiskCaller): IpRiskDecision {
+  const threshold = toScore(config.proxycheck.challengeRiskScore, DEFAULT_CHALLENGE_RISK_SCORE);
+  const failOpen = config.proxycheck.failOpen;
+  const flagged = CHALLENGE_FLAGS.some((flag) => result.detections[flag]);
+  const hasVerdict = result.source !== "unavailable";
+  // failOpen=false 时拿不到结论 = 失败关闭：挑战而非放行（对齐 ipVerificationService 的 decision:"error"）。
+  const closedOnFailure = !hasVerdict && !failOpen;
+  const shouldChallenge = hasVerdict ? result.risk >= threshold || flagged : closedOnFailure;
+
+  return {
+    caller,
+    action: hasVerdict
+      ? caller === "api"
+        ? "report"
+        : shouldChallenge
+          ? "challenge"
+          : "allow"
+      : failOpen
+        ? "fail_open"
+        : "fail_closed",
+    shouldChallenge,
+    reason: hasVerdict ? `proxycheck_risk_${result.level}` : "proxycheck_unavailable",
+    risk: result.risk,
+    level: result.level,
+    flags: result.flags,
+    source: result.source,
+    threshold,
+    failOpen,
+    closedOnFailure,
+  };
+}
+
 interface LookupLogInput {
   ip: string;
   apiKeyHash: string;
@@ -65,6 +130,8 @@ interface LookupLogInput {
   deduped: boolean;
   durationMs: number;
   error?: string;
+  /** 交给前端的决策。未知（如 in-flight 合并的 promise 最终被拒）时留空，不写库。 */
+  decision?: IpRiskDecision;
 }
 
 /**
@@ -98,6 +165,7 @@ async function logLookup(input: LookupLogInput): Promise<void> {
       deduped: input.deduped,
       durationMs: input.durationMs,
       error: input.error || "",
+      decision: input.decision,
       createdAt: new Date(),
     });
   } catch (error) {
@@ -206,7 +274,7 @@ function proxycheckVerificationKey(): string {
 }
 
 /** 真正发起上游的那一次调用。走到这里说明缓存与 in-flight 都没拦住。 */
-async function performLookup(ip: string): Promise<IpRiskResult> {
+async function performLookup(ip: string, caller: IpRiskCaller): Promise<IpRiskResult> {
   const startedAt = Date.now();
   const pc = config.proxycheck;
   const apiKey = typeof pc.apiKey === "string" ? pc.apiKey.trim() : "";
@@ -220,6 +288,7 @@ async function performLookup(ip: string): Promise<IpRiskResult> {
   }
 
   if (!apiKey) {
+    const result = settleFailure(ip, "not_configured");
     await logLookup({
       ip,
       apiKeyHash: "not-configured",
@@ -229,12 +298,14 @@ async function performLookup(ip: string): Promise<IpRiskResult> {
       deduped: false,
       durationMs: Date.now() - startedAt,
       error: "proxycheck_api_key_missing",
+      decision: buildIpRiskDecision(result, caller),
     });
-    return settleFailure(ip, "not_configured");
+    return result;
   }
 
   const dayKey = currentDayKey();
   if (await isQuotaExhausted(dayKey, dailyQuotaPerKey)) {
+    const result = settleFailure(ip, "quota_exhausted");
     await logLookup({
       ip,
       apiKeyHash: hashApiKeyForLog(apiKey),
@@ -244,9 +315,10 @@ async function performLookup(ip: string): Promise<IpRiskResult> {
       deduped: false,
       durationMs: Date.now() - startedAt,
       error: "proxycheck_daily_quota_exhausted",
+      decision: buildIpRiskDecision(result, caller),
     });
     logger.warn("[IpRisk] proxycheck 每日配额已用尽，本次不外呼", { dayKey, dailyQuotaPerKey });
-    return settleFailure(ip, "quota_exhausted");
+    return result;
   }
 
   const queriedAt = new Date();
@@ -262,6 +334,7 @@ async function performLookup(ip: string): Promise<IpRiskResult> {
     parsed = parseV3Result(ip, raw, queriedAt);
   } catch (error) {
     const message = redactSecret(error instanceof Error ? error.message : String(error), apiKey);
+    const result = settleFailure(ip, "lookup_failed");
     await logLookup({
       ip,
       apiKeyHash: hashApiKeyForLog(apiKey),
@@ -271,13 +344,15 @@ async function performLookup(ip: string): Promise<IpRiskResult> {
       deduped: false,
       durationMs: Date.now() - startedAt,
       error: message,
+      decision: buildIpRiskDecision(result, caller),
     });
     logger.warn("[IpRisk] proxycheck lookup failed", { ip, error: message, failOpen: pc.failOpen });
-    return settleFailure(ip, "lookup_failed");
+    return result;
   }
 
   await incrementQuota(dayKey, apiKey, dailyQuotaPerKey);
   await persistRiskCache(parsed, cacheTtlHours);
+  const result = toRiskResult(parsed, false, "proxycheck");
   await logLookup({
     ip,
     apiKeyHash: hashApiKeyForLog(apiKey),
@@ -286,6 +361,7 @@ async function performLookup(ip: string): Promise<IpRiskResult> {
     risk: parsed.risk,
     deduped: false,
     durationMs: Date.now() - startedAt,
+    decision: buildIpRiskDecision(result, caller),
   });
   logger.info("[IpRisk] proxycheck lookup completed", {
     ip,
@@ -293,7 +369,7 @@ async function performLookup(ip: string): Promise<IpRiskResult> {
     level: parsed.level,
     flags: parsed.flags,
   });
-  return toRiskResult(parsed, false, "proxycheck");
+  return result;
 }
 
 const inFlightLookups = new Map<string, Promise<IpRiskResult>>();
@@ -307,8 +383,25 @@ function trackInFlight(ip: string, promise: Promise<IpRiskResult>): void {
   inFlightLookups.set(ip, promise);
 }
 
+/**
+ * in-flight 合并命中的日志。合并不改结论，但决策要等被合并的那个 promise 落定才有值，
+ * 所以这条日志由 getIpRisk 挂到 joined 上后写，这里的 decision 允许缺省。
+ */
+function logDedupedLookup(ip: string, decision?: IpRiskDecision): Promise<void> {
+  return logLookup({
+    ip,
+    apiKeyHash: "deduped",
+    status: "deduped",
+    ok: true,
+    risk: null,
+    deduped: true,
+    durationMs: 0,
+    decision,
+  });
+}
+
 /** 同 IP 单飞：并发同 IP 只打一次上游。 */
-export async function getIpRisk(ip: string): Promise<IpRiskResult> {
+export async function getIpRisk(ip: string, caller: IpRiskCaller): Promise<IpRiskResult> {
   const normalized = normalizeIp(ip);
   if (!normalized) return unavailableResult(typeof ip === "string" ? ip.trim() : "");
 
@@ -325,20 +418,24 @@ export async function getIpRisk(ip: string): Promise<IpRiskResult> {
 
   const joined = inFlightLookups.get(normalized);
   if (joined) {
-    void logLookup({
-      ip: normalized,
-      apiKeyHash: "deduped",
-      status: "deduped",
-      ok: true,
-      risk: null,
-      deduped: true,
-      durationMs: 0,
-    });
+    // 落库仍然非阻塞：调用方只 await joined，不等这次写日志。
+    // 必须挂 catch：joined 被拒时调用方那边的 await 是一条独立链路，这里不接住就是 unhandled rejection。
+    void joined
+      .then((result) => logDedupedLookup(normalized, buildIpRiskDecision(result, caller)))
+      .catch((error: unknown) => {
+        // 被拒 = 这次合并根本没产出结论（调用方拿到的是异常而非决策），所以只补回原本就有的那行
+        // 日志、不写 decision，不伪造一个没交付出去的决策。
+        logger.warn("[IpRisk] In-flight proxycheck lookup rejected, dedup log written without decision", {
+          ip: normalized,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return logDedupedLookup(normalized);
+      });
     logger.debug("[IpRisk] Joined in-flight proxycheck lookup", { ip: normalized });
     return joined;
   }
 
-  const pending = performLookup(normalized);
+  const pending = performLookup(normalized, caller);
   trackInFlight(normalized, pending);
   try {
     return await pending;
@@ -350,7 +447,11 @@ export async function getIpRisk(ip: string): Promise<IpRiskResult> {
   }
 }
 
-async function resolveBatchFromUpstream(ips: string[], resolved: Map<string, IpRiskResult>): Promise<void> {
+async function resolveBatchFromUpstream(
+  ips: string[],
+  resolved: Map<string, IpRiskResult>,
+  caller: IpRiskCaller,
+): Promise<void> {
   if (ips.length === 0) return;
 
   const pc = config.proxycheck;
@@ -393,6 +494,7 @@ async function resolveBatchFromUpstream(ips: string[], resolved: Map<string, IpR
     for (const ip of chunk) {
       const raw = extractIpResult(payload, ip);
       if (!raw) {
+        const result = settleFailure(ip, "lookup_failed");
         await logLookup({
           ip,
           apiKeyHash: hashApiKeyForLog(apiKey),
@@ -402,13 +504,15 @@ async function resolveBatchFromUpstream(ips: string[], resolved: Map<string, IpR
           deduped: false,
           durationMs: Date.now() - startedAt,
           error: "proxycheck_response_missing_ip_result",
+          decision: buildIpRiskDecision(result, caller),
         });
-        resolved.set(ip, settleFailure(ip, "lookup_failed"));
+        resolved.set(ip, result);
         continue;
       }
 
       const parsed = parseV3Result(ip, raw, queriedAt);
       await persistRiskCache(parsed, cacheTtlHours);
+      const result = toRiskResult(parsed, false, "proxycheck");
       await logLookup({
         ip,
         apiKeyHash: hashApiKeyForLog(apiKey),
@@ -417,8 +521,9 @@ async function resolveBatchFromUpstream(ips: string[], resolved: Map<string, IpR
         risk: parsed.risk,
         deduped: false,
         durationMs: Date.now() - startedAt,
+        decision: buildIpRiskDecision(result, caller),
       });
-      resolved.set(ip, toRiskResult(parsed, false, "proxycheck"));
+      resolved.set(ip, result);
     }
   }
 }
@@ -427,7 +532,7 @@ async function resolveBatchFromUpstream(ips: string[], resolved: Map<string, IpR
  * 批量查询（proxycheck POST /v3/ 支持一次 <= 1000 个 IP）。结果与入参顺序一一对应。
  * 注意：批量路径不参与 getIpRisk 的 in-flight 合并表。
  */
-export async function getIpRiskBatch(ips: string[]): Promise<IpRiskResult[]> {
+export async function getIpRiskBatch(ips: string[], caller: IpRiskCaller): Promise<IpRiskResult[]> {
   const requested = Array.isArray(ips) ? ips : [];
   const normalized = requested.map((item) => normalizeIp(item));
   const unique = Array.from(new Set(normalized.filter((item): item is string => item !== null)));
@@ -449,7 +554,7 @@ export async function getIpRiskBatch(ips: string[]): Promise<IpRiskResult[]> {
       }
 
       const missing = unique.filter((ip) => !resolved.has(ip));
-      await resolveBatchFromUpstream(missing, resolved);
+      await resolveBatchFromUpstream(missing, resolved, caller);
     } catch (error) {
       const apiKey = typeof pc.apiKey === "string" ? pc.apiKey.trim() : "";
       const message = redactSecret(error instanceof Error ? error.message : String(error), apiKey);
@@ -467,26 +572,21 @@ export async function getIpRiskBatch(ips: string[]): Promise<IpRiskResult[]> {
 }
 
 /**
- * 闸门用的轻量判定。
- * shouldChallenge 判据：上游给出了结论，且 risk >= challengeRiskScore，或命中 vpn/proxy/tor
- * 三类明确检测之一（hosting 单独命中不触发，机房出口太常见）。source 为 unavailable
- * （开关关闭 / 非法或内网地址 / 上游失败降级）时一律不挑战。
+ * 闸门用的轻量判定。判据一律取自 buildIpRiskDecision，本函数不再自己算一遍：
+ * 日志里记的决策与这里回给闸门的结论必须同源，否则改判据时两处会悄悄分叉。
+ * 返回值与改动前逐字段相同（decision 的 caller 记 "first_visit_gate"）。
  */
 export async function evaluateIpRisk(ip: string): Promise<IpRiskEvaluation> {
-  const result = await getIpRisk(ip);
-  const threshold = toScore(config.proxycheck.challengeRiskScore, DEFAULT_CHALLENGE_RISK_SCORE);
-  const flagged = CHALLENGE_FLAGS.some((flag) => result.detections[flag]);
-  const hasVerdict = result.source !== "unavailable";
-  // failOpen=false 时拿不到结论 = 失败关闭：挑战而非放行（对齐 ipVerificationService 的 decision:"error"）。
-  const closedOnFailure = !hasVerdict && !config.proxycheck.failOpen;
+  const result = await getIpRisk(ip, "first_visit_gate");
+  const decision = buildIpRiskDecision(result, "first_visit_gate");
 
   return {
-    ok: hasVerdict,
+    ok: result.source !== "unavailable",
     risk: result.risk,
     level: result.level,
     flags: result.flags,
-    shouldChallenge: hasVerdict ? result.risk >= threshold || flagged : closedOnFailure,
-    reason: hasVerdict ? `proxycheck_risk_${result.level}` : "proxycheck_unavailable",
+    shouldChallenge: decision.shouldChallenge,
+    reason: decision.reason,
   };
 }
 

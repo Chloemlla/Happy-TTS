@@ -60,10 +60,10 @@ const ProxycheckProbeReportSchema = new mongoose.Schema<ProxycheckProbeReportDoc
   },
 );
 
-// This collection is write-only (grep confirms no find/aggregate consumers anywhere in
-// the repo). It deliberately declares no index beyond the implicit _id: the documented
-// fields are read by out-of-band analysis only, so any secondary index would be pure
-// write amplification. A retention TTL is deferred until the owner decides the period.
+// 该集合不再是只写集合：新增的 admin 日志面板会按 createdAt 倒序翻页读它（探测上报页），
+// 所以补一条 { createdAt: -1 } 支撑排序与分页。字段本身不动：客户端自报字段仍然只用于
+// 事后分析，服务端判定（flags / mismatch）才是权威。保留期同样待 owner 决定，不加 TTL。
+ProxycheckProbeReportSchema.index({ createdAt: -1 });
 
 export const ProxycheckProbeReportModel =
   (mongoose.models.ProxycheckProbeReport as mongoose.Model<ProxycheckProbeReportDoc>) ||

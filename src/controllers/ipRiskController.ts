@@ -153,7 +153,7 @@ export class IpRiskController {
     const ip = resolveRequestIp(req);
 
     try {
-      const data = await getIpRiskForAddress(ip);
+      const data = await getIpRiskForAddress(ip, "api");
       res.json({ success: true, data });
     } catch (error) {
       // 只回中文提示：上游 URL 与内部栈不外泄。
