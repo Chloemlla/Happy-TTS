@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { config } from "../config/config";
-import { buildTtsProviderPublicConfig } from "../config/ttsProviderConfig";
+import { buildTtsProviderPublicConfig, resolveEnabledTtsProviders } from "../config/ttsProviderConfig";
 import {
   applyCatalogPageNumber,
   validateFishAudioProxyUrl,
@@ -151,7 +151,11 @@ export const ttsProviderController = {
         return res.status(400).json({ success: false, error: "Fish Audio 音色来源无效" });
       }
       const runtimeConfig = await RuntimeConfigService.getRawTtsProviderConfig();
-      if (runtimeConfig.provider !== "fish") return res.json({ success: true, items: [], hasMore: false, page: 1 });
+      // 只看「Fish 是否被启用」而不是「Fish 是不是主提供商」：多提供商并存时，
+      // 次级 Fish 的用户也要能拿到音色目录。
+      if (!resolveEnabledTtsProviders(runtimeConfig).includes("fish")) {
+        return res.json({ success: true, items: [], hasMore: false, page: 1 });
+      }
       const source = sourceName === "default-voices"
         ? runtimeConfig.fish.catalog?.defaultVoicesRequest
         : runtimeConfig.fish.catalog?.modelRequest;

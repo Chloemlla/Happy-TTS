@@ -260,56 +260,6 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
         } else {
           setVoice("");
         }
-        if (nextConfig.provider === "fish") {
-          setFishCatalogLoading(true);
-          const loadCatalog = async (source: string, page: number) => {
-            const catalogResponse = await fetch(`${getApiBaseUrl()}/api/tts/fish-catalog?source=${source}&page=${page}`, {
-              credentials: "include",
-              headers: { Accept: "application/json" },
-              signal: controller.signal,
-            });
-            if (!catalogResponse.ok) throw new Error("Fish Audio 音色列表暂时不可用");
-            const data = await catalogResponse.json();
-            return {
-              items: normalizeFishCatalogItems(data),
-              hasMore: data.hasMore === true,
-              page: typeof data.page === "number" ? data.page : page,
-            };
-          };
-          try {
-            const [modelsResult, defaultResult] = await Promise.all([
-              loadCatalog("model", 1),
-              loadCatalog("default-voices", 1),
-            ]);
-            if (!controller.signal.aborted) {
-              setFishCatalog(modelsResult.items);
-              setFishDefaultVoices(defaultResult.items);
-              setFishModelPage(1);
-              fishModelPageRef.current = 1;
-              setFishDefaultPage(1);
-              fishDefaultPageRef.current = 1;
-              setFishModelHasMore(modelsResult.hasMore);
-              setFishDefaultHasMore(defaultResult.hasMore);
-              const firstVoice = modelsResult.items[0] || defaultResult.items[0];
-              if (firstVoice) setVoice(firstVoice.id);
-            }
-          } catch (catalogError) {
-            if (!controller.signal.aborted) setFishCatalogError(catalogError instanceof Error ? catalogError.message : "Fish Audio 音色列表暂时不可用");
-          } finally {
-            if (!controller.signal.aborted) setFishCatalogLoading(false);
-          }
-        } else {
-          setFishCatalog([]);
-          setFishDefaultVoices([]);
-          setFishCatalogError("");
-          setFishModelPage(1);
-          fishModelPageRef.current = 1;
-          setFishDefaultPage(1);
-          fishDefaultPageRef.current = 1;
-          setFishModelHasMore(false);
-          setFishDefaultHasMore(false);
-          setFishModalOpen(false);
-        }
         setUsingProviderFallback(!hasValidPayload);
         if (!hasValidPayload) {
           setOutputFormat("mp3");
@@ -329,6 +279,75 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
     void loadProviderConfig();
     return () => controller.abort();
   }, []);
+
+  const loadFishCatalog = useCallback(async (signal: AbortSignal) => {
+    const loadCatalog = async (source: string, page: number) => {
+      const catalogResponse = await fetch(`${getApiBaseUrl()}/api/tts/fish-catalog?source=${source}&page=${page}`, {
+        credentials: "include",
+        headers: { Accept: "application/json" },
+        signal,
+      });
+      if (!catalogResponse.ok) throw new Error("Fish Audio 音色列表暂时不可用");
+      const data = await catalogResponse.json();
+      return {
+        items: normalizeFishCatalogItems(data),
+        hasMore: data.hasMore === true,
+        page: typeof data.page === "number" ? data.page : page,
+      };
+    };
+
+    const [modelsResult, defaultResult] = await Promise.all([
+      loadCatalog("model", 1),
+      loadCatalog("default-voices", 1),
+    ]);
+    if (signal.aborted) return;
+    setFishCatalog(modelsResult.items);
+    setFishDefaultVoices(defaultResult.items);
+    setFishModelPage(1);
+    fishModelPageRef.current = 1;
+    setFishDefaultPage(1);
+    fishDefaultPageRef.current = 1;
+    setFishModelHasMore(modelsResult.hasMore);
+    setFishDefaultHasMore(defaultResult.hasMore);
+    const firstVoice = modelsResult.items[0] || defaultResult.items[0];
+    if (firstVoice) setVoice(firstVoice.id);
+  }, []);
+
+  const resetFishCatalog = useCallback(() => {
+    setFishCatalog([]);
+    setFishDefaultVoices([]);
+    setFishCatalogError("");
+    setFishModelPage(1);
+    fishModelPageRef.current = 1;
+    setFishDefaultPage(1);
+    fishDefaultPageRef.current = 1;
+    setFishModelHasMore(false);
+    setFishDefaultHasMore(false);
+    setFishModalOpen(false);
+  }, []);
+
+  // 音色目录跟随「当前生效的提供商」而不是首次加载时的主提供商：启用多提供商后，
+  // 管理员把 Fish 设成次级提供商时，用户切过去同样要能挑音色。
+  useEffect(() => {
+    if (activeProviderConfig.provider !== "fish") {
+      resetFishCatalog();
+      return;
+    }
+
+    const controller = new AbortController();
+    setFishCatalogLoading(true);
+    setFishCatalogError("");
+    void loadFishCatalog(controller.signal)
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          setFishCatalogError(error instanceof Error ? error.message : "Fish Audio 音色列表暂时不可用");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setFishCatalogLoading(false);
+      });
+    return () => controller.abort();
+  }, [activeProviderConfig.provider, loadFishCatalog, resetFishCatalog]);
 
   const MAX_TEXT_LENGTH = 4096;
 
