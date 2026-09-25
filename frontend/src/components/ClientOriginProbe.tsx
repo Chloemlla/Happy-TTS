@@ -420,7 +420,9 @@ async function runClientOriginProbe(): Promise<void> {
       httpExitIp,
       wsExitIp,
       ipv6Exit,
-      wsLeak: wsExitIp !== null && wsExitIp !== httpExitIp,
+      // 只是「两侧地址不同」的原始事实：经反向代理部署时 WS 侧看到的是反代/网关地址，
+      // 必然不同，不构成泄漏结论（判定在服务端，见 computeProbeVerdict 的 comparability）。
+      wsExitDiffersFromHttp: wsExitIp !== null && wsExitIp !== httpExitIp,
       webrtcHostIps,
       webrtcLeak,
       observationWarnings: observed.warning ?? [],

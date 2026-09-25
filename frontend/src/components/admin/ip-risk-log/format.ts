@@ -301,8 +301,8 @@ export const CHALLENGE_FLAGS: readonly string[] = ['vpn', 'proxy', 'tor'];
 
 /** 服务端 computeProbeVerdict 实际会写入 flags 的全部取值（src/controllers/ipRiskController.ts）。 */
 export const PROBE_FLAG_LABELS: Record<string, string> = {
-  ipv4_vs_ws_mismatch: 'HTTP 出口 IP 与 WebSocket 出口 IP 不一致',
-  ipv_vs_v6_mismatch: 'IPv4 出口与 IPv6 出口不一致',
+  ipv4_vs_ws_mismatch: 'HTTP 出口 IP 与 WebSocket 出口 IP 不一致（两侧均为公网出口时才会命中）',
+  ipv_vs_v6_mismatch: 'IPv4 出口与 IPv6 出口不一致（两侧均为公网出口时才会命中）',
   timezone_vs_geo_mismatch: '浏览器时区与 IP 地理位置不一致',
   webrtc_leak_reported: '客户端自报 WebRTC 泄漏（未采信，仅记录）',
   webdriver_reported: '客户端自报自动化特征 webdriver（未采信，仅记录）',

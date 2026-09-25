@@ -131,6 +131,16 @@ router.get("/ip-risk/echo", ipProbeLimiter, IpRiskController.getEcho);
  *                           type: boolean
  *                         timezoneVsGeo:
  *                           type: boolean
+ *                     comparability:
+ *                       type: object
+ *                       description: 各轴是否具备判定条件；false 表示 mismatch 的该轴无意义（缺一侧，或该侧是反代/网关内网地址而非公网出口）。
+ *                       properties:
+ *                         ipv4vsWs:
+ *                           type: boolean
+ *                         ipvEvsV6:
+ *                           type: boolean
+ *                         timezoneVsGeo:
+ *                           type: boolean
  *       400:
  *         description: 请求体缺字段或格式错误
  *       403:

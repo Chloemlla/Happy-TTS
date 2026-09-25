@@ -1,6 +1,11 @@
+import { isIP } from "node:net";
 import type { Request, Response } from "express";
 import { config } from "../config/config";
-import { ProxycheckProbeReportModel } from "../models/proxycheckProbeReportModel";
+import {
+  ProxycheckProbeReportModel,
+  type ProxycheckProbeComparability,
+  type ProxycheckProbeMismatch,
+} from "../models/proxycheckProbeReportModel";
 import {
   buildEchoWarnings,
   collectObservedAddresses,
@@ -121,20 +126,68 @@ async function readCachedGeoTimezone(ip: string): Promise<string | null> {
   }
 }
 
+/** IPv4 里不可能是「出口 IP」的段：RFC1918、环回、链路本地 169.254/16、CGNAT 100.64/10。 */
+const NON_GLOBAL_IPV4_PATTERN =
+  /^(?:10\.|127\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.|100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.)/;
+
+/** IPv6 里同样不是出口的段：链路本地 fe80::/10、唯一本地 fc00::/7（环回与未指定在上面另判）。 */
+const NON_GLOBAL_IPV6_PATTERN = /^(?:fe[89ab]|f[cd])/;
+
+/**
+ * 「可比对的出口 IP」：合法 IP 字面量，且是全局地址。
+ *
+ * 内网 / 环回 / 链路本地地址是基础设施跳，不是任何客户端的出口。经反向代理（含容器化
+ * 反代）部署时服务端在部分连接上只能看到这类地址，拿它和另一侧的公网出口对比必然不等，
+ * 那是观测层不同、不是出口不一致 —— 必须判为不可比，否则每条上报都是恒真的误报。
+ */
+function isComparableExitAddress(value: string | undefined): boolean {
+  if (!value) return false;
+  const candidate = value.trim().replace(/^::ffff:/i, "");
+  const version = isIP(candidate);
+  if (version === 4) return !NON_GLOBAL_IPV4_PATTERN.test(candidate);
+  if (version === 6) return !NON_GLOBAL_IPV6_PATTERN.test(candidate.toLowerCase());
+  return false;
+}
+
 /**
  * 由服务端自行判定不一致项与标记，不采信客户端自报的结论。
  * 客户端上报的 webrtcLeak / webdriver 只作为"客户端自称"记录进 flags。
+ *
+ * 每一轴先判「能不能判」（comparability）再判「判成什么」（mismatch）：一侧不具备判定
+ * 条件时该轴恒为 false，并由 comparability 告诉前端「不可判定」，不要渲染成「一致」。
+ *
+ * 关键一条：HTTP 侧与 WS 侧的地址不是同一层观测。HTTP 侧走 Express，req.ip 由 trust proxy
+ * 解析（反代后即真实客户端）；WS 升级请求是裸 IncomingMessage、在 Express 中间件栈之外，
+ * 拿不到 req.ip，只能回退到 socket.remoteAddress —— 反代或 Docker 网关的内网地址。
+ * 因此 ipv4vsWs 只在两侧都是公网出口时才成立。
  */
 function computeProbeVerdict(
   report: SanitizedProbePayload,
   geoTimezone: string | null,
-): { flags: string[]; mismatch: { ipv4vsWs: boolean; ipvEvsV6: boolean; timezoneVsGeo: boolean } } {
-  const mismatch = {
-    ipv4vsWs: Boolean(report.wsExitIp && report.httpExitIp && report.wsExitIp !== report.httpExitIp),
-    ipvEvsV6: Boolean(report.httpExitIp && report.ipv6Exit && report.httpExitIp !== report.ipv6Exit),
-    timezoneVsGeo: Boolean(
-      geoTimezone && report.timezone && report.timezone.toLowerCase() !== geoTimezone.toLowerCase(),
-    ),
+): {
+  flags: string[];
+  mismatch: ProxycheckProbeMismatch;
+  comparability: ProxycheckProbeComparability;
+} {
+  const httpExit = report.httpExitIp;
+  const wsExit = report.wsExitIp;
+  const ipv6Exit = report.ipv6Exit;
+  const clientTimezone = report.timezone;
+
+  const comparability: ProxycheckProbeComparability = {
+    ipv4vsWs: isComparableExitAddress(httpExit) && isComparableExitAddress(wsExit),
+    ipvEvsV6: isComparableExitAddress(httpExit) && isComparableExitAddress(ipv6Exit),
+    timezoneVsGeo: Boolean(geoTimezone && clientTimezone),
+  };
+
+  const mismatch: ProxycheckProbeMismatch = {
+    ipv4vsWs: comparability.ipv4vsWs && httpExit !== wsExit,
+    ipvEvsV6: comparability.ipvEvsV6 && httpExit !== ipv6Exit,
+    timezoneVsGeo:
+      comparability.timezoneVsGeo &&
+      geoTimezone !== null &&
+      clientTimezone !== undefined &&
+      clientTimezone.toLowerCase() !== geoTimezone.toLowerCase(),
   };
 
   const flags: string[] = [];
@@ -144,7 +197,7 @@ function computeProbeVerdict(
   if (report.webrtcLeak === true) flags.push("webrtc_leak_reported");
   if (report.webdriver === true) flags.push("webdriver_reported");
 
-  return { flags, mismatch };
+  return { flags, mismatch, comparability };
 }
 
 export class IpRiskController {
@@ -208,11 +261,11 @@ export class IpRiskController {
     const ip = resolveRequestIp(req);
     const report = sanitizeProbePayload(payload as Record<string, unknown>);
     const geoTimezone = await readCachedGeoTimezone(ip);
-    const { flags, mismatch } = computeProbeVerdict(report, geoTimezone);
+    const { flags, mismatch, comparability } = computeProbeVerdict(report, geoTimezone);
 
     let stored = true;
     try {
-      await ProxycheckProbeReportModel.create({ ip, ...report, flags, mismatch, createdAt: new Date() });
+      await ProxycheckProbeReportModel.create({ ip, ...report, flags, mismatch, comparability, createdAt: new Date() });
     } catch (error) {
       stored = false;
       logger.warn("[IpRisk] 探测上报落库失败", {
@@ -221,7 +274,7 @@ export class IpRiskController {
       });
     }
 
-    res.json({ success: true, data: { stored, flags, mismatch } });
+    res.json({ success: true, data: { stored, flags, mismatch, comparability } });
   }
 
   /** GET /api/ip-risk/probe-config —— 前端探测组件的运行时开关。 */

@@ -6,6 +6,17 @@ export interface ProxycheckProbeMismatch {
   timezoneVsGeo: boolean;
 }
 
+/**
+ * 每一轴「是否具备判定条件」。true = 两侧前提都在，mismatch 的取值才有意义；
+ * false = 缺一侧或该侧不是可比对的公网出口（反代 / 容器网关内网地址就是典型），
+ * 此时 mismatch 恒为 false，前端不得渲染成「一致」。
+ */
+export interface ProxycheckProbeComparability {
+  ipv4vsWs: boolean;
+  ipvEvsV6: boolean;
+  timezoneVsGeo: boolean;
+}
+
 export interface ProxycheckProbeReportDoc {
   /** 服务端解析出的上报方 IP（HTTP 请求侧，可信来源），非客户端自报。 */
   ip: string;
@@ -26,6 +37,12 @@ export interface ProxycheckProbeReportDoc {
   /** 服务端自行判定的不一致标记，不采信客户端自报。 */
   flags: string[];
   mismatch: ProxycheckProbeMismatch;
+  /**
+   * 各轴是否具备判定条件（见 ProxycheckProbeComparability）。
+   * 这是应用写入的形状；本判定改版前写入的旧文档没有这个字段，读出为 undefined，
+   * 前端类型（frontend/src/api/ipRiskLogs.ts）相应地声明为可选。
+   */
+  comparability: ProxycheckProbeComparability;
   createdAt: Date;
 }
 
@@ -52,6 +69,13 @@ const ProxycheckProbeReportSchema = new mongoose.Schema<ProxycheckProbeReportDoc
       ipvEvsV6: { type: Boolean, required: true, default: false },
       timezoneVsGeo: { type: Boolean, required: true, default: false },
     },
+    // 与 mismatch 同形。schema 上不设 required：判定改版前写入的旧文档没有这个字段，
+    // 读出时按 undefined 处理即可，不回填也不改写历史判决（应用侧总是会写入它）。
+    comparability: {
+      ipv4vsWs: { type: Boolean, default: false },
+      ipvEvsV6: { type: Boolean, default: false },
+      timezoneVsGeo: { type: Boolean, default: false },
+    },
     createdAt: { type: Date, default: Date.now },
   },
   {
@@ -62,7 +86,7 @@ const ProxycheckProbeReportSchema = new mongoose.Schema<ProxycheckProbeReportDoc
 
 // 该集合不再是只写集合：新增的 admin 日志面板会按 createdAt 倒序翻页读它（探测上报页），
 // 所以补一条 { createdAt: -1 } 支撑排序与分页。字段本身不动：客户端自报字段仍然只用于
-// 事后分析，服务端判定（flags / mismatch）才是权威。保留期同样待 owner 决定，不加 TTL。
+// 事后分析，服务端判定（flags / mismatch / comparability）才是权威。保留期同样待 owner 决定，不加 TTL。
 ProxycheckProbeReportSchema.index({ createdAt: -1 });
 
 export const ProxycheckProbeReportModel =

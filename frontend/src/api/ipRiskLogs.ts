@@ -217,6 +217,12 @@ export interface ProbeReportRow {
     ipvEvsV6: boolean;
     timezoneVsGeo: boolean;
   };
+  /** 各轴是否具备判定条件；老文档（本判定改版前写入）没有这个字段，读出为 undefined。 */
+  comparability?: {
+    ipv4vsWs: boolean;
+    ipvEvsV6: boolean;
+    timezoneVsGeo: boolean;
+  };
   createdAt: string;
   [key: string]: unknown;
 }

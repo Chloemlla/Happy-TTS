@@ -13,9 +13,14 @@ const IP_PROBE_MAX_PAYLOAD = 4096;
 let probeWss: WebSocketServer | null = null;
 
 /**
- * 观测地址的解析复用 clientProbeService.collectObservedAddresses：
- * 升级请求是裸 IncomingMessage（无 req.ip），extractRealIP 会回退到
- * cf-connecting-ip / socket.remoteAddress，正是这里需要的行为。
+ * 观测地址的解析复用 clientProbeService.collectObservedAddresses。
+ *
+ * 注意这里的 primary 不是「客户端出口」：升级请求是裸 IncomingMessage（没有 Express 的
+ * req.ip，也就没有 trust proxy 解析），extractRealIP 只能回退到 cf-connecting-ip /
+ * socket.remoteAddress。站点经反向代理或容器网关部署时 socket 地址是反代/网关的内网地址
+ * （例如 Docker 桥接网关 172.18.0.1），与 HTTP 侧 echo 解析出的客户端地址不在同一观测层，
+ * 两者数值不同是必然的、不代表出口不一致 —— 服务端判定侧的 computeProbeVerdict 用
+ * comparability 明确排除了这种情况。
  */
 function buildProbeMessage(req: IncomingMessage): string {
   const observed = collectObservedAddresses(req);
