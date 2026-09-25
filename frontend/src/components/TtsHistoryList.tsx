@@ -128,7 +128,7 @@ const TtsHistoryListInner: React.FC<TtsHistoryListProps> = ({
         </div>
 
         {historyError && (
-          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
+          <div className="mt-4 min-w-0 max-w-full break-words rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
             {historyError}
           </div>
         )}
@@ -153,39 +153,39 @@ const TtsHistoryListInner: React.FC<TtsHistoryListProps> = ({
                   className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:rounded-2xl"
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
+                    <div className="min-w-0 w-full flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                        <span className="min-w-0 max-w-full break-words rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">
                           {record.voice}
                         </span>
-                        <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                        <span className="min-w-0 max-w-full break-words rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">
                           {record.model}
                         </span>
-                        <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                        <span className="min-w-0 max-w-full break-words rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">
                           {record.outputFormat?.toUpperCase() || "AUDIO"}
                         </span>
                         <span
                           className={cn(
-                            "rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                            "min-w-0 max-w-full break-words rounded-full border px-2.5 py-1 text-[11px] font-semibold",
                             reviewStatusClassNames[reviewStatus],
                           )}
                         >
                           {reviewStatusLabels[reviewStatus]}
                         </span>
                       </div>
-                      <div className="mt-3 text-sm font-semibold text-slate-900">
+                      <div className="mt-3 break-words text-sm font-semibold text-slate-900">
                         {record.fileName || "语音文件"}
                       </div>
-                      <div className="mt-1 text-xs text-slate-500">
+                      <div className="mt-1 break-words text-xs text-slate-500">
                         {formatHistoryTime(record.createdAt)} · {record.speed}x · {record.provider}
                       </div>
-                      <div className="mt-1 text-xs text-slate-500">
+                      <div className="mt-1 break-words text-xs text-slate-500">
                         {record.audioStorage === "mongo" ? "MongoDB 音频" : "文件缓存"} ·{" "}
                         {record.audioMimeType || getAudioMimeType(record.outputFormat)} ·{" "}
                         {formatAudioSize(record.audioSize)}
                         {record.audioFileId ? ` · ${record.audioFileId}` : ""}
                       </div>
-                      <div className="mt-2 max-w-full break-words rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs leading-5 text-slate-500">
+                      <div className="mt-2 max-w-full min-w-0 break-words rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs leading-5 text-slate-500">
                         {record.text || "[redacted]"}
                       </div>
                     </div>
@@ -241,7 +241,7 @@ const TtsHistoryListInner: React.FC<TtsHistoryListProps> = ({
                       {record.adminNote && (
                         <div className="flex gap-2 text-xs leading-5 text-slate-600">
                           <FaCommentDots className="mt-0.5 shrink-0 text-slate-400" />
-                          <span>
+                          <span className="min-w-0 break-words">
                             <span className="font-semibold text-slate-800">管理员留言：</span>
                             {record.adminNote}
                           </span>
@@ -250,14 +250,14 @@ const TtsHistoryListInner: React.FC<TtsHistoryListProps> = ({
                       {record.adminSuggestion && (
                         <div className="flex gap-2 text-xs leading-5 text-slate-600">
                           <FaTools className="mt-0.5 shrink-0 text-slate-400" />
-                          <span>
+                          <span className="min-w-0 break-words">
                             <span className="font-semibold text-slate-800">调整建议：</span>
                             {record.adminSuggestion}
                           </span>
                         </div>
                       )}
                       {reviewStatus !== "none" && (
-                        <div className="text-xs leading-5 text-slate-500">
+                        <div className="break-words text-xs leading-5 text-slate-500">
                           人工审核：{reviewStatusLabels[reviewStatus]}
                           {record.reviewedAt ? ` · ${formatHistoryTime(record.reviewedAt)}` : ""}
                         </div>
