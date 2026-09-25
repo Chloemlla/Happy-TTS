@@ -5,6 +5,8 @@ import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
 import { getApiBaseUrl } from '../api/api';
+import { studioPanelClassName } from './studioTheme';
+import { cn } from '../utils/cn';
 
 
 interface MigrationStats {
@@ -134,7 +136,7 @@ const ShortUrlMigrationManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
+        className={cn(studioPanelClassName, "p-4")}
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
@@ -239,7 +241,7 @@ const ShortUrlMigrationManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
+        className={cn(studioPanelClassName, "p-4")}
       >
         <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <FaExclamationTriangle className="w-5 h-5 text-orange-500" />
@@ -293,7 +295,7 @@ const ShortUrlMigrationManager: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-green-200"
+            className={cn(studioPanelClassName, "p-4 border-green-200")}
           >
             <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
               <FaCheckCircle className="w-5 h-5 text-green-500" />

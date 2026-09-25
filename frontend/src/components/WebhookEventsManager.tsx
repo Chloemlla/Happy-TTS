@@ -28,6 +28,8 @@ import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
 
 import { getBackendErrorMessage } from '../utils/backendError';
+import { studioModalOverlayClassName } from './studioTheme';
+import { cn } from '../utils/cn';
 
 
 interface WebhookEventItem {
@@ -1380,7 +1382,7 @@ function EventCard({
 
 function Modal({ title, onClose, children, width = 'max-w-4xl' }: { title: string; onClose: () => void; children: React.ReactNode; width?: string }) {
   return (
-    <motion.div className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+    <motion.div className={cn(studioModalOverlayClassName, "z-[9999] bg-black/50 p-3")} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <motion.div
         className={`bg-white/95 backdrop-blur rounded-2xl ${width} w-[95vw] max-h-[90vh] flex flex-col p-4 sm:p-6 border border-[#8ECAE6]/30 shadow-xl`}
         initial={{ scale: 0.96, y: 10, opacity: 0 }}

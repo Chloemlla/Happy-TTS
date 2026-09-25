@@ -8,6 +8,8 @@ import {
   InfoQueryHero,
   InfoQueryShell,
 } from './InfoQueryScaffold';
+import { studioEyebrowClassName } from './studioTheme';
+import { cn } from '../utils/cn';
 
 const tigerGlassButtonClass = 'inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-xl transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-45';
 const tigerScenePanelClass = 'rounded-2xl border border-slate-200 bg-white/90 shadow-sm backdrop-blur-xl';
@@ -1091,7 +1093,7 @@ const TigerAdventure: React.FC = () => {
                     className="mb-4 h-24 rounded-2xl border border-white/60"
                     style={{ background: scene.background }}
                   />
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <div className={cn(studioEyebrowClassName, "text-xs tracking-[0.18em]")}>
                     Scene {index + 1}
                   </div>
                   <h3 className="mt-2 text-base font-semibold text-slate-950">{scene.title}</h3>
@@ -1136,7 +1138,7 @@ const TigerAdventure: React.FC = () => {
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8 }}
         >
-          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+          <div className={cn(studioEyebrowClassName, "mb-2 text-xs")}>
             Scene {currentScene + 1} / {scenes.length}
           </div>
           <h2 className="px-2 text-xl font-semibold text-slate-900 xs:text-2xl sm:mb-2 sm:text-3xl md:text-4xl">

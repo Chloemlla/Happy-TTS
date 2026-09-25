@@ -26,6 +26,8 @@ import { signedFetch } from '../utils/requestSigner';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
 import { getBackendErrorMessage } from '../utils/backendError';
+import { studioEyebrowClassName, studioSurfaceClassName } from './studioTheme';
+import { cn } from '../utils/cn';
 
 
 interface TamperDetectionDemoProps {
@@ -199,7 +201,7 @@ const MetricCard: React.FC<{
   <div className={compactPanelClass}>
     <div className="flex items-start justify-between gap-3">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+        <p className={cn(studioEyebrowClassName, "text-xs tracking-[0.18em]")}>{label}</p>
         <div className="mt-2 text-2xl font-semibold text-slate-950">{value}</div>
         <p className="mt-2 text-xs leading-5 text-slate-500">{detail}</p>
       </div>
@@ -486,13 +488,13 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
     >
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.3)_0%,transparent_52%)]" />
       <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-5 shadow-sm backdrop-blur-xl sm:p-7">
+        <section className={cn(studioSurfaceClassName, "bg-white/88 p-5 sm:p-7")}>
           <div className="absolute inset-y-0 left-0 w-1.5 bg-slate-900" />
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="flex max-w-3xl gap-4">
               <IconBadge icon={ShieldAlert} tone="slate" className="h-12 w-12 rounded-2xl" />
               <div>
-                <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Synapse Integrity</div>
+                <div className={cn(studioEyebrowClassName, "text-xs")}>Synapse Integrity</div>
                 <h1 className="mt-2 text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">防篡改检测与处置</h1>
                 <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
                   前端检测、签名上报、后端留痕与 IP 封禁联动管理。
@@ -602,7 +604,7 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
               <SectionTitle title="手动封禁 IP" description="对确认异常来源执行临时封禁，写入后端封禁列表。" icon={Ban} tone="rose" />
               <div className="space-y-3">
                 <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">IP Address</span>
+                  <span className={cn(studioEyebrowClassName, "text-xs tracking-[0.16em]")}>IP Address</span>
                   <input
                     value={manualBlockIP}
                     onChange={(event) => setManualBlockIP(event.target.value)}
@@ -611,7 +613,7 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
                   />
                 </label>
                 <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Reason</span>
+                  <span className={cn(studioEyebrowClassName, "text-xs tracking-[0.16em]")}>Reason</span>
                   <input
                     value={manualBlockReason}
                     onChange={(event) => setManualBlockReason(event.target.value)}
@@ -619,7 +621,7 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
                   />
                 </label>
                 <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Duration Hours</span>
+                  <span className={cn(studioEyebrowClassName, "text-xs tracking-[0.16em]")}>Duration Hours</span>
                   <input
                     type="number"
                     min={1}
@@ -669,7 +671,7 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
               <SectionTitle title="分布概览" description="事件类型、严重级别与高频来源。" icon={Activity} tone="sky" />
               <div className="space-y-4">
                 <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">By Type</div>
+                  <div className={cn(studioEyebrowClassName, "mb-2 text-xs tracking-[0.16em]")}>By Type</div>
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(serverSummary?.byType ?? {}).length > 0 ? (
                       Object.entries(serverSummary!.byType).map(([type, count]) => (
@@ -683,7 +685,7 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
                   </div>
                 </div>
                 <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">By Severity</div>
+                  <div className={cn(studioEyebrowClassName, "mb-2 text-xs tracking-[0.16em]")}>By Severity</div>
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(serverSummary?.bySeverity ?? {}).length > 0 ? (
                       Object.entries(serverSummary!.bySeverity).map(([severity, count]) => (
@@ -697,7 +699,7 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
                   </div>
                 </div>
                 <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Top IP</div>
+                  <div className={cn(studioEyebrowClassName, "mb-2 text-xs tracking-[0.16em]")}>Top IP</div>
                   <div className="space-y-2">
                     {(serverSummary?.topIPs ?? []).length > 0 ? (
                       serverSummary!.topIPs.map((item) => (

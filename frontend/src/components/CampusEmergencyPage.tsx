@@ -26,6 +26,8 @@ import {
   InfoQueryShell,
   InfoSectionTitle,
 } from './InfoQueryScaffold';
+import { studioEyebrowClassName } from './studioTheme';
+import { cn } from '../utils/cn';
 
 interface Character {
   id: string;
@@ -131,7 +133,7 @@ const CampusEmergencyPage: React.FC = () => {
                 {isAudioPlaying ? <FaVolumeUp /> : <FaVolumeMute />}
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Live Broadcast</p>
+                <p className={cn(studioEyebrowClassName, "text-xs text-slate-400")}>Live Broadcast</p>
                 <p className="mt-2 text-base font-semibold leading-7 text-slate-950">
                   校内广播：请注意，校园网络遭恶意攻击，计算机社团学生请立刻前往教机室。
                 </p>

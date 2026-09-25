@@ -23,6 +23,8 @@ import {
   FaRedo,
   FaExclamationTriangle
 } from 'react-icons/fa';
+import { studioPanelClassName } from './studioTheme';
+import { cn } from '../utils/cn';
 
 // AES-256解密函数
 function decryptAES256(encryptedData: string, iv: string, key: string): string {
@@ -139,7 +141,7 @@ const CreateRoundForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => 
 
   return (
     <motion.div
-      className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
+      className={cn(studioPanelClassName, "p-4")}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
@@ -368,7 +370,7 @@ const RoundManagement: React.FC<{ rounds: LotteryRound[]; onRefresh: () => void 
 
   return (
     <motion.div
-      className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
+      className={cn(studioPanelClassName, "p-4")}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
@@ -526,7 +528,7 @@ const LotteryAdmin: React.FC = () => {
 
       {/* 标签页切换 */}
       <motion.div 
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
+        className={cn(studioPanelClassName, "p-4")}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}

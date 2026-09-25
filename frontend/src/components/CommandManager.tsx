@@ -18,6 +18,8 @@ import {
   Filler
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
+import { studioPanelClassName } from './studioTheme';
+import { cn } from '../utils/cn';
 
 // 注册Chart.js组件
 ChartJS.register(
@@ -789,7 +791,7 @@ const CommandManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
+        className={cn(studioPanelClassName, "p-4")}
       >
         <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <FaPlay className="w-5 h-5 text-green-500" />
@@ -884,7 +886,7 @@ const CommandManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
+        className={cn(studioPanelClassName, "p-4")}
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
           <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
@@ -1457,7 +1459,7 @@ const CommandManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
+        className={cn(studioPanelClassName, "p-4")}
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
@@ -1523,7 +1525,7 @@ const CommandManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
+        className={cn(studioPanelClassName, "p-4")}
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">

@@ -24,6 +24,8 @@ function ImportCDKModal({ isOpen, onClose, onSuccess }: ImportCDKModalProps) {
   const [error, setError] = useState('');
   const [result, setResult] = useState<null | {
     importedCount: number;
+import { studioPanelClassName } from './studioTheme';
+import { cn } from '../utils/cn';
     skippedCount: number;
     errorCount: number;
     errors: string[];
@@ -1158,7 +1160,7 @@ export default function CDKStoreManager() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 backdrop-blur-xl"
+        className={cn(studioPanelClassName, "p-4")}
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <h3 className="text-base sm:text-lg font-semibold text-slate-800 flex items-center gap-2">
@@ -1190,7 +1192,7 @@ export default function CDKStoreManager() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 backdrop-blur-xl"
+        className={cn(studioPanelClassName, "p-4")}
       >
         <div className="space-y-4">
           <h3 className="text-base sm:text-lg font-semibold text-slate-800 flex items-center gap-2">
@@ -1401,7 +1403,7 @@ export default function CDKStoreManager() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 backdrop-blur-xl"
+        className={cn(studioPanelClassName, "p-4")}
       >
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
           <h3 className="text-base sm:text-lg font-semibold text-slate-800 flex items-center gap-2">

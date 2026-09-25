@@ -3,6 +3,8 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, CalendarDays, Clock, Copy, FileText, Image as ImageIcon, Menu, Share2, X } from 'lucide-react';
 import { markdownArticleApi, type MarkdownArticle, type MarkdownArticleSummary } from '../api/markdownArticles';
 import MarkdownRenderer, { getMarkdownHeadingId } from './MarkdownRenderer';
+import { studioEyebrowClassName } from './studioTheme';
+import { cn } from '../utils/cn';
 
 function formatDate(value?: string | null): string {
   if (!value) return '未发布';
@@ -329,7 +331,7 @@ const MarkdownArticlePage: React.FC = () => {
         <aside className="hidden lg:block">
           <div className="sticky top-24 space-y-4">
             <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 shadow-sm">
-              <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">延伸阅读</div>
+              <div className={cn(studioEyebrowClassName, "text-xs text-slate-400")}>延伸阅读</div>
               <div className="mt-3 space-y-2">
                 {relatedArticles.length === 0 ? (
                   <div className="text-sm leading-6 text-slate-500">暂无相关文章。</div>
@@ -350,7 +352,7 @@ const MarkdownArticlePage: React.FC = () => {
         {headings.length > 0 && (
           <aside className="hidden lg:block">
             <div className="sticky top-24 rounded-2xl border border-slate-200 bg-white/86 p-4 shadow-sm">
-              <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">目录</div>
+              <div className={cn(studioEyebrowClassName, "text-xs text-slate-400")}>目录</div>
               <nav className="mt-3 space-y-2">
                 {headings.map((heading, index) => (
                   <a

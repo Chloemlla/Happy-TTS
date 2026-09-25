@@ -30,6 +30,8 @@ import {
   InfoQueryShell,
   InfoSectionTitle,
 } from './InfoQueryScaffold';
+import { studioEyebrowClassName, studioModalOverlayClassName } from './studioTheme';
+import { cn } from '../utils/cn';
 
 const PAGE_SIZE = 12;
 
@@ -416,7 +418,7 @@ const FBIWantedPublic: React.FC = () => {
       <AnimatePresence>
         {showDetailModal && selectedWanted && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+            className={cn(studioModalOverlayClassName, "z-50 bg-slate-950/55")}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -431,7 +433,7 @@ const FBIWantedPublic: React.FC = () => {
             >
               <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/90 px-5 py-4 backdrop-blur">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Wanted Detail</p>
+                  <p className={cn(studioEyebrowClassName, "text-xs text-slate-400")}>Wanted Detail</p>
                   <h2 className="text-xl font-semibold text-slate-950">{selectedWanted.name}</h2>
                 </div>
                 <button
@@ -522,7 +524,7 @@ const FBIWantedPublic: React.FC = () => {
       <AnimatePresence>
         {showDisclaimer && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"
+            className={cn(studioModalOverlayClassName, "z-50 bg-slate-950/45")}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

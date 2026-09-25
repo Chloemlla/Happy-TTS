@@ -6,6 +6,8 @@ import { resourcesApi, Resource } from '../api/resources';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
+import { studioPanelClassName } from './studioTheme';
+import { cn } from '../utils/cn';
 
 interface AddResourceModalProps {
   isOpen: boolean;
@@ -584,7 +586,7 @@ export default function ResourceStoreManager() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
+        className={cn(studioPanelClassName, "p-4")}
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
           <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
@@ -616,7 +618,7 @@ export default function ResourceStoreManager() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
+        className={cn(studioPanelClassName, "p-4")}
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
@@ -641,7 +643,7 @@ export default function ResourceStoreManager() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
+        className={cn(studioPanelClassName, "p-4")}
       >
         <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <FaList className="w-5 h-5 text-indigo-500" />
