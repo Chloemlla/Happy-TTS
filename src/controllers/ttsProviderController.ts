@@ -7,6 +7,8 @@ import {
   type FishAudioCatalogRequest,
 } from "../config/fishAudioCatalog";
 import { RuntimeConfigService } from "../services/runtimeConfigService";
+import { EdgeTtsClient } from "../tts/edge/edge.client";
+import { normalizeEdgeVoiceCatalog } from "../tts/edge/edge.voices";
 import logger from "../utils/logger";
 
 const FISH_CATALOG_TIMEOUT_MS = 20_000;
@@ -119,6 +121,26 @@ export const ttsProviderController = {
         success: false,
         error: error instanceof Error ? error.message : "保存 TTS 提供方配置失败",
       });
+    }
+  },
+
+  async refreshEdgeVoices(_req: Request, res: Response) {
+    try {
+      const runtimeConfig = await RuntimeConfigService.getRawTtsProviderConfig();
+      const payload = await new EdgeTtsClient().fetchVoiceCatalog(runtimeConfig.edge.baseUrl);
+      const catalog = normalizeEdgeVoiceCatalog(payload);
+      if (catalog.length === 0) {
+        return res.status(502).json({
+          success: false,
+          error: "上游音色列表为空，已保留现有清单",
+        });
+      }
+      const { count, updatedAt } = await RuntimeConfigService.setEdgeVoiceCatalog(catalog);
+      return res.json({ success: true, count, updatedAt });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "刷新微软语音音色清单失败";
+      logger.warn("[TTS] Failed to refresh Edge voice catalog", { error: message });
+      return res.status(502).json({ success: false, error: message });
     }
   },
 

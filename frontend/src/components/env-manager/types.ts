@@ -153,6 +153,13 @@ export interface TtsProviderAdminConfig {
     modelCurl: string;
     defaultVoicesCurl: string;
   };
+  edge: {
+    baseUrl: string;
+    defaultVoice: string;
+    voiceSource: 'snapshot' | 'refreshed';
+    voiceCount: number;
+    voicesUpdatedAt?: string;
+  };
   updatedAt?: string;
 }
 
@@ -165,5 +172,9 @@ export interface TtsProviderAdminUpdate {
     apiKey: string;
     modelCurl: string;
     defaultVoicesCurl: string;
+  };
+  edge: {
+    baseUrl: string;
+    defaultVoice: string;
   };
 }

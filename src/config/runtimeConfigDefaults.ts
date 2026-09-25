@@ -1,4 +1,7 @@
 import {
+  EDGE_DEFAULT_BASE_URL,
+  EDGE_DEFAULT_VOICE,
+  EDGE_MODEL_ID,
   FISH_AUDIO_DEFAULT_BASE_URL,
   FISH_AUDIO_DEFAULT_MODEL,
   normalizeFishAudioBaseUrl,
@@ -259,7 +262,9 @@ export function buildRuntimeConfigDefaults(options: {
   const providerModelFallback =
     ttsProvider === "fish"
       ? normalizeTtsModelId(options.fishAudioModel, FISH_AUDIO_DEFAULT_MODEL)
-      : normalizeTtsModelId(options.openAiDefaultModel, "tts-1");
+      : ttsProvider === "edge"
+        ? EDGE_MODEL_ID
+        : normalizeTtsModelId(options.openAiDefaultModel, "tts-1");
   const ttsDefaultModel = normalizeTtsModelId(
     options.ttsDefaultModel || (ttsProvider === "openai" ? options.openAiDefaultModel : undefined),
     providerModelFallback,
@@ -334,6 +339,11 @@ export function buildRuntimeConfigDefaults(options: {
         baseUrl: normalizeFishAudioBaseUrl(options.fishAudioBaseUrl, FISH_AUDIO_DEFAULT_BASE_URL),
         referenceId: options.fishAudioReferenceId?.trim() || "",
         catalog: {},
+      },
+      edge: {
+        baseUrl: EDGE_DEFAULT_BASE_URL,
+        defaultVoice: EDGE_DEFAULT_VOICE,
+        voices: [],
       },
     },
     email: {
@@ -456,6 +466,10 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
             ? { defaultVoicesRequest: { ...config.ttsProvider.fish.catalog.defaultVoicesRequest, headers: { ...config.ttsProvider.fish.catalog.defaultVoicesRequest.headers } } }
             : {}),
         },
+      },
+      edge: {
+        ...config.ttsProvider.edge,
+        voices: config.ttsProvider.edge.voices.map((entry) => ({ ...entry })),
       },
     },
     email: {

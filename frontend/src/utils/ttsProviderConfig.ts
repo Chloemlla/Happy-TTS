@@ -10,6 +10,11 @@ export const FISH_DEFAULT_TTS_BASE_URL = "https://api.fish.audio";
 export const OPENAI_DEFAULT_TTS_MODEL = "tts-1-hd";
 export const OPENAI_TTS_OUTPUT_FORMATS = ["mp3", "opus", "aac", "flac"] as const;
 export const FISH_TTS_OUTPUT_FORMATS = ["mp3"] as const;
+export const EDGE_DEFAULT_TTS_MODEL = "edge-readaloud-v1";
+export const EDGE_DEFAULT_TTS_BASE_URL =
+  "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1";
+export const EDGE_DEFAULT_TTS_VOICE = "zh-CN-XiaoxiaoNeural";
+export const EDGE_TTS_OUTPUT_FORMATS = ["mp3"] as const;
 
 export const OPENAI_TTS_MODELS: TtsProviderOption[] = [
   { id: "tts-1", name: "TTS-1", description: "标准质量，速度快" },
@@ -48,7 +53,20 @@ function unwrapConfig(payload: unknown, depth = 0): Record<string, unknown> | nu
 }
 
 function normalizeProvider(value: unknown): TtsProviderId | null {
-  return value === "openai" || value === "fish" ? value : null;
+  return value === "openai" || value === "fish" || value === "edge" ? value : null;
+}
+
+/** 不是该提供商自己的模型 ID：切到别的提供商时不能沿用。 */
+export function isForeignTtsModelId(value: string, provider: TtsProviderId): boolean {
+  if (provider !== "fish" && value === FISH_DEFAULT_TTS_MODEL) return true;
+  if (provider !== "edge" && value === EDGE_DEFAULT_TTS_MODEL) return true;
+  return provider !== "openai" && OPENAI_TTS_MODELS.some((option) => option.id === value);
+}
+
+export function defaultModelForProvider(provider: TtsProviderId): string {
+  if (provider === "fish") return FISH_DEFAULT_TTS_MODEL;
+  if (provider === "edge") return EDGE_DEFAULT_TTS_MODEL;
+  return OPENAI_DEFAULT_TTS_MODEL;
 }
 
 function normalizeVoiceMode(value: unknown, provider: TtsProviderId, hasVoices: boolean): TtsVoiceMode {
@@ -94,11 +112,13 @@ function cloneFallback(): TtsProviderPublicConfig {
 }
 
 export function getTtsOutputFormats(provider: TtsProviderId): readonly string[] {
-  return provider === "fish" ? FISH_TTS_OUTPUT_FORMATS : OPENAI_TTS_OUTPUT_FORMATS;
+  if (provider === "fish") return FISH_TTS_OUTPUT_FORMATS;
+  if (provider === "edge") return EDGE_TTS_OUTPUT_FORMATS;
+  return OPENAI_TTS_OUTPUT_FORMATS;
 }
 
 export function supportsTtsSpeed(provider: TtsProviderId): boolean {
-  return provider === "openai";
+  return provider === "openai" || provider === "edge";
 }
 
 export function isTtsProviderConfigPayload(payload: unknown): boolean {
@@ -111,16 +131,12 @@ export function normalizeTtsProviderConfig(payload: unknown): TtsProviderPublicC
   const provider = normalizeProvider(source?.provider);
   if (!source || !provider) return cloneFallback();
 
-  const providerDefaultModel = provider === "fish" ? FISH_DEFAULT_TTS_MODEL : OPENAI_DEFAULT_TTS_MODEL;
+  const providerDefaultModel = defaultModelForProvider(provider);
   const defaultModelCandidate =
     typeof source.defaultModel === "string" ? source.defaultModel.trim() : "";
-  const hasProviderMismatch =
-    (provider === "fish" && OPENAI_TTS_MODELS.some((option) => option.id === defaultModelCandidate)) ||
-    (provider === "openai" && defaultModelCandidate === FISH_DEFAULT_TTS_MODEL);
-  let models = normalizeOptions(source.models).filter((option) =>
-    provider === "fish"
-      ? !OPENAI_TTS_MODELS.some((openAiModel) => openAiModel.id === option.id)
-      : option.id !== FISH_DEFAULT_TTS_MODEL,
+  const hasProviderMismatch = isForeignTtsModelId(defaultModelCandidate, provider);
+  let models = normalizeOptions(source.models).filter(
+    (option) => !isForeignTtsModelId(option.id, provider),
   );
   if (provider === "openai" && models.length === 0) {
     models = [...OPENAI_TTS_MODELS];
@@ -137,7 +153,11 @@ export function normalizeTtsProviderConfig(payload: unknown): TtsProviderPublicC
       {
         id: providerDefaultModel,
         name: providerDefaultModel,
-        ...(provider === "fish" ? { description: "Fish Audio 免费专业模型" } : {}),
+        ...(provider === "fish"
+          ? { description: "Fish Audio 免费专业模型" }
+          : provider === "edge"
+            ? { description: "微软内置语音，无需额外密钥" }
+            : {}),
       },
     ];
   }

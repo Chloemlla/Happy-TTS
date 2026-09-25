@@ -2,7 +2,7 @@ import { config } from "../config/config";
 import { RuntimeConfigService } from "../services/runtimeConfigService";
 
 export interface TtsProviderCapabilityReadiness {
-  name: "openai" | "fish";
+  name: "openai" | "fish" | "edge";
   required: false;
   status: "ready" | "skipped";
   message: string;
@@ -15,6 +15,8 @@ export async function getTtsProviderCapabilityReadiness(): Promise<TtsProviderCa
   const activeProvider = runtimeConfig.provider;
   const openAiConfigured = Boolean(config.openaiApiKey?.trim());
   const fishConfigured = Boolean(runtimeConfig.fish.apiKey.trim());
+  // 微软内置语音不需要密钥，默认音色存在即视为可用。
+  const edgeConfigured = Boolean(runtimeConfig.edge.defaultVoice.trim());
 
   return [
     {
@@ -42,6 +44,19 @@ export async function getTtsProviderCapabilityReadiness(): Promise<TtsProviderCa
             : "Fish Audio TTS 已启用但未配置 API Key",
       active: activeProvider === "fish",
       configured: fishConfigured,
+    },
+    {
+      name: "edge",
+      required: false,
+      status: activeProvider === "edge" && edgeConfigured ? "ready" : "skipped",
+      message:
+        activeProvider !== "edge"
+          ? "微软内置语音未启用"
+          : edgeConfigured
+            ? "微软内置语音已就绪"
+            : "微软内置语音缺少默认音色配置",
+      active: activeProvider === "edge",
+      configured: edgeConfigured,
     },
   ];
 }

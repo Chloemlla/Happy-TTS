@@ -1,4 +1,6 @@
 import {
+  EDGE_DEFAULT_BASE_URL,
+  EDGE_DEFAULT_VOICE,
   FISH_AUDIO_DEFAULT_BASE_URL,
   FISH_AUDIO_DEFAULT_MODEL,
   type TtsProviderExecutionSnapshot,
@@ -14,6 +16,11 @@ function buildConfig(apiKey = "fish-secret"): TtsProviderRuntimeConfig {
       apiKey,
       baseUrl: FISH_AUDIO_DEFAULT_BASE_URL,
       referenceId: "reference-123",
+    },
+    edge: {
+      baseUrl: EDGE_DEFAULT_BASE_URL,
+      defaultVoice: EDGE_DEFAULT_VOICE,
+      voices: [],
     },
   };
 }

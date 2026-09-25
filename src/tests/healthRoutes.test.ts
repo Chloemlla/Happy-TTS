@@ -48,6 +48,14 @@ jest.mock("../tts/tts.readiness", () => ({
       active: false,
       configured: false,
     },
+    {
+      name: "edge",
+      required: false,
+      status: "skipped",
+      message: "微软内置语音未启用",
+      active: false,
+      configured: true,
+    },
   ]),
 }));
 
@@ -111,6 +119,7 @@ describe("healthRoutes disclosure boundary", () => {
       expect.arrayContaining([
         expect.objectContaining({ name: "openai", active: true, configured: true, required: false }),
         expect.objectContaining({ name: "fish", active: false, configured: false, required: false }),
+        expect.objectContaining({ name: "edge", active: false, configured: true, required: false }),
       ]),
     );
     expect(JSON.stringify(res.body)).not.toContain("fish-secret");

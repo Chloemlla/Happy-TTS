@@ -5,6 +5,7 @@ import {
 } from "../config/ttsProviderConfig";
 import { RuntimeConfigService } from "../services/runtimeConfigService";
 import { TtsGenerationError } from "./tts.errors";
+import { EdgeTtsProvider } from "./tts.edge-provider";
 import { FishAudioTtsProvider } from "./tts.fish-provider";
 import type { TtsProvider, TtsProviderRequest, TtsProviderResponse } from "./tts.ports";
 import { OpenAiTtsProvider } from "./tts.provider";
@@ -12,7 +13,9 @@ import { OpenAiTtsProvider } from "./tts.provider";
 export class TtsProviderRouter {
   private readonly providers: Map<string, TtsProvider>;
 
-  constructor(providers: TtsProvider[] = [new OpenAiTtsProvider(), new FishAudioTtsProvider()]) {
+  constructor(
+    providers: TtsProvider[] = [new OpenAiTtsProvider(), new FishAudioTtsProvider(), new EdgeTtsProvider()],
+  ) {
     this.providers = new Map<string, TtsProvider>(
       providers.map((provider) => [provider.providerId, provider] as const),
     );
@@ -23,7 +26,8 @@ export class TtsProviderRouter {
     requestedVoice?: string,
     frozenSnapshot?: TtsProviderExecutionSnapshot,
   ): Promise<TtsProviderExecutionSnapshot> {
-    if (frozenSnapshot && (frozenSnapshot.providerId === "openai" || frozenSnapshot.providerId === "fish")) {
+    // 冻结快照只在对应提供商仍然注册时沿用，避免历史任务路由到已移除的提供商。
+    if (frozenSnapshot && this.providers.has(frozenSnapshot.providerId)) {
       return frozenSnapshot;
     }
 

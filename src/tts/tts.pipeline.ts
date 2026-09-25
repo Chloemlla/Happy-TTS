@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { FISH_AUDIO_SUPPORTED_FORMATS } from "../config/ttsProviderConfig";
+import { EDGE_SUPPORTED_FORMATS, FISH_AUDIO_SUPPORTED_FORMATS } from "../config/ttsProviderConfig";
 import { ContentFilterService, type ContentFilterResult } from "../services/contentFilterService";
 import { AuditLogService } from "../services/auditLogService";
 import {
@@ -319,6 +319,16 @@ export class TtsSubmissionPipeline {
       throw new TtsRequestError(
         400,
         "Fish Audio 当前仅支持 MP3 输出格式",
+        "TTS_OUTPUT_FORMAT_UNSUPPORTED",
+      );
+    }
+    if (
+      providerExecution.providerId === "edge" &&
+      !(EDGE_SUPPORTED_FORMATS as readonly string[]).includes(requestPayload.outputFormat)
+    ) {
+      throw new TtsRequestError(
+        400,
+        "微软内置语音当前仅支持 MP3 输出格式",
         "TTS_OUTPUT_FORMAT_UNSUPPORTED",
       );
     }

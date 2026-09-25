@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FishAudioCatalogItem, TtsRequest, TtsResponse } from "../types/tts";
+import { FishAudioCatalogItem, TtsProviderOption, TtsRequest, TtsResponse } from "../types/tts";
 import { getApiBaseUrl } from "../api/api";
 import { useNotification } from "./Notification";
 import { TurnstileWidget } from "./TurnstileWidget";
@@ -60,6 +60,27 @@ function getFishAudioSampleUrl(audioUrl: string): string {
   return `${getApiBaseUrl()}/api/tts/fish-audio-sample?url=${encodeURIComponent(audioUrl)}`;
 }
 
+/** 微软语音音色 ID 的语言前缀，形如 zh-CN-XiaoxiaoNeural 里的 zh-CN。 */
+const VOICE_LANGUAGE_PATTERN = /^([A-Za-z]{2,3}-[A-Za-z0-9]{2,8})/;
+
+/** 音色列表语言分组的阈值：超过这个数量才值得加筛选器。 */
+const VOICE_LANGUAGE_FILTER_THRESHOLD = 12;
+
+function getVoiceLanguageKey(voiceId: string): string {
+  const match = VOICE_LANGUAGE_PATTERN.exec(voiceId);
+  return match ? match[1] : voiceId;
+}
+
+function buildVoiceLanguageLabel(options: TtsProviderOption[], languageKey: string): string {
+  for (const option of options) {
+    const description = option.description;
+    if (!description) continue;
+    const separatorIndex = description.indexOf("·");
+    if (separatorIndex > 0) return description.slice(0, separatorIndex).trim();
+  }
+  return languageKey;
+}
+
 interface TtsFormProps {
   loading: boolean;
   error?: string | null;
@@ -104,6 +125,7 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
   const [fishModalOpen, setFishModalOpen] = useState(false);
   const [fishModalSource, setFishModalSource] = useState<"model" | "default-voices">("model");
   const [isNarrowViewport, setIsNarrowViewport] = useState(false);
+  const [voiceLanguage, setVoiceLanguage] = useState("");
   const fishModelPageRef = useRef(1);
   const fishDefaultPageRef = useRef(1);
 
@@ -130,8 +152,36 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
     ? "兼容模式"
     : providerConfig.provider === "fish"
       ? "Fish Audio"
-      : "OpenAI";
+      : providerConfig.provider === "edge"
+        ? "微软语音"
+        : "OpenAI";
   const outputFormats = getTtsOutputFormats(usingProviderFallback ? "fish" : providerConfig.provider);
+
+  const voiceLanguageGroups = useMemo(() => {
+    const groups = new Map<string, TtsProviderOption[]>();
+    for (const option of voices) {
+      const key = getVoiceLanguageKey(option.id);
+      const bucket = groups.get(key);
+      if (bucket) bucket.push(option);
+      else groups.set(key, [option]);
+    }
+    return groups;
+  }, [voices]);
+
+  const voiceLanguages = useMemo(
+    () => Array.from(voiceLanguageGroups.keys()),
+    [voiceLanguageGroups],
+  );
+
+  // 用户选过的语言只在仍然存在时沿用，否则回落到当前音色所属语言，避免刷新音色后停留在已消失的语言。
+  const activeVoiceLanguage = useMemo(() => {
+    if (voiceLanguage && voiceLanguageGroups.has(voiceLanguage)) return voiceLanguage;
+    const voiceKey = voice ? getVoiceLanguageKey(voice) : "";
+    if (voiceKey && voiceLanguageGroups.has(voiceKey)) return voiceKey;
+    return voiceLanguages[0] ?? "";
+  }, [voiceLanguage, voiceLanguages, voiceLanguageGroups, voice]);
+
+  const visibleVoices = voiceLanguageGroups.get(activeVoiceLanguage) || voices;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -155,6 +205,9 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
         if (nextConfig.provider === "fish") {
           setOutputFormat("mp3");
           setSpeed(1);
+        } else if (nextConfig.provider === "edge") {
+          // 微软语音只输出 MP3，但支持语速调节
+          setOutputFormat("mp3");
         }
         if (nextConfig.voiceMode === "select") {
           const nextVoice =
@@ -393,6 +446,40 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
   const displayError = formError || error;
   const latestNextAction = latestResult?.nextAction?.message;
 
+  const renderVoiceOptions = (options: TtsProviderOption[]) => options.map((voiceOption) => (
+    <motion.label
+      key={voiceOption.id}
+      className={`flex min-w-0 cursor-pointer items-center rounded-2xl border p-3 transition-all duration-200 ${
+        voice === voiceOption.id
+          ? "border-slate-900 bg-slate-900 text-white"
+          : "border-slate-200 bg-white/80 text-slate-700 hover:border-slate-300 hover:bg-white"
+      }`}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+    >
+      <input
+        type="radio"
+        name="voice"
+        value={voiceOption.id}
+        checked={voice === voiceOption.id}
+        onChange={(event) => setVoice(event.target.value)}
+        disabled={providerConfigLoading}
+        className="sr-only"
+      />
+      <div
+        className={`mr-3 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
+          voice === voiceOption.id ? "border-white" : "border-slate-200"
+        }`}
+      >
+        {voice === voiceOption.id && <div className="h-2 w-2 rounded-full bg-white" />}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="break-words font-semibold">{voiceOption.name}</div>
+        <div className={cn("break-words text-sm", voice === voiceOption.id ? "text-white/70" : "text-slate-500")}>{voiceOption.description}</div>
+      </div>
+    </motion.label>
+  ));
+
   return (
     <div className="relative w-full min-w-0 max-w-full">
       <motion.form
@@ -599,41 +686,28 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
                   {!fishCatalogLoading && !fishCatalog.length && !fishDefaultVoices.length && !fishCatalogError ? <div className="rounded-md border border-border bg-muted/50 p-4 text-sm text-muted-foreground">管理员尚未配置 Fish Audio 音色请求。</div> : null}
                 </div>
               ) : usesSelectableVoice ? (
-                <div className="space-y-2">
-                  {voices.map((voiceOption) => (
-                  <motion.label
-                    key={voiceOption.id}
-                    className={`flex min-w-0 cursor-pointer items-center rounded-2xl border p-3 transition-all duration-200 ${
-                      voice === voiceOption.id
-                        ? "border-slate-900 bg-slate-900 text-white"
-                        : "border-slate-200 bg-white/80 text-slate-700 hover:border-slate-300 hover:bg-white"
-                    }`}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <input
-                      type="radio"
-                      name="voice"
-                      value={voiceOption.id}
-                      checked={voice === voiceOption.id}
-                      onChange={(event) => setVoice(event.target.value)}
-                      disabled={providerConfigLoading}
-                      className="sr-only"
-                    />
-                    <div
-                      className={`mr-3 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
-                        voice === voiceOption.id ? "border-white" : "border-slate-200"
-                      }`}
-                    >
-                      {voice === voiceOption.id && <div className="h-2 w-2 rounded-full bg-white" />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="break-words font-semibold">{voiceOption.name}</div>
-                      <div className={cn("break-words text-sm", voice === voiceOption.id ? "text-white/70" : "text-slate-500")}>{voiceOption.description}</div>
-                    </div>
-                  </motion.label>
-                  ))}
-                </div>
+                voices.length > VOICE_LANGUAGE_FILTER_THRESHOLD ? (
+                  <div className="space-y-4">
+                    <label className="block text-sm font-medium text-slate-700">
+                      语言
+                      <select
+                        value={activeVoiceLanguage}
+                        onChange={(event) => setVoiceLanguage(event.target.value)}
+                        className={`${studioFieldClassName} mt-1`}
+                        disabled={providerConfigLoading}
+                      >
+                        {voiceLanguages.map((languageKey) => (
+                          <option key={languageKey} value={languageKey}>
+                            {buildVoiceLanguageLabel(voiceLanguageGroups.get(languageKey) || [], languageKey)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="space-y-2">{renderVoiceOptions(visibleVoices)}</div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">{renderVoiceOptions(voices)}</div>
+                )
               ) : (
                 <div className="rounded-md border border-border bg-muted/50 p-4 text-sm text-muted-foreground">
                   {providerConfig.voiceMode === "configured_reference"
@@ -679,6 +753,8 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
               </motion.select>
               {providerConfig.provider === "fish" ? (
                 <p className="mt-2 text-xs text-muted-foreground">Fish Audio 当前仅支持 MP3 输出。</p>
+              ) : providerConfig.provider === "edge" ? (
+                <p className="mt-2 text-xs text-muted-foreground">微软内置语音当前仅支持 MP3 输出。</p>
               ) : null}
             </motion.div>
 

@@ -1,4 +1,7 @@
 import {
+  EDGE_DEFAULT_BASE_URL,
+  EDGE_DEFAULT_VOICE,
+  EDGE_MODEL_ID,
   FISH_AUDIO_DEFAULT_BASE_URL,
   FISH_AUDIO_DEFAULT_MODEL,
   buildTtsProviderExecutionSnapshot,
@@ -6,6 +9,7 @@ import {
   mergeTtsProviderAdminUpdate,
   type TtsProviderRuntimeConfig,
 } from "../config/ttsProviderConfig";
+import { EDGE_BUILTIN_VOICE_OPTIONS } from "../tts/edge/edge.voices.snapshot";
 import { TtsService } from "../tts/tts.service";
 
 const baseConfig: TtsProviderRuntimeConfig = {
@@ -15,6 +19,11 @@ const baseConfig: TtsProviderRuntimeConfig = {
     apiKey: "stored-fish-key",
     baseUrl: FISH_AUDIO_DEFAULT_BASE_URL,
     referenceId: "reference-a",
+  },
+  edge: {
+    baseUrl: EDGE_DEFAULT_BASE_URL,
+    defaultVoice: EDGE_DEFAULT_VOICE,
+    voices: [],
   },
 };
 
@@ -115,6 +124,100 @@ describe("TTS provider runtime capability", () => {
       voiceMode: "configured_reference",
     });
     expect(JSON.stringify(publicConfig)).not.toContain("stored-fish-key");
+  });
+
+  it("builds an Edge execution snapshot with a fixed model and a validated voice", () => {
+    const edgeConfig: TtsProviderRuntimeConfig = {
+      ...baseConfig,
+      provider: "edge",
+      defaultModel: "client-supplied-model",
+    };
+
+    expect(
+      buildTtsProviderExecutionSnapshot(
+        edgeConfig,
+        { model: "tts-1-hd", voice: "en-US-AriaNeural" },
+        { model: "tts-1", voice: "alloy" },
+      ),
+    ).toEqual({
+      providerId: "edge",
+      model: EDGE_MODEL_ID,
+      voice: "en-US-AriaNeural",
+      baseUrl: EDGE_DEFAULT_BASE_URL,
+      cacheIdentity: ["edge", EDGE_MODEL_ID, "en-US-AriaNeural", EDGE_DEFAULT_BASE_URL].join("|"),
+    });
+
+    expect(
+      buildTtsProviderExecutionSnapshot(
+        edgeConfig,
+        { model: "unapproved-model", voice: "nova" },
+        { model: "tts-1", voice: "alloy" },
+      ),
+    ).toEqual({
+      providerId: "edge",
+      model: EDGE_MODEL_ID,
+      voice: EDGE_DEFAULT_VOICE,
+      baseUrl: EDGE_DEFAULT_BASE_URL,
+      cacheIdentity: ["edge", EDGE_MODEL_ID, EDGE_DEFAULT_VOICE, EDGE_DEFAULT_BASE_URL].join("|"),
+    });
+  });
+
+  it("publishes the Edge voice list without the upstream endpoint or any key", () => {
+    const publicConfig = buildTtsProviderPublicConfig(
+      { ...baseConfig, provider: "edge", defaultModel: EDGE_MODEL_ID },
+      { model: "tts-1", voice: "alloy" },
+    );
+
+    expect(publicConfig).toEqual({
+      provider: "edge",
+      defaultModel: EDGE_MODEL_ID,
+      defaultVoice: EDGE_DEFAULT_VOICE,
+      models: [{ id: EDGE_MODEL_ID, name: "Edge 朗读", description: "微软内置语音，无需额外密钥" }],
+      voices: EDGE_BUILTIN_VOICE_OPTIONS.map((entry) => ({ ...entry })),
+      voiceMode: "select",
+    });
+    expect(JSON.stringify(publicConfig)).not.toContain("stored-fish-key");
+    expect(JSON.stringify(publicConfig)).not.toContain("wss://");
+  });
+
+  it("never carries a foreign provider model id across a provider switch", () => {
+    const edgeConfig: TtsProviderRuntimeConfig = {
+      ...baseConfig,
+      provider: "edge",
+      defaultModel: EDGE_MODEL_ID,
+    };
+    const emptyFishInput = { fish: { apiKey: "" } };
+
+    expect(
+      mergeTtsProviderAdminUpdate(edgeConfig, {
+        provider: "openai",
+        defaultModel: EDGE_MODEL_ID,
+        ...emptyFishInput,
+      }).defaultModel,
+    ).toBe("tts-1");
+
+    expect(
+      mergeTtsProviderAdminUpdate(baseConfig, {
+        provider: "edge",
+        defaultModel: "tts-1-hd",
+        ...emptyFishInput,
+      }).defaultModel,
+    ).toBe(EDGE_MODEL_ID);
+
+    expect(
+      mergeTtsProviderAdminUpdate(baseConfig, {
+        provider: "edge",
+        defaultModel: FISH_AUDIO_DEFAULT_MODEL,
+        ...emptyFishInput,
+      }).defaultModel,
+    ).toBe(EDGE_MODEL_ID);
+
+    expect(
+      mergeTtsProviderAdminUpdate(
+        { ...baseConfig, provider: "fish", defaultModel: FISH_AUDIO_DEFAULT_MODEL },
+        { provider: "fish", defaultModel: EDGE_MODEL_ID, ...emptyFishInput },
+      ).defaultModel,
+    ).toBe(FISH_AUDIO_DEFAULT_MODEL);
   });
 
   it("isolates provider, reference, OpenAI speed, and format while fixing Fish speed at 1x", () => {

@@ -174,6 +174,17 @@ router.put(
   }),
   ttsProviderController.updateAdminConfig,
 );
+router.post(
+  "/tts/provider/edge-voices/refresh",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
+  authenticateSuperAdmin,
+  auditLog({
+    module: "tts",
+    action: "tts.provider.edgeVoices.refresh",
+    captureBody: false,
+  }),
+  ttsProviderController.refreshEdgeVoices,
+);
 
 // Backend email system management (admin)
 router.get("/email-system/setting", adminController.getEmailSystemSetting);

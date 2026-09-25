@@ -9,7 +9,7 @@ export interface TtsRequest {
   fingerprint?: string;
 }
 
-export type TtsProviderId = "openai" | "fish";
+export type TtsProviderId = "openai" | "fish" | "edge";
 
 export type TtsVoiceMode = "select" | "configured_reference" | "provider_default";
 

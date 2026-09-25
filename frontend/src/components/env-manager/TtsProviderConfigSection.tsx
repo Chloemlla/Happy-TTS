@@ -2,14 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { m } from 'framer-motion';
 import { FaSync } from 'react-icons/fa';
 import {
+  EDGE_DEFAULT_TTS_BASE_URL,
+  EDGE_DEFAULT_TTS_MODEL,
+  EDGE_DEFAULT_TTS_VOICE,
   FISH_DEFAULT_TTS_BASE_URL,
   FISH_DEFAULT_TTS_MODEL,
-  OPENAI_DEFAULT_TTS_MODEL,
   OPENAI_TTS_MODELS,
+  defaultModelForProvider,
+  isForeignTtsModelId,
 } from '../../utils/ttsProviderConfig';
 import type { TtsProviderId } from '../../types/tts';
 import CollapsibleSection from './CollapsibleSection';
-import { TTS_PROVIDER_ADMIN_API, getAuthHeaders } from './api';
+import { TTS_EDGE_VOICES_REFRESH_API, TTS_PROVIDER_ADMIN_API, getAuthHeaders } from './api';
 import type {
   TtsProviderAdminConfig,
   TtsProviderAdminUpdate,
@@ -21,13 +25,19 @@ import { isSuperAdmin } from '../../utils/rbac';
 const REFRESH_BUTTON_CLASS =
   'inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400';
 
+const EDGE_VOICE_ID_PATTERN = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})+-[A-Za-z0-9]{1,32}Neural$/;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function isTtsProviderId(value: unknown): value is TtsProviderId {
+  return value === 'openai' || value === 'fish' || value === 'edge';
+}
+
 function unwrapConfig(payload: unknown, depth = 0): Record<string, unknown> {
   if (!isRecord(payload)) return {};
-  if (payload.provider === 'openai' || payload.provider === 'fish') return payload;
+  if (isTtsProviderId(payload.provider)) return payload;
   if (depth >= 4) return payload;
   const nested = [payload.config, payload.providerConfig, payload.setting, payload.data]
     .find(isRecord);
@@ -44,19 +54,16 @@ function unwrapConfig(payload: unknown, depth = 0): Record<string, unknown> {
 function normalizeAdminConfig(payload: unknown): TtsProviderAdminConfig {
   const envelope = isRecord(payload) ? payload : {};
   const source = unwrapConfig(payload);
-  if (source.provider !== 'openai' && source.provider !== 'fish') {
+  if (!isTtsProviderId(source.provider)) {
     throw new Error('TTS 提供商配置响应缺少有效的 provider 字段');
   }
-  const provider: TtsProviderId = source.provider === 'fish' ? 'fish' : 'openai';
+  const provider: TtsProviderId = source.provider;
   const fish = isRecord(source.fish) ? source.fish : {};
+  const edge = isRecord(source.edge) ? source.edge : {};
   const configuredDefaultModel =
     typeof source.defaultModel === 'string' ? source.defaultModel.trim() : '';
-  const hasProviderMismatch = provider === 'fish'
-    ? OPENAI_TTS_MODELS.some((option) => option.id === configuredDefaultModel)
-    : configuredDefaultModel === FISH_DEFAULT_TTS_MODEL;
-  const providerDefaultModel = provider === 'fish'
-    ? FISH_DEFAULT_TTS_MODEL
-    : OPENAI_DEFAULT_TTS_MODEL;
+  const hasProviderMismatch = isForeignTtsModelId(configuredDefaultModel, provider);
+  const providerDefaultModel = defaultModelForProvider(provider);
   const defaultModel = configuredDefaultModel && !hasProviderMismatch
     ? configuredDefaultModel
     : providerDefaultModel;
@@ -74,6 +81,24 @@ function normalizeAdminConfig(payload: unknown): TtsProviderAdminConfig {
         fish.apiKeyConfigured === true || fish.hasApiKey === true,
       modelCurl: typeof fish.modelCurl === 'string' ? fish.modelCurl : '',
       defaultVoicesCurl: typeof fish.defaultVoicesCurl === 'string' ? fish.defaultVoicesCurl : '',
+    },
+    edge: {
+      baseUrl:
+        typeof edge.baseUrl === 'string' && edge.baseUrl.trim()
+          ? edge.baseUrl.trim()
+          : EDGE_DEFAULT_TTS_BASE_URL,
+      defaultVoice:
+        typeof edge.defaultVoice === 'string' && edge.defaultVoice.trim()
+          ? edge.defaultVoice.trim()
+          : EDGE_DEFAULT_TTS_VOICE,
+      voiceSource: edge.voiceSource === 'refreshed' ? 'refreshed' : 'snapshot',
+      voiceCount:
+        typeof edge.voiceCount === 'number' && Number.isFinite(edge.voiceCount)
+          ? edge.voiceCount
+          : 0,
+      ...(typeof edge.voicesUpdatedAt === 'string' && edge.voicesUpdatedAt
+        ? { voicesUpdatedAt: edge.voicesUpdatedAt }
+        : {}),
     },
     updatedAt:
       typeof source.updatedAt === 'string'
@@ -102,6 +127,7 @@ async function readResponse(response: Response, fallbackMessage: string): Promis
 export interface TtsProviderAdminClient {
   load: () => Promise<unknown>;
   save: (payload: TtsProviderAdminUpdate) => Promise<unknown>;
+  refreshVoices?: () => Promise<unknown>;
 }
 
 const defaultClient: TtsProviderAdminClient = {
@@ -121,6 +147,15 @@ const defaultClient: TtsProviderAdminClient = {
     });
     return readResponse(response, '保存 TTS 提供商配置失败');
   },
+  async refreshVoices() {
+    const response = await fetch(TTS_EDGE_VOICES_REFRESH_API, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({}),
+    });
+    return readResponse(response, '刷新微软语音音色失败');
+  },
 };
 
 interface TtsProviderConfigSectionProps {
@@ -139,13 +174,19 @@ export default function TtsProviderConfigSection({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [provider, setProvider] = useState<TtsProviderId>('openai');
-  const [defaultModel, setDefaultModel] = useState(OPENAI_DEFAULT_TTS_MODEL);
+  const [defaultModel, setDefaultModel] = useState(() => defaultModelForProvider('openai'));
   const [fishBaseUrl, setFishBaseUrl] = useState(FISH_DEFAULT_TTS_BASE_URL);
   const [fishReferenceId, setFishReferenceId] = useState('');
   const [fishApiKey, setFishApiKey] = useState('');
   const [fishModelCurl, setFishModelCurl] = useState('');
   const [fishDefaultVoicesCurl, setFishDefaultVoicesCurl] = useState('');
   const [apiKeyConfigured, setApiKeyConfigured] = useState(false);
+  const [edgeBaseUrl, setEdgeBaseUrl] = useState(EDGE_DEFAULT_TTS_BASE_URL);
+  const [edgeDefaultVoice, setEdgeDefaultVoice] = useState(EDGE_DEFAULT_TTS_VOICE);
+  const [edgeVoiceSource, setEdgeVoiceSource] = useState<'snapshot' | 'refreshed'>('snapshot');
+  const [edgeVoiceCount, setEdgeVoiceCount] = useState(0);
+  const [edgeVoicesUpdatedAt, setEdgeVoicesUpdatedAt] = useState<string | undefined>();
+  const [refreshingVoices, setRefreshingVoices] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<string | undefined>();
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
@@ -158,6 +199,11 @@ export default function TtsProviderConfigSection({
     setApiKeyConfigured(config.fish.apiKeyConfigured);
     setFishModelCurl(config.fish.modelCurl);
     setFishDefaultVoicesCurl(config.fish.defaultVoicesCurl);
+    setEdgeBaseUrl(config.edge.baseUrl);
+    setEdgeDefaultVoice(config.edge.defaultVoice);
+    setEdgeVoiceSource(config.edge.voiceSource);
+    setEdgeVoiceCount(config.edge.voiceCount);
+    setEdgeVoicesUpdatedAt(config.edge.voicesUpdatedAt);
     setUpdatedAt(config.updatedAt);
     setFishApiKey('');
   }, []);
@@ -184,13 +230,13 @@ export default function TtsProviderConfigSection({
   const modelOptions = useMemo(() => {
     const options = provider === 'openai'
       ? OPENAI_TTS_MODELS.map((option) => option.id)
-      : [FISH_DEFAULT_TTS_MODEL];
+      : [provider === 'edge' ? EDGE_DEFAULT_TTS_MODEL : FISH_DEFAULT_TTS_MODEL];
     return options.includes(defaultModel) ? options : [defaultModel, ...options];
   }, [defaultModel, provider]);
 
   const handleProviderChange = (nextProvider: TtsProviderId) => {
     setProvider(nextProvider);
-    setDefaultModel(nextProvider === 'fish' ? FISH_DEFAULT_TTS_MODEL : OPENAI_DEFAULT_TTS_MODEL);
+    setDefaultModel(defaultModelForProvider(nextProvider));
     setError('');
     setStatus('');
   };
@@ -200,6 +246,8 @@ export default function TtsProviderConfigSection({
     if (saving) return;
     const baseUrl = fishBaseUrl.trim();
     const model = defaultModel.trim();
+    const edgeUrl = edgeBaseUrl.trim();
+    const edgeVoice = edgeDefaultVoice.trim();
     if (!model) {
       setError('默认模型不能为空');
       return;
@@ -219,6 +267,25 @@ export default function TtsProviderConfigSection({
         return;
       }
     }
+    if (provider === 'edge') {
+      try {
+        const parsed = new URL(edgeUrl);
+        if (
+          (parsed.protocol !== 'ws:' && parsed.protocol !== 'wss:') ||
+          parsed.username ||
+          parsed.password
+        ) {
+          throw new Error();
+        }
+      } catch {
+        setError('微软语音接口地址必须是有效的 ws 或 wss 地址');
+        return;
+      }
+      if (!EDGE_VOICE_ID_PATTERN.test(edgeVoice)) {
+        setError('微软语音默认音色格式无效');
+        return;
+      }
+    }
 
     setSaving(true);
     setError('');
@@ -234,10 +301,14 @@ export default function TtsProviderConfigSection({
           modelCurl: fishModelCurl.trim(),
           defaultVoicesCurl: fishDefaultVoicesCurl.trim(),
         },
+        edge: {
+          baseUrl: edgeUrl || EDGE_DEFAULT_TTS_BASE_URL,
+          defaultVoice: edgeVoice || EDGE_DEFAULT_TTS_VOICE,
+        },
       });
 
       const savedSource = unwrapConfig(savedConfig);
-      if (savedSource.provider === 'openai' || savedSource.provider === 'fish') {
+      if (isTtsProviderId(savedSource.provider)) {
         applyConfig(normalizeAdminConfig(savedConfig));
       } else {
         try {
@@ -257,10 +328,42 @@ export default function TtsProviderConfigSection({
     }
   };
 
+  const handleRefreshVoices = async () => {
+    if (!canWrite || loading || saving || refreshingVoices) return;
+    const refresh = client.refreshVoices;
+    if (!refresh) {
+      setError('当前环境不支持刷新微软语音音色');
+      return;
+    }
+
+    setRefreshingVoices(true);
+    setError('');
+    setStatus('');
+    try {
+      const result = await refresh();
+      const count = isRecord(result) && typeof result.count === 'number' ? result.count : 0;
+      try {
+        applyConfig(normalizeAdminConfig(await client.load()));
+      } catch {
+        // 回读失败时仍保留本次刷新的结果，避免状态显示成旧值
+        setEdgeVoiceSource('refreshed');
+        setEdgeVoiceCount(count);
+        if (isRecord(result) && typeof result.updatedAt === 'string') {
+          setEdgeVoicesUpdatedAt(result.updatedAt);
+        }
+      }
+      setStatus(`已刷新 ${count} 个音色`);
+    } catch (refreshError) {
+      setError(refreshError instanceof Error ? refreshError.message : '刷新微软语音音色失败');
+    } finally {
+      setRefreshingVoices(false);
+    }
+  };
+
   return (
     <CollapsibleSection
       title="TTS 提供商与模型"
-      description="选择当前语音提供商、默认模型，并配置 Fish Audio 的服务地址与参考音色。影响所有 TTS 语音合成请求的默认路由。"
+      description="选择当前语音提供商、默认模型，并配置 Fish Audio 的服务地址与参考音色、微软语音的接口地址与音色清单。影响所有 TTS 语音合成请求的默认路由。"
       sectionKey="ttsProvider"
       isOpen={isOpen}
       onToggle={() => setIsOpen((value) => !value)}
@@ -286,12 +389,15 @@ export default function TtsProviderConfigSection({
           当前提供商
           <select
             value={provider}
-            onChange={(event) => handleProviderChange(event.target.value === 'fish' ? 'fish' : 'openai')}
+            onChange={(event) => {
+              if (isTtsProviderId(event.target.value)) handleProviderChange(event.target.value);
+            }}
             className={`${studioFieldClassName} mt-1`}
             disabled={loading || saving || !canWrite}
           >
             <option value="openai">OpenAI</option>
             <option value="fish">Fish Audio</option>
+            <option value="edge">微软语音</option>
           </select>
         </label>
         <label className="block text-sm font-medium text-slate-700">
@@ -306,6 +412,9 @@ export default function TtsProviderConfigSection({
           <datalist id="tts-provider-model-options">
             {modelOptions.map((model) => <option key={model} value={model} />)}
           </datalist>
+          {provider === 'edge' ? (
+            <span className="mt-1 block text-xs text-slate-500">微软语音只有固定的一种模型，此处填写其它值也会被服务端忽略。</span>
+          ) : null}
         </label>
       </div>
 
@@ -333,6 +442,35 @@ export default function TtsProviderConfigSection({
             Fish Audio 默认音色请求 curl
             <textarea value={fishDefaultVoicesCurl} onChange={(event) => setFishDefaultVoicesCurl(event.target.value)} className={`${studioFieldClassName} mt-1 min-h-32 font-mono text-xs`} disabled={loading || saving || !canWrite} placeholder="粘贴 GET /model/default-voices 的 Windows curl 命令" />
           </label>
+        </div>
+      ) : null}
+
+      {provider === 'edge' ? (
+        <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-3 sm:p-4">
+          <label className="block text-sm font-medium text-slate-700">
+            微软语音接口地址
+            <input value={edgeBaseUrl} onChange={(event) => setEdgeBaseUrl(event.target.value)} className={`${studioFieldClassName} mt-1 font-mono`} disabled={loading || saving || !canWrite} placeholder={EDGE_DEFAULT_TTS_BASE_URL} />
+          </label>
+          <label className="block text-sm font-medium text-slate-700">
+            默认音色
+            <input value={edgeDefaultVoice} onChange={(event) => setEdgeDefaultVoice(event.target.value)} className={`${studioFieldClassName} mt-1 font-mono`} disabled={loading || saving || !canWrite} placeholder={EDGE_DEFAULT_TTS_VOICE} />
+            <span className="mt-1 block text-xs text-slate-500">音色 ID 形如 zh-CN-XiaoxiaoNeural。</span>
+          </label>
+          <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-xs text-slate-500">
+              {`音色来源：${edgeVoiceSource === 'refreshed' ? '已刷新' : '内置快照'} · 音色数量：${edgeVoiceCount}${edgeVoicesUpdatedAt ? ` · 上次刷新：${new Date(edgeVoicesUpdatedAt).toLocaleString()}` : ''}`}
+            </div>
+            <m.button
+              type="button"
+              onClick={() => void handleRefreshVoices()}
+              disabled={!canWrite || loading || saving || refreshingVoices}
+              className={REFRESH_BUTTON_CLASS}
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaSync className={`h-4 w-4 ${refreshingVoices ? 'animate-spin' : ''}`} />
+              {refreshingVoices ? '刷新中...' : '刷新音色'}
+            </m.button>
+          </div>
         </div>
       ) : null}
 

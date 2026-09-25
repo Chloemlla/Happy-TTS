@@ -27,10 +27,13 @@ jest.mock("../utils/logger", () => ({
 }));
 
 import {
+  EDGE_DEFAULT_BASE_URL,
+  EDGE_DEFAULT_VOICE,
   FISH_AUDIO_DEFAULT_BASE_URL,
   FISH_AUDIO_DEFAULT_MODEL,
 } from "../config/ttsProviderConfig";
 import { RuntimeConfigService } from "../services/runtimeConfigService";
+import { EDGE_BUILTIN_VOICE_OPTIONS } from "../tts/edge/edge.voices.snapshot";
 
 function mockReadResult(value: unknown) {
   return {
@@ -79,6 +82,12 @@ describe("RuntimeConfigService TTS provider fallback", () => {
         apiKey: "stored-fish-key",
         baseUrl: FISH_AUDIO_DEFAULT_BASE_URL,
         referenceId: "reference-a",
+        catalog: {},
+      },
+      edge: {
+        baseUrl: EDGE_DEFAULT_BASE_URL,
+        defaultVoice: EDGE_DEFAULT_VOICE,
+        voices: [],
       },
     });
     await expect(RuntimeConfigService.getTtsProviderSetting()).resolves.toEqual({
@@ -89,6 +98,14 @@ describe("RuntimeConfigService TTS provider fallback", () => {
           baseUrl: FISH_AUDIO_DEFAULT_BASE_URL,
           referenceId: "reference-a",
           apiKeyConfigured: true,
+          modelCurl: "",
+          defaultVoicesCurl: "",
+        },
+        edge: {
+          baseUrl: EDGE_DEFAULT_BASE_URL,
+          defaultVoice: EDGE_DEFAULT_VOICE,
+          voiceSource: "snapshot",
+          voiceCount: EDGE_BUILTIN_VOICE_OPTIONS.length,
         },
         updatedAt: undefined,
       },
@@ -120,6 +137,42 @@ describe("RuntimeConfigService TTS provider fallback", () => {
 
     await expect(RuntimeConfigService.getRawTtsProviderConfig()).resolves.toMatchObject({
       provider: "openai",
+    });
+  });
+
+  it("reports a stored Edge voice catalog as refreshed and drops ids that are not Edge voices", async () => {
+    mockRuntimeConfigFindOne.mockReturnValue(
+      mockReadResult({
+        value: {
+          provider: "edge",
+          defaultModel: "edge-readaloud-v1",
+          fish: {
+            apiKey: "stored-fish-key",
+            baseUrl: FISH_AUDIO_DEFAULT_BASE_URL,
+            referenceId: "reference-a",
+          },
+          edge: {
+            baseUrl: EDGE_DEFAULT_BASE_URL,
+            defaultVoice: EDGE_DEFAULT_VOICE,
+            voices: [
+              { id: "en-US-AriaNeural", name: "Aria" },
+              { id: "nova", name: "Nova" },
+              { id: "zh-CN-XiaoxiaoNeural" },
+            ],
+            voicesUpdatedAt: "2026-09-25T00:00:00.000Z",
+          },
+        },
+      }),
+    );
+
+    const setting = await RuntimeConfigService.getTtsProviderSetting();
+
+    expect(setting.config.edge).toEqual({
+      baseUrl: EDGE_DEFAULT_BASE_URL,
+      defaultVoice: EDGE_DEFAULT_VOICE,
+      voiceSource: "refreshed",
+      voiceCount: 2,
+      voicesUpdatedAt: "2026-09-25T00:00:00.000Z",
     });
   });
 });

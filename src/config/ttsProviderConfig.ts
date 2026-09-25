@@ -3,13 +3,23 @@ import {
   normalizeFishAudioCatalogConfig,
   type FishAudioCatalogConfig,
 } from "./fishAudioCatalog";
+import { isEdgeVoiceId } from "../tts/edge/edge.protocol";
+import { EDGE_BUILTIN_VOICE_OPTIONS } from "../tts/edge/edge.voices.snapshot";
 
-export type TtsProviderId = "openai" | "fish";
+export type TtsProviderId = "openai" | "fish" | "edge";
 
 export interface TtsProviderOption {
   id: string;
   name: string;
   description?: string;
+}
+
+export interface EdgeTtsRuntimeConfig {
+  baseUrl: string;
+  defaultVoice: string;
+  /** 管理员刷新的上游音色清单；为空表示使用内置快照。 */
+  voices: TtsProviderOption[];
+  voicesUpdatedAt?: string;
 }
 
 export interface TtsProviderRuntimeConfig {
@@ -21,6 +31,7 @@ export interface TtsProviderRuntimeConfig {
     referenceId: string;
     catalog?: FishAudioCatalogConfig;
   };
+  edge: EdgeTtsRuntimeConfig;
 }
 
 export interface TtsProviderExecutionSnapshot {
@@ -45,6 +56,15 @@ export const FISH_AUDIO_DEFAULT_BASE_URL = "https://api.fish.audio";
 export const FISH_AUDIO_DEFAULT_MODEL = "s2.1-pro-free";
 export const FISH_AUDIO_SUPPORTED_FORMATS = ["mp3"] as const;
 
+/** 微软 Edge 朗读接口。该提供商没有「模型」概念，model 仅作为历史记录与缓存标识。 */
+export const EDGE_DEFAULT_BASE_URL =
+  "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1";
+export const EDGE_DEFAULT_VOICE = "zh-CN-XiaoxiaoNeural";
+export const EDGE_MODEL_ID = "edge-readaloud-v1";
+export const EDGE_SUPPORTED_FORMATS = ["mp3"] as const;
+
+const EDGE_MAX_VOICE_CATALOG_SIZE = 1000;
+
 export const OPENAI_TTS_MODELS: readonly TtsProviderOption[] = [
   { id: "tts-1", name: "TTS-1", description: "标准质量，速度快" },
   { id: "tts-1-hd", name: "TTS-1-HD", description: "高清质量，更自然" },
@@ -59,9 +79,16 @@ export const OPENAI_TTS_VOICES: readonly TtsProviderOption[] = [
   { id: "shimmer", name: "Shimmer", description: "女性、温柔、轻柔" },
 ];
 
+/** 不是「某个提供商自己的」模型 ID：切到别的提供商时不能沿用。 */
+function isForeignTtsModelId(value: string, provider: TtsProviderId): boolean {
+  if (provider !== "fish" && value === FISH_AUDIO_DEFAULT_MODEL) return true;
+  if (provider !== "edge" && value === EDGE_MODEL_ID) return true;
+  return provider !== "openai" && OPENAI_TTS_MODELS.some((item) => item.id === value);
+}
+
 function resolveFishModel(value: string): string {
   const normalized = value.trim();
-  if (!normalized || OPENAI_TTS_MODELS.some((item) => item.id === normalized)) {
+  if (!normalized || isForeignTtsModelId(normalized, "fish")) {
     return FISH_AUDIO_DEFAULT_MODEL;
   }
   return normalized;
@@ -69,12 +96,19 @@ function resolveFishModel(value: string): string {
 
 function resolveOpenAiModel(value: string, fallback = "tts-1"): string {
   const normalized = value.trim();
-  if (normalized && normalized !== FISH_AUDIO_DEFAULT_MODEL) {
+  if (normalized && !isForeignTtsModelId(normalized, "openai")) {
     return normalized;
   }
 
   const normalizedFallback = fallback.trim();
-  return normalizedFallback && normalizedFallback !== FISH_AUDIO_DEFAULT_MODEL ? normalizedFallback : "tts-1";
+  return normalizedFallback && !isForeignTtsModelId(normalizedFallback, "openai")
+    ? normalizedFallback
+    : "tts-1";
+}
+
+/** 微软语音只有一种「模型」，不随管理员输入变化。 */
+function resolveEdgeModel(): string {
+  return EDGE_MODEL_ID;
 }
 
 function asObject(value: unknown): Record<string, unknown> {
@@ -103,7 +137,52 @@ export function normalizeTtsModelId(value: unknown, fallback: string): string {
 
 export function normalizeTtsProviderId(value: unknown, fallback: TtsProviderId = "openai"): TtsProviderId {
   const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
-  return normalized === "fish" || normalized === "openai" ? normalized : fallback;
+  return normalized === "fish" || normalized === "openai" || normalized === "edge" ? normalized : fallback;
+}
+
+export function normalizeEdgeBaseUrl(value: unknown, fallback = EDGE_DEFAULT_BASE_URL): string {
+  const candidate = normalizeString(value, fallback);
+  try {
+    const parsed = new URL(candidate);
+    if ((parsed.protocol === "ws:" || parsed.protocol === "wss:") && !parsed.username && !parsed.password) {
+      return parsed.toString();
+    }
+  } catch {
+    return fallback;
+  }
+  return fallback;
+}
+
+export function normalizeEdgeVoiceId(value: unknown, fallback = EDGE_DEFAULT_VOICE): string {
+  return isEdgeVoiceId(value) ? (value as string).trim() : fallback;
+}
+
+function normalizeEdgeVoiceCatalog(value: unknown): TtsProviderOption[] {
+  if (!Array.isArray(value)) return [];
+  const unique = new Map<string, TtsProviderOption>();
+  for (const entry of value) {
+    if (unique.size >= EDGE_MAX_VOICE_CATALOG_SIZE) break;
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const raw = entry as Record<string, unknown>;
+    const id = typeof raw.id === "string" ? raw.id.trim() : "";
+    if (!isEdgeVoiceId(id) || unique.has(id)) continue;
+    const name = normalizeString(raw.name, id, 128);
+    const description = normalizeOptionalString(raw.description, "", 200);
+    unique.set(id, description ? { id, name, description } : { id, name });
+  }
+  return Array.from(unique.values());
+}
+
+function normalizeEdgeStoredConfig(raw: unknown, defaults: EdgeTtsRuntimeConfig): EdgeTtsRuntimeConfig {
+  const edge = asObject(raw);
+  const voicesUpdatedAt = normalizeOptionalString(edge.voicesUpdatedAt, "", 64);
+  const hasVoices = Array.isArray(edge.voices);
+  return {
+    baseUrl: normalizeEdgeBaseUrl(edge.baseUrl, defaults.baseUrl),
+    defaultVoice: normalizeEdgeVoiceId(edge.defaultVoice, defaults.defaultVoice),
+    voices: hasVoices ? normalizeEdgeVoiceCatalog(edge.voices) : defaults.voices,
+    ...(voicesUpdatedAt ? { voicesUpdatedAt } : {}),
+  };
 }
 
 export function normalizeFishAudioBaseUrl(value: unknown, fallback = FISH_AUDIO_DEFAULT_BASE_URL): string {
@@ -127,7 +206,11 @@ export function normalizeTtsProviderRuntimeConfig(
   const fish = asObject(raw.fish);
   const provider = normalizeTtsProviderId(raw.provider, defaults.provider);
   const fallbackModel =
-    provider === "fish" ? FISH_AUDIO_DEFAULT_MODEL : resolveOpenAiModel(defaults.defaultModel, "tts-1");
+    provider === "fish"
+      ? FISH_AUDIO_DEFAULT_MODEL
+      : provider === "edge"
+        ? EDGE_MODEL_ID
+        : resolveOpenAiModel(defaults.defaultModel, "tts-1");
   const normalizedModel = normalizeTtsModelId(raw.defaultModel, fallbackModel);
 
   return {
@@ -135,13 +218,16 @@ export function normalizeTtsProviderRuntimeConfig(
     defaultModel:
       provider === "fish"
         ? resolveFishModel(normalizedModel)
-        : resolveOpenAiModel(normalizedModel, fallbackModel),
+        : provider === "edge"
+          ? resolveEdgeModel()
+          : resolveOpenAiModel(normalizedModel, fallbackModel),
     fish: {
       apiKey: normalizeString(fish.apiKey, defaults.fish.apiKey, 2048),
       baseUrl: normalizeFishAudioBaseUrl(fish.baseUrl, defaults.fish.baseUrl),
       referenceId: normalizeOptionalString(fish.referenceId, defaults.fish.referenceId, 512),
       catalog: normalizeFishAudioCatalogConfig(fish.catalog ?? defaults.fish.catalog),
     },
+    edge: normalizeEdgeStoredConfig(raw.edge, defaults.edge),
   };
 }
 
@@ -162,7 +248,11 @@ export function mergeTtsProviderAdminUpdate(
   const openAiFallback =
     current.provider === "openai" ? resolveOpenAiModel(current.defaultModel, "tts-1") : "tts-1";
   defaultModel =
-    provider === "fish" ? resolveFishModel(defaultModel) : resolveOpenAiModel(defaultModel, openAiFallback);
+    provider === "fish"
+      ? resolveFishModel(defaultModel)
+      : provider === "edge"
+        ? resolveEdgeModel()
+        : resolveOpenAiModel(defaultModel, openAiFallback);
 
   let baseUrl = current.fish.baseUrl;
   if (Object.prototype.hasOwnProperty.call(fish, "baseUrl")) {
@@ -215,6 +305,37 @@ export function mergeTtsProviderAdminUpdate(
     };
   }
 
+  const edge = asObject(raw.edge);
+  let edgeBaseUrl = current.edge.baseUrl;
+  if (Object.prototype.hasOwnProperty.call(edge, "baseUrl")) {
+    const candidate = normalizeOptionalString(edge.baseUrl, "", 2048);
+    if (!candidate) {
+      throw new Error("微软语音接口地址不能为空");
+    }
+    try {
+      const parsed = new URL(candidate);
+      if (
+        (parsed.protocol !== "ws:" && parsed.protocol !== "wss:") ||
+        parsed.username ||
+        parsed.password
+      ) {
+        throw new Error("invalid protocol or credentials");
+      }
+    } catch {
+      throw new Error("微软语音接口地址必须是有效的 ws 或 wss 地址");
+    }
+    edgeBaseUrl = normalizeEdgeBaseUrl(candidate, current.edge.baseUrl);
+  }
+
+  let edgeDefaultVoice = current.edge.defaultVoice;
+  if (Object.prototype.hasOwnProperty.call(edge, "defaultVoice")) {
+    const candidate = normalizeOptionalString(edge.defaultVoice, "", 128);
+    if (!candidate || !isEdgeVoiceId(candidate)) {
+      throw new Error("微软语音默认音色格式无效");
+    }
+    edgeDefaultVoice = candidate;
+  }
+
   return {
     provider,
     defaultModel,
@@ -223,6 +344,13 @@ export function mergeTtsProviderAdminUpdate(
       baseUrl,
       referenceId,
       catalog,
+    },
+    // 音色清单只由刷新接口写入，管理端保存不覆盖。
+    edge: {
+      baseUrl: edgeBaseUrl,
+      defaultVoice: edgeDefaultVoice,
+      voices: current.edge.voices,
+      ...(current.edge.voicesUpdatedAt ? { voicesUpdatedAt: current.edge.voicesUpdatedAt } : {}),
     },
   };
 }
@@ -245,6 +373,25 @@ export function buildTtsProviderPublicConfig(
       ],
       voices: [],
       voiceMode: runtimeConfig.fish.referenceId ? "configured_reference" : "provider_default",
+    };
+  }
+
+  if (runtimeConfig.provider === "edge") {
+    const voices = runtimeConfig.edge.voices.length
+      ? runtimeConfig.edge.voices.map((entry) => ({ ...entry }))
+      : EDGE_BUILTIN_VOICE_OPTIONS.map((entry) => ({ ...entry }));
+    const configuredVoice = runtimeConfig.edge.defaultVoice;
+    return {
+      provider: "edge",
+      defaultModel: EDGE_MODEL_ID,
+      defaultVoice: voices.some((item) => item.id === configuredVoice)
+        ? configuredVoice
+        : EDGE_DEFAULT_VOICE,
+      models: [
+        { id: EDGE_MODEL_ID, name: "Edge 朗读", description: "微软内置语音，无需额外密钥" },
+      ],
+      voices,
+      voiceMode: "select",
     };
   }
 
@@ -287,6 +434,19 @@ export function buildTtsProviderExecutionSnapshot(
       ...(safeReferenceId ? { referenceId: safeReferenceId } : {}),
       baseUrl,
       cacheIdentity: ["fish", model, voice, safeReferenceId || "default", baseUrl].join("|"),
+    };
+  }
+
+  if (runtimeConfig.provider === "edge") {
+    const requestedVoice = typeof input.voice === "string" ? input.voice.trim() : "";
+    const voice = isEdgeVoiceId(requestedVoice) ? requestedVoice : runtimeConfig.edge.defaultVoice;
+    const baseUrl = normalizeEdgeBaseUrl(runtimeConfig.edge.baseUrl);
+    return {
+      providerId: "edge",
+      model: EDGE_MODEL_ID,
+      voice,
+      baseUrl,
+      cacheIdentity: ["edge", EDGE_MODEL_ID, voice, baseUrl].join("|"),
     };
   }
 

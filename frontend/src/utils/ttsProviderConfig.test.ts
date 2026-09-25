@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  EDGE_DEFAULT_TTS_MODEL,
+  EDGE_DEFAULT_TTS_VOICE,
   FISH_DEFAULT_TTS_MODEL,
   getTtsOutputFormats,
   isTtsProviderConfigPayload,
@@ -94,5 +96,48 @@ describe("normalizeTtsProviderConfig", () => {
     });
 
     expect(config.defaultVoice).toBe("alloy");
+  });
+
+  it("limits Edge output to MP3 while still exposing speed adjustment", () => {
+    expect(getTtsOutputFormats("edge")).toEqual(["mp3"]);
+    expect(supportsTtsSpeed("edge")).toBe(true);
+  });
+
+  it("accepts an Edge payload and keeps Microsoft's own model, voice and selectable voices", () => {
+    const payload = {
+      success: true,
+      config: {
+        provider: "edge",
+        defaultModel: EDGE_DEFAULT_TTS_MODEL,
+        defaultVoice: EDGE_DEFAULT_TTS_VOICE,
+        models: [{ id: EDGE_DEFAULT_TTS_MODEL, name: "Edge 朗读" }],
+        voices: [
+          { id: EDGE_DEFAULT_TTS_VOICE, name: "晓晓", description: "Chinese (Mandarin, Simplified) · 女" },
+        ],
+        voiceMode: "select",
+      },
+    };
+
+    expect(isTtsProviderConfigPayload(payload)).toBe(true);
+    const config = normalizeTtsProviderConfig(payload);
+
+    expect(config.provider).toBe("edge");
+    expect(config.defaultModel).toBe(EDGE_DEFAULT_TTS_MODEL);
+    expect(config.models.map((option) => option.id)).toEqual([EDGE_DEFAULT_TTS_MODEL]);
+    expect(config.voiceMode).toBe("select");
+    expect(config.defaultVoice).toBe(EDGE_DEFAULT_TTS_VOICE);
+  });
+
+  it("never treats another provider's model as the Edge default", () => {
+    const config = normalizeTtsProviderConfig({
+      provider: "edge",
+      defaultModel: "tts-1-hd",
+      models: ["tts-1-hd"],
+      voices: [{ id: EDGE_DEFAULT_TTS_VOICE, name: "晓晓" }],
+      voiceMode: "select",
+    });
+
+    expect(config.defaultModel).toBe(EDGE_DEFAULT_TTS_MODEL);
+    expect(config.models.map((option) => option.id)).not.toContain("tts-1-hd");
   });
 });

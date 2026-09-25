@@ -10,6 +10,7 @@ export const EMAIL_SYSTEM_API = `${API_BASE_URL}/api/admin/email-system/setting`
 export const MODLIST_API = `${API_BASE_URL}/api/admin/modlist/setting`;
 export const TTS_API = `${API_BASE_URL}/api/admin/tts/setting`;
 export const TTS_PROVIDER_ADMIN_API = `${API_BASE_URL}/api/admin/tts/provider`;
+export const TTS_EDGE_VOICES_REFRESH_API = `${API_BASE_URL}/api/admin/tts/provider/edge-voices/refresh`;
 export const LIBRECHAT_PROVIDERS_API = `${API_BASE_URL}/api/librechat/admin/providers`;
 export const SHORTURL_AES_API = `${API_BASE_URL}/api/shorturl/admin/aes-key`;
 export const WEBHOOK_SECRET_API = `${API_BASE_URL}/api/admin/webhook/secret`;

@@ -54,6 +54,14 @@ async function buildDetailedHealthPayload() {
       active: false,
       configured: false,
     },
+    {
+      name: "edge" as const,
+      required: false as const,
+      status: "skipped" as const,
+      message: "微软内置语音配置状态暂不可用",
+      active: false,
+      configured: false,
+    },
   ]);
   const nonTtsDependencies = (report?.dependencies || []).filter(
     (dependency) => dependency.name !== "openai" && dependency.name !== "fish",

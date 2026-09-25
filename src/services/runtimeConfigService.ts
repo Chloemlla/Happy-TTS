@@ -20,9 +20,11 @@ import {
 import {
   mergeTtsProviderAdminUpdate,
   normalizeTtsProviderRuntimeConfig,
+  type TtsProviderOption,
   type TtsProviderRuntimeConfig,
 } from "../config/ttsProviderConfig";
 import { formatFishAudioCatalogCurl } from "../config/fishAudioCatalog";
+import { resolveEdgeVoiceOptions } from "../tts/edge/edge.voices";
 import { type RuntimeConfigKey, RuntimeConfigModel } from "../models/runtimeConfigModel";
 import { refreshLumenConfig } from "../config/lumen";
 import {
@@ -1833,6 +1835,13 @@ export class RuntimeConfigService {
         modelCurl: string;
         defaultVoicesCurl: string;
       };
+      edge: {
+        baseUrl: string;
+        defaultVoice: string;
+        voiceSource: "snapshot" | "refreshed";
+        voiceCount: number;
+        voicesUpdatedAt?: string;
+      };
       updatedAt?: string;
     };
   }> {
@@ -1858,6 +1867,13 @@ export class RuntimeConfigService {
           modelCurl: formatFishAudioCatalogCurl(config.fish.catalog?.modelRequest),
           defaultVoicesCurl: formatFishAudioCatalogCurl(config.fish.catalog?.defaultVoicesRequest),
         },
+        edge: {
+          baseUrl: config.edge.baseUrl,
+          defaultVoice: config.edge.defaultVoice,
+          voiceSource: config.edge.voices.length ? "refreshed" : "snapshot",
+          voiceCount: resolveEdgeVoiceOptions(config.edge.voices).length,
+          ...(config.edge.voicesUpdatedAt ? { voicesUpdatedAt: config.edge.voicesUpdatedAt } : {}),
+        },
         updatedAt: doc?.updatedAt?.toISOString(),
       },
     };
@@ -1881,6 +1897,37 @@ export class RuntimeConfigService {
     invalidateHotCache("TTS_PROVIDER");
     initialized = true;
     return { updatedAt: persistedAt.toISOString() };
+  }
+
+  /** 写入刷新到的微软语音音色清单；管理端的保存路径不会触碰该字段。 */
+  static async setEdgeVoiceCatalog(
+    catalog: TtsProviderOption[],
+  ): Promise<{ count: number; updatedAt: string }> {
+    const currentDoc = await readRuntimeConfigDoc("TTS_PROVIDER");
+    const current = currentDoc
+      ? normalizeStoredTtsProviderConfig(currentDoc.value)
+      : cloneRuntimeConfigDefaults(runtimeConfigDefaults).ttsProvider;
+
+    const nextConfig: TtsProviderRuntimeConfig = {
+      ...current,
+      edge: {
+        ...current.edge,
+        voices: catalog,
+        voicesUpdatedAt: new Date().toISOString(),
+      },
+    };
+
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "TTS_PROVIDER",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
+
+    runtimeConfigCache.ttsProvider = nextConfig;
+    loadedKeys.add("TTS_PROVIDER");
+    invalidateHotCache("TTS_PROVIDER");
+    initialized = true;
+    return { count: catalog.length, updatedAt: persistedAt.toISOString() };
   }
 
   static async getEmailSetting(): Promise<{

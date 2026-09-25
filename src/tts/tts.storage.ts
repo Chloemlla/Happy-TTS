@@ -102,7 +102,7 @@ const TtsJobSchema = new mongoose.Schema<TtsJobRecord>(
       outputFormat: { type: String, required: true },
       speed: { type: Number, required: true },
       providerExecution: {
-        providerId: { type: String, enum: ["openai", "fish"] },
+        providerId: { type: String, enum: ["openai", "fish", "edge"] },
         model: { type: String },
         voice: { type: String },
         referenceId: { type: String },
