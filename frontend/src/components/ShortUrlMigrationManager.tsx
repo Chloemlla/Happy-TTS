@@ -108,17 +108,17 @@ const ShortUrlMigrationManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* 标题和说明 */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 sm:p-6 border border-blue-100">
-        <h2 className="text-xl sm:text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-6">
+        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-3 flex items-center gap-2">
           <FaSync className="w-6 h-6" />
           短链域名迁移管理
         </h2>
         <div className="text-slate-600 space-y-2">
           <p>此功能用于将短链数据库中的旧域名 <code className="bg-slate-200 px-1 rounded">ipfs.crossbell.io</code> 自动替换为新域名 <code className="bg-slate-200 px-1 rounded">ipfs.chloemlla.com</code></p>
           <div className="flex items-start gap-2 text-sm">
-            <FaInfoCircle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+            <FaInfoCircle className="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="font-semibold text-blue-700">功能说明：</p>
+              <p className="font-semibold text-slate-900">功能说明：</p>
               <ul className="list-disc list-inside space-y-1 mt-1">
                 <li>启动时自动检测并修正现有短链</li>
                 <li>新增短链时自动修正目标URL</li>

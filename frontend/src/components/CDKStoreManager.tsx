@@ -166,7 +166,7 @@ function ImportCDKModal({ isOpen, onClose, onSuccess }: ImportCDKModalProps) {
                 <motion.button
                   type="submit"
                   disabled={loading}
-                  className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-500 to-blue-600 rounded-md hover:from-purple-600 hover:to-blue-700 disabled:opacity-50"
+                  className="w-full rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50 sm:w-auto"
                   whileHover={!loading ? { scale: 1.02 } : {}}
                   whileTap={!loading ? { scale: 0.98 } : {}}
                 >
@@ -417,7 +417,7 @@ function GenerateCDKModal({ isOpen, onClose, onSuccess }: GenerateCDKModalProps)
                 <motion.button
                   type="submit"
                   disabled={loading}
-                  className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-500 to-blue-600 border border-transparent rounded-md hover:from-purple-600 hover:to-blue-700 disabled:opacity-50 transition-all duration-200"
+                  className="w-full rounded-2xl border border-transparent bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-slate-800 disabled:opacity-50 sm:w-auto"
                   whileHover={!loading ? { scale: 1.02 } : {}}
                   whileTap={!loading ? { scale: 0.98 } : {}}
                 >
@@ -645,7 +645,7 @@ function EditCDKModal({ isOpen, onClose, onSuccess, cdk }: EditCDKModalProps) {
                 <motion.button
                   type="submit"
                   disabled={loading}
-                  className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-indigo-600 border border-transparent rounded-md hover:from-blue-600 hover:to-indigo-700 disabled:opacity-50 transition-all duration-200"
+                  className="w-full rounded-2xl border border-transparent bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-slate-800 disabled:opacity-50 sm:w-auto"
                   whileHover={!loading ? { scale: 1.02 } : {}}
                   whileTap={!loading ? { scale: 0.98 } : {}}
                 >
@@ -1120,16 +1120,16 @@ export default function CDKStoreManager() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-4 sm:p-6 border border-purple-100"
+        className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-6"
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-          <h2 className="text-xl sm:text-2xl font-bold text-purple-700 flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
             <FaKey className="w-5 h-5 sm:w-6 sm:h-6" />
             CDK管理
           </h2>
           <Link
             to="/admin/store"
-            className="px-3 py-2 bg-purple-500 text-white rounded-2xl hover:bg-purple-600 transition text-sm font-medium flex items-center justify-center gap-2 w-full sm:w-auto"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 sm:w-auto"
           >
             <FaArrowLeft className="w-4 h-4" />
             返回仪表板
@@ -1203,7 +1203,7 @@ export default function CDKStoreManager() {
             {/* 第一行：生成CDK按钮（移动端全宽） */}
             <motion.button
               onClick={() => setShowGenerateModal(true)}
-              className="w-full sm:flex-1 px-4 py-3 sm:py-2 bg-gradient-to-r from-purple-500 to-blue-600 text-white rounded-2xl hover:from-purple-600 hover:to-blue-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 text-base sm:text-sm"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-base font-medium text-white transition-all duration-200 hover:bg-slate-800 sm:flex-1 sm:py-2 sm:text-sm"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -1214,7 +1214,7 @@ export default function CDKStoreManager() {
             {/* 导入CDK按钮 */}
             <motion.button
               onClick={() => setShowImportModal(true)}
-              className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-2xl hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 text-base sm:text-sm"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-base font-medium text-white transition-all duration-200 hover:bg-slate-800 sm:w-auto sm:py-2 sm:text-sm"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -1245,7 +1245,7 @@ export default function CDKStoreManager() {
             <motion.button
               onClick={() => handleExportAll()}
               disabled={exportingAll || cdks.length === 0}
-              className="w-full sm:flex-1 px-4 py-3 sm:py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium flex items-center justify-center gap-2 text-base sm:text-sm"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-base font-medium text-white transition-all duration-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-1 sm:py-2 sm:text-sm"
               whileHover={!exportingAll && cdks.length > 0 ? { scale: 1.02 } : {}}
               whileTap={!exportingAll && cdks.length > 0 ? { scale: 0.98 } : {}}
             >

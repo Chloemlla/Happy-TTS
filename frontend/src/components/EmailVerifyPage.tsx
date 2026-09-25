@@ -70,7 +70,7 @@ export const EmailVerifyPage: React.FC = () => {
     }, [searchParams, navigate, setNotification]);
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 sm:py-12 sm:px-6 animate-gradient rounded-3xl">
+        <div className="min-h-screen flex items-center justify-center rounded-2xl bg-slate-50 py-8 px-4 sm:py-12 sm:px-6">
             <div className="w-full max-w-md min-w-0">
                 {/* Header */}
                 <div className="mb-8 text-center animate-slideInUp">
@@ -120,7 +120,7 @@ export const EmailVerifyPage: React.FC = () => {
 
                             <Link
                                 to="/login"
-                                className="inline-block w-full py-3 px-4 text-center border border-transparent rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                                className="inline-block w-full rounded-2xl border border-transparent bg-slate-900 py-3 px-4 text-center text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:scale-105 hover:bg-slate-800 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
                             >
                                 立即登录
                             </Link>
@@ -153,7 +153,7 @@ export const EmailVerifyPage: React.FC = () => {
                             <div className="space-y-3">
                                 <Link
                                     to="/register"
-                                    className="block w-full py-3 px-4 text-center border border-transparent rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                                    className="block w-full rounded-2xl border border-transparent bg-slate-900 py-3 px-4 text-center text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:scale-105 hover:bg-slate-800 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
                                 >
                                     重新注册
                                 </Link>

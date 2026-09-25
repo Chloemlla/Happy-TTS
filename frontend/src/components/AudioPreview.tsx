@@ -121,9 +121,9 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="relative z-30 w-full bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-100 overflow-hidden mt-6"
+                className="relative z-30 mt-6 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-lg backdrop-blur-sm"
             >
-                <div className="p-4 bg-gradient-to-r from-indigo-500 to-purple-500">
+                <div className="bg-slate-900 p-4">
                     <div className="flex justify-between items-center">
                         <h3 className="text-white font-semibold">音频预览</h3>
                         {onClose && (
@@ -144,15 +144,15 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
                         <div className="flex items-center space-x-4">
                             <button
                                 onClick={handlePlayPause}
-                                className="p-2 rounded-full bg-indigo-100 hover:bg-indigo-200 transition-colors"
+                                className="rounded-full bg-slate-100 p-2 transition-colors hover:bg-slate-200"
                                 disabled={isLoading}
                             >
                                 {isPlaying ? (
-                                    <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="h-6 w-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                 ) : (
-                                    <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="h-6 w-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
@@ -188,7 +188,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
                                         onClick={() => setPlaybackRate(rate)}
                                         className={`px-2 py-1 rounded text-sm ${
                                             playbackRate === rate
-                                                ? 'bg-indigo-600 text-white'
+                                                ? 'bg-slate-900 text-white'
                                                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                         }`}
                                     >
@@ -200,7 +200,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
                     </div>
                     {isLoading && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-t-2 border-slate-700"></div>
                         </div>
                     )}
                 </div>

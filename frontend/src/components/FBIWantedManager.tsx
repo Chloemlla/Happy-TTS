@@ -977,7 +977,7 @@ const FBIWantedManager: React.FC = () => {
                                             !(formData.charges && formData.charges.length > 0) ||
                                             !(typeof formData.reward === 'number' && formData.reward >= 0)
                                         }
-                                        className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
+                                        className="flex items-center gap-2 rounded-2xl bg-slate-900 px-6 py-2 text-white transition-all duration-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         {loading ? <FaSpinner className="animate-spin" /> : <FaSave />}
                                         {loading ? '创建中...' : '创建'}

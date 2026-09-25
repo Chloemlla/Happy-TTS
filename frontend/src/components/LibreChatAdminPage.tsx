@@ -234,20 +234,20 @@ const LibreChatAdminPage: React.FC = () => {
     >
       {/* 标题和说明 */}
       <motion.div
-        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100"
+        className="rounded-2xl border border-slate-200 bg-slate-50/80 p-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
-          <FaEnvelope className="text-blue-500" />
+        <h2 className="text-2xl font-bold text-slate-900 mb-3 flex items-center gap-2">
+          <FaEnvelope className="text-slate-500" />
           LibreChat 管理
         </h2>
         <div className="text-slate-600 space-y-2">
           <p>管理 LibreChat 用户聊天历史，包括查看、搜索和删除用户对话记录。</p>
           <div className="flex items-start gap-2 text-sm">
             <div>
-              <p className="font-semibold text-blue-700">功能说明：</p>
+              <p className="font-semibold text-slate-900">功能说明：</p>
               <ul className="list-disc list-inside space-y-1 mt-1">
                 <li>查看所有 LibreChat 用户列表</li>
                 <li>搜索特定用户</li>

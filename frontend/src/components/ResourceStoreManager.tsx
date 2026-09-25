@@ -396,7 +396,7 @@ function EditResourceModal({ isOpen, onClose, onSuccess, resource }: EditResourc
                 <motion.button
                   type="submit"
                   disabled={loading}
-                  className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-indigo-600 border border-transparent rounded-md hover:from-blue-600 hover:to-indigo-700 disabled:opacity-50 transition-all duration-200"
+                  className="w-full rounded-2xl border border-transparent bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-slate-800 disabled:opacity-50 sm:w-auto"
                   whileHover={!loading ? { scale: 1.02 } : {}}
                   whileTap={!loading ? { scale: 0.98 } : {}}
                 >

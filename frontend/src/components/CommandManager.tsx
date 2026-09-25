@@ -754,9 +754,9 @@ const CommandManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* 标题和说明 */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 sm:p-6 border border-blue-100">
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-          <h2 className="text-xl sm:text-2xl font-bold text-blue-700 flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
             <FaTerminal className="w-6 h-6" />
             命令执行管理
           </h2>
@@ -851,7 +851,7 @@ const CommandManager: React.FC = () => {
             className={`flex-1 py-3 px-6 rounded-2xl font-semibold text-white transition-all duration-200 ${
               isExecuting
                 ? 'bg-slate-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 shadow-lg hover:shadow-xl'
+                : 'bg-slate-900 hover:bg-slate-800 shadow-sm hover:shadow-md'
             }`}
             whileHover={!isExecuting ? { scale: 1.02 } : {}}
             whileTap={!isExecuting ? { scale: 0.98 } : {}}
@@ -930,7 +930,7 @@ const CommandManager: React.FC = () => {
         {serverStatus ? (
           <div className="space-y-4">
             {/* 系统信息摘要 */}
-            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-4 text-white">
+            <div className="rounded-2xl bg-slate-900 p-4 text-white">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-lg font-semibold flex items-center gap-2">
                   <FaServer className="w-5 h-5" />
@@ -1129,7 +1129,7 @@ const CommandManager: React.FC = () => {
                 </div>
                 <div className="w-full bg-slate-200 rounded-full h-2">
                   <div
-                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                    className="h-2 rounded-full bg-slate-900 transition-all duration-300"
                     style={{ 
                       width: `${Math.min(100, (serverStatus.memory_usage.heapUsed / serverStatus.memory_usage.heapTotal) * 100)}%` 
                     }}
@@ -1143,13 +1143,13 @@ const CommandManager: React.FC = () => {
             </div>
 
             {/* 系统资源概览 */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-200">
-              <h4 className="text-sm font-semibold text-blue-700 mb-3 flex items-center gap-2">
-                <FaServer className="w-4 h-4 text-blue-500" />
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+              <h4 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                <FaServer className="w-4 h-4 text-slate-500" />
                 系统资源概览
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-blue-200">
+                <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 backdrop-blur-xl">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-slate-700">堆内存使用率</span>
                     <span className={`text-sm font-bold ${getMemoryStatusColor((serverStatus.memory_usage.heapUsed / serverStatus.memory_usage.heapTotal) * 100)}`}>
@@ -1175,7 +1175,7 @@ const CommandManager: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-blue-200">
+                <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 backdrop-blur-xl">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-slate-700">CPU使用率</span>
                     <span className={`text-sm font-bold ${getCPUStatusColor(serverStatus.cpu_usage_percent)}`}>
@@ -1201,7 +1201,7 @@ const CommandManager: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-blue-200">
+                <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 backdrop-blur-xl">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-slate-700">RSS内存</span>
                     <span className="text-sm font-bold text-purple-600">
@@ -1341,9 +1341,9 @@ const CommandManager: React.FC = () => {
                 </div>
 
                 {/* 系统健康度评估 */}
-                <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-2xl p-4 border border-slate-200">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                   <h4 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                    <FaChartLine className="text-lg text-blue-500" />
+                    <FaChartLine className="text-lg text-slate-500" />
                     系统健康度评估
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

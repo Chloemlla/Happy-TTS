@@ -757,7 +757,7 @@ const EmailSender: React.FC = () => {
                     </div>
                     <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-400"
+                        className="h-full rounded-full bg-slate-900"
                         style={{ width: `${internalQuotaPercent}%` }}
                       />
                     </div>
@@ -1184,7 +1184,7 @@ const EmailSender: React.FC = () => {
                     className={`w-full rounded-2xl px-5 py-4 text-sm font-bold text-white transition ${
                       loading || !serviceStatus?.available
                         ? "cursor-not-allowed bg-slate-300"
-                        : "bg-gradient-to-r from-sky-600 to-cyan-500 shadow-lg shadow-sky-200"
+                        : "bg-slate-900 shadow-sm hover:bg-slate-800"
                     }`}
                   >
                     {loading ? "发送中..." : "发送站内邮件"}

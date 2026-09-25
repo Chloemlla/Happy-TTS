@@ -65,17 +65,17 @@ export default function AdminStoreDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 sm:p-6 border border-blue-100"
+        className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-6"
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-          <h2 className="text-xl sm:text-2xl font-bold text-blue-700 flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
             <FaStore className="w-6 h-6" />
             资源商店管理
           </h2>
           <motion.button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="w-full sm:w-auto px-3 py-2 bg-blue-500 text-white rounded-2xl hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2 justify-center"
+            className="w-full sm:w-auto px-3 py-2 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2 justify-center"
             whileTap={{ scale: 0.95 }}
           >
             <FaCog className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -255,9 +255,9 @@ export default function AdminStoreDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-2xl p-4 sm:p-6 border border-indigo-200"
+        className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-6"
       >
-        <h2 className="text-lg font-medium text-indigo-900 mb-4 flex items-center gap-2">
+        <h2 className="text-lg font-medium text-slate-900 mb-4 flex items-center gap-2">
           <FaChartBar className="w-5 h-5" />
           快速访问
         </h2>
@@ -268,7 +268,7 @@ export default function AdminStoreDashboard() {
           >
             <Link
               to="/store"
-              className="inline-flex items-center px-4 py-2 border border-indigo-300 rounded-md text-sm font-medium text-indigo-700 bg-white hover:bg-indigo-50 transition-all duration-200 shadow-sm hover:shadow-md"
+              className="inline-flex items-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-all duration-200 shadow-sm hover:border-slate-300 hover:bg-slate-50 hover:shadow-md"
             >
               <FaStore className="w-4 h-4 mr-2" />
               查看商店
@@ -280,7 +280,7 @@ export default function AdminStoreDashboard() {
           >
             <Link
               to="/admin"
-              className="inline-flex items-center px-4 py-2 border border-indigo-300 rounded-md text-sm font-medium text-indigo-700 bg-white hover:bg-indigo-50 transition-all duration-200 shadow-sm hover:shadow-md"
+              className="inline-flex items-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-all duration-200 shadow-sm hover:border-slate-300 hover:bg-slate-50 hover:shadow-md"
             >
               <FaCog className="w-4 h-4 mr-2" />
               主控制台
