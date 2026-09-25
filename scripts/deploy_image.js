@@ -16,6 +16,14 @@ const DEPLOY_LOCK_FILE = path.join(__dirname, ".deploy_image.lock");
 const DEPLOY_LOCK_WAIT_MS = 5000;
 let deployLockHeld = false;
 
+// 各部署步骤历史上只把错误写进日志就继续跑，最后一律打印「所有服务器部署完成」
+// 并 exit 0，于是 job 永远绿——2026-09-19 起 SSH 认证连续失败数天都没被发现。
+// 下面这个标记收集「这次部署没做成」的信号，由 main 末尾转成非零退出码。
+let deployFailed = false;
+function markDeployFailure() {
+  deployFailed = true;
+}
+
 // 重型依赖延迟加载，inspect --file 本地模式无需加载
 let _ssh2, _dotenv, _axios, _FormData;
 function getSSH2() {
@@ -298,6 +306,7 @@ async function pullDockerImage(ssh, imageUrl) {
     if (result.stderr) logSensitive(result.stderr, "ERROR");
   } catch (err) {
     logError(`拉取镜像失败: ${err.message}`);
+    markDeployFailure();
   }
 }
 
@@ -678,6 +687,7 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
       containerInfo = JSON.parse(inspectResult.stdout);
     } catch (parseErr) {
       logError(`解析容器信息失败: ${parseErr.message}`);
+      markDeployFailure();
       return;
     }
 
@@ -686,6 +696,7 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
 
     if (!containerInfo || containerInfo.length === 0) {
       logError(`错误：未找到容器 ${oldContainerName} 的信息`);
+      markDeployFailure();
       return;
     }
 
@@ -1053,6 +1064,12 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
     const createResult = await execSSHCommand(ssh, createCommand);
     if (createResult.stdout) logSensitive(createResult.stdout);
     if (createResult.stderr) logSensitive(createResult.stderr, "ERROR");
+    // docker run 非零退出 = 新容器根本没起来，此时旧容器已被删除，服务是停的。
+    // 之前这里只把 stderr 记成 ERROR 就走下去了，退出码仍是 0。
+    if (typeof createResult.code === "number" && createResult.code !== 0) {
+      logError(`创建容器失败：docker run 退出码 ${createResult.code}`);
+      markDeployFailure();
+    }
 
     for (const connectCommand of connectNetworkCommands) {
       logSensitive(`继承附加网络命令: ${connectCommand}`);
@@ -1064,6 +1081,7 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
     logInfo(`容器重新创建完成: ${oldContainerName}`);
   } catch (err) {
     logError(`重新创建容器失败: ${err.message}`);
+    markDeployFailure();
   }
 }
 
@@ -1229,6 +1247,7 @@ async function main() {
       )
     ) {
       logError("请确保所有服务器相关环境变量数量一致，并用英文逗号分隔。");
+      process.exitCode = 1;
       return;
     }
 
@@ -1254,6 +1273,7 @@ async function main() {
         )
       ) {
         logError(`第${i + 1}组服务器配置有缺失，请检查环境变量。`);
+        markDeployFailure();
         continue;
       }
 
@@ -1271,6 +1291,7 @@ async function main() {
           // 备份容器设置
           const backupFile = await backupContainerSettings(ssh, containerName);
           if (!backupFile) {
+            markDeployFailure();
             continue;
           }
 
@@ -1285,6 +1306,7 @@ async function main() {
         await cleanupUnusedImages(ssh);
       } catch (err) {
         logError(`处理服务器 ${serverAddress} 时发生错误: ${err.message}`);
+        markDeployFailure();
       } finally {
         if (ssh) {
           ssh.end();
@@ -1303,6 +1325,12 @@ async function main() {
       } else {
         logInfo("日志上传失败或未上传。");
       }
+    }
+
+    if (deployFailed) {
+      logError("\n===== 部署未全部成功：存在失败的服务器或容器，见上方 ERROR 行 =====");
+      process.exitCode = 1;
+      return;
     }
 
     logInfo("\n===== 所有服务器部署完成 =====");
