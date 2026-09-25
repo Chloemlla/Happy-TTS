@@ -105,3 +105,24 @@
 **未覆盖**：`docs/privacy-data-map.json` 未收录 `media_tool_*`（`media_tool_jobs` 本来也不在其中），新集合同样未登记——若要纳入隐私数据地图，属于另一批工作。
 
 **相交文件提醒**：与另一路并行会话（studioTheme / 前端收敛）在同一条 main 上交错，本次只显式 `git add` 下列文件。
+
+## 追加批次：任务卡在运行中 / 上传 413（2026-09-25）
+
+**问题**：任务跑完（或失败、取消）后记录仍停在 `status: running`，`error`、`finishedAt` 却已经写了，`result` 还是上一轮的。于是一连串副作用：取消接口只在 `queued` 时补终态、删除遇 `running` 直接 409、每个用户的并发配额也被这条僵尸一直占着——现场表现就是「一直没办法取消」。
+
+**根因**：`runJob` 先 `store.patch` 写终态，紧接着 `finally { await persistNow(); }` 又拿内存里过期的 `doc`（`status` 仍是 `running`）补写一遍，把状态盖回运行中。`error`/`finishedAt` 之所以留下来，是因为 mongoose `$set` 会丢弃 `undefined`——过期的副本在这几个字段上是 `undefined`，盖不掉刚写好的值。字段组合与现场记录逐项吻合。
+
+**改动**
+
+- `mediaJobRunner`：终态只写进内存 `doc`，由 `finally` 的 `persistNow()` 统一落库（单写者），删掉成功/取消/失败三处分支内的 `store.patch`
+- `mediaJobRunner`：写盘串成 `writeChain`，快照在真正落库时才取，后发的写必然带更新的状态；整段包 try/catch，保证链不会 reject（链一旦 reject，后面每个 `.then` 都会被跳过，终态就永远写不出去）
+- `mediaJobRunner`：新增 `isActive(id)`（排队中 ∪ 执行中），供取消接口判断「本进程还有没有执行体会自己写终态」
+- 两个取消接口（`transcribeUserHttp` / `mediaToolHttp`）：`runner.cancel()` 后若 `!isActive` 就直接落 `cancelled`——没有执行体会再写它，历史遗留的僵尸任务也能取消（原来只在 `queued` 时补，`running` 的僵尸永远等不到）
+- 管理端 `JobsPanel`：取消按钮不再因 `cancelRequested` 禁用（文案转「再次取消」），取消中可以再点一次
+
+**顺带（不改仓库代码）**：OpenResty 的 `client_max_body_size 50m` 挡在应用 200MB 上限之前，超限返回代理自己的 413 HTML 页而不是应用的 JSON 错误。已在站点 `location ^~ /` 内加 `client_max_body_size 512m;`（宿主机 `/opt/1panel/www/sites/tts.chloemlla.com/proxy/root.conf`，备份 `root.conf.bak-413`；`nginx -t` 通过后 `nginx -s reload`）。实测 60MB 请求已能到达应用（返回应用的 401 而非代理 413）；用户可见的文件上限仍是 200MB，由应用自己裁决并返回 JSON。
+
+**部署即自愈**：容器重启时 `ensureMediaJobRecovery` 会把残留的 `running` 落成 `failed`（「服务重启，任务被中断（可重试）」），线上那条僵尸记录会随之清掉，之后可正常重试/删除。
+
+**已知未做**：mongoose 丢弃 `undefined`，重试或失败时上一轮的 `result`/`error` 会残留在记录里（本次未处理）。
+
