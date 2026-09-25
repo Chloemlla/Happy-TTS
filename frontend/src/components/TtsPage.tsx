@@ -203,6 +203,17 @@ export const TtsPage: React.FC = () => {
       <FaCheckCircle className="text-emerald-500" />
     );
 
+  // 宽屏版式：结果栏不存在时不要给它留轨道，否则表单卡片比上方 hero 卡片窄一截（右边缘对不齐）。
+  // 但 useTts 每次生成都会先把 result/audioUrl 清成 null，若只看当前结果，点「生成」的一瞬
+  // 表单就会拉宽、出结果又缩回去。所以「出过一次结果」就把两列版式固定下来：
+  // 首屏单列齐宽，之后保持两列（AnimatePresence 的退场动画也就仍在第二列里，不会被甩到下一行）。
+  const hasResultPanel = Boolean(result && audioUrl);
+  const [resultColumnPinned, setResultColumnPinned] = useState(false);
+  useEffect(() => {
+    if (hasResultPanel) setResultColumnPinned(true);
+  }, [hasResultPanel]);
+  const reserveResultColumn = hasResultPanel || resultColumnPinned;
+
   return (
     <div
       className={cn(studioPageClassName, "min-w-0 max-w-full overflow-x-hidden")}
@@ -267,7 +278,13 @@ export const TtsPage: React.FC = () => {
           </div>
         </motion.div>
 
-        <div className="grid w-full min-w-0 max-w-full gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] xl:grid-cols-[minmax(0,1fr)_minmax(380px,480px)]">
+        <div
+          className={cn(
+            "grid w-full min-w-0 max-w-full gap-4 sm:gap-6",
+            reserveResultColumn &&
+              "lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] xl:grid-cols-[minmax(0,1fr)_minmax(380px,480px)]",
+          )}
+        >
           {/* Form */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
