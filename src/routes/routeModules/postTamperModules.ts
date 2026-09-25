@@ -670,6 +670,9 @@ export const postTamperRouteModules: RouteModule[] = [
     name: "ip-risk-routes",
     path: "/api",
     router: ipRiskRoutes,
+    // 挂在 /api 下但只服务 /api/ip-risk 一棵子树：必须显式写 scopes，否则治理闸门按
+    // 过宽作用域（/api 与所有模块重叠）直接判违规，生产启动即断言失败。
+    scopes: ["/api/ip-risk"],
     requiresAuth: false,
     rateLimited: true,
     isPublic: true,
