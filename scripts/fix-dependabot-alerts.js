@@ -27,7 +27,17 @@ const DEPENDENCY_FIELDS = [
   'peerDependencies',
   'optionalDependencies',
 ];
-const PINNED_DEPENDENCY_RANGES_BY_TARGET = {};
+// 即使执行 `pnpm up --latest`（本脚本的主路径）也不能被抬走的依赖范围。
+// typescript：ts-jest@29 的 peer 是 `>=4.3 <7`，TS7 不再提供它需要的 JS compiler API，
+// 结果是后端 118 个 Jest 套件全部以 "Test suite failed to run" 报败。因为那一步是
+// continue-on-error，2026-08-07 的「pnpm up --latest」把 typescript 抬到 7 之后，
+// 整个后端的单元测试静默停了六周（type-check 依旧绿，所以没人看见）。
+// 这里钉住它；若将来要把全仓升到 TS7，得先把 ts-jest 换成不依赖 TS JS API 的转译器。
+const PINNED_DEPENDENCY_RANGES_BY_TARGET = {
+  'package.json': {
+    typescript: '^6.0.3',
+  },
+};
 
 const EXCLUDED_DIRECTORIES = new Set([
   '.git',

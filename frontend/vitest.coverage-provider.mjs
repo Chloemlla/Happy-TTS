@@ -1,9 +1,60 @@
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { BaseCoverageProvider } from "vitest/node";
 
-const localRequire = createRequire(import.meta.url);
-const rootRequire = createRequire(new URL("../package.json", import.meta.url));
+/**
+ * 本文件的绝对文件系统路径。
+ *
+ * 不能直接把 import.meta.url 交给 createRequire：跑在 vitest 模块运行器里时，它会被 Vite
+ * 改写成开发服务地址（实测 CI：http://localhost:3000/@fs/home/runner/.../package.json），
+ * createRequire 只认 file: URL 或绝对路径，当场抛 ERR_INVALID_ARG_VALUE，
+ * 表现为「Failed to load custom CoverageProviderModule」——覆盖率恒为 0%，
+ * 所有 coverage 阈值判定失败（G13-02）。所以下面先把真实路径还原出来，再建 require 锥。
+ */
+function modulePath() {
+  const url = typeof import.meta.url === "string" ? import.meta.url : "";
+
+  if (url.startsWith("file://")) {
+    try {
+      return fileURLToPath(url);
+    } catch {
+      // 非标准 file: URL（例如带奇峴编码）交给后面的分支处理。
+    }
+  }
+
+  const viaFsMarker = "/@fs/";
+  const at = url.indexOf(viaFsMarker);
+  if (at !== -1) {
+    const sliced = decodeURIComponent(url.slice(at + viaFsMarker.length - 1).split("?")[0]);
+    // Windows 上 Vite 会给出 /@fs/C:/... ，多出来的前导斜杠让 path.resolve 拼出错的相对位置。
+    return sliced.replace(/^[/\\](?=[A-Za-z]:)/, "");
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) {
+    // 不带 /@fs 的开发服务 URL：剩下 pathname 部分就是绝对路径。
+    try {
+      return decodeURIComponent(new URL(url).pathname);
+    } catch {
+      // 交给 cwd 兼底。
+    }
+  }
+
+  if (url && !url.includes("://")) {
+    return url;
+  }
+
+  // 兼容兼底：仓库里该 provider 与 vitest.config.ts 同层，cwd 就是 frontend/。
+  return resolve(process.cwd(), "vitest.coverage-provider.mjs");
+}
+
+const providerPath = modulePath();
+const providerDir = dirname(providerPath);
+
+const localRequire = createRequire(providerPath);
+// 仓库根的 package.json：jest 系（带 istanbul-lib-* 那条链）装在根项目里，从这里往下找。
+const rootRequire = createRequire(resolve(providerDir, "..", "package.json"));
 const jestRequire = createRequire(rootRequire.resolve("jest/package.json"));
 const jestCoreRequire = createRequire(jestRequire.resolve("@jest/core/package.json"));
 const jestReportersRequire = createRequire(jestCoreRequire.resolve("@jest/reporters/package.json"));
