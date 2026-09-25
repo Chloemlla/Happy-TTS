@@ -141,6 +141,9 @@ importers:
       path-to-regexp:
         specifier: ^8.4.2
         version: 8.4.2
+      proxy-addr:
+        specifier: ^2.0.8
+        version: 2.0.8
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4
@@ -226,6 +229,9 @@ importers:
       '@types/node':
         specifier: ^26.6.2
         version: 26.6.2
+      '@types/proxy-addr':
+        specifier: ^2.0.3
+        version: 2.0.3
       '@types/qrcode':
         specifier: ^1.5.6
         version: 1.5.6
@@ -1106,6 +1112,9 @@ packages:
 
   '@types/prismjs@1.26.6':
     resolution: {integrity: sha512-vqlvI7qlMvcCBbVe0AKAb4f97//Hy0EBTaiW8AalRnG/xAN5zOiWWyrNqNXeq8+KAuvRewjCVY1+IPxk4RdNYw==}
+
+  '@types/proxy-addr@2.0.3':
+    resolution: {integrity: sha512-TgAHHO4tNG3HgLTUhB+hM4iwW6JUNeQHCLnF1DjaDA9c69PN+IasoFu2MYDhubFc+ZIw5c5t9DMtjvrD6R3Egg==}
 
   '@types/qrcode@1.5.6':
     resolution: {integrity: sha512-te7NQcV2BOvdj2b1hCAHzAoMNuj65kNBMz0KBaxM6c3VGBOhU0dURQKOtH8CFNI/dsKkwlv32p26qYQTWoB5bw==}
@@ -5180,6 +5189,10 @@ snapshots:
       undici-types: 8.9.0
 
   '@types/prismjs@1.26.6': {}
+
+  '@types/proxy-addr@2.0.3':
+    dependencies:
+      '@types/node': 26.6.2
 
   '@types/qrcode@1.5.6':
     dependencies:
