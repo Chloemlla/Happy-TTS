@@ -1,7 +1,11 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Request, RequestHandler, Response } from "express";
 import { config } from "../config/config";
-import { ADMIN_SPA_MODULE_PATHS } from "../generated/adminSpaModulePaths";
+import {
+  ADMIN_SPA_MODULE_PATHS,
+  FRONTEND_SPA_ROUTE_PATHS,
+  FRONTEND_SPA_ROUTE_PREFIX_PATHS,
+} from "../generated/adminSpaModulePaths";
 
 const exactReplacements = new Map<string, string>([
   ["/api-docs.json", "/api/openapi.json"],
@@ -90,7 +94,12 @@ const frontendRoutesWithLegacyApiCollision = new Set<string>([
 // （无 text/html Accept）仍走 308 → /api/*，老客户端行为不变。
 // 新增这类页面时在此登记，且只用精确路径——前缀会让 /tts/generate 这类旧 API
 // 调用也被误放行。
+// （/tts 现在也在生成清单 FRONTEND_SPA_ROUTE_PATHS 里；保留这份显式登记是为了不依赖
+// 生成结果解释意图，删掉也不会改变行为。）
 const frontendOnlySpaPaths = new Set<string>(["/tts"]);
+
+// 生成清单按数组导出，这里换成 Set 做 O(1) 精确查表（每个请求都会走一次）。
+const frontendSpaRoutePathSet = new Set<string>(FRONTEND_SPA_ROUTE_PATHS);
 
 const legacyApiChoiceCookieName = "legacyApiNavigationChoice";
 const legacyApiFrontendBypassCookieName = "legacyApiFrontendBypass";
@@ -303,6 +312,21 @@ function isFrontendAdminModulePath(pathname: string): boolean {
   return ADMIN_SPA_MODULE_PATHS.some((prefix) => hasPathPrefix(pathname, prefix));
 }
 
+// 其余全部前端路由，同样由 scripts/generate-admin-spa-paths.js 从 frontend/src/App.tsx
+// 的 <Route path="..."> 解析而来（此前只覆盖 /admin/<module>，App.tsx 里与旧 API 前缀重名
+// 的页面——例如 /lottery——深链/刷新会被 308 到 API）。
+// 字面路由按精确路径匹配：前端页面与旧 API 前缀一旦重名，前缀匹配会连带放行它下面所有子
+// 路径，把 /tts/generate 这类真正的旧 API 调用也误放行（frontendOnlySpaPaths 的注释里说过
+// 同样的理由）。只有参数路由的静态前缀（/artifacts/:shortId → /artifacts）才按前缀放行，
+// 因为该前缀下的子路径本身就是同一个页面。
+function isFrontendSpaRoutePath(pathname: string): boolean {
+  if (frontendSpaRoutePathSet.has(pathname)) {
+    return true;
+  }
+
+  return FRONTEND_SPA_ROUTE_PREFIX_PATHS.some((prefix) => hasPathPrefix(pathname, prefix));
+}
+
 function isFrontendOnlySpaPath(pathname: string): boolean {
   return frontendOnlySpaPaths.has(pathname);
 }
@@ -435,8 +459,13 @@ export const legacyApiRedirectMiddleware: RequestHandler = (req, res, next) => {
     return res.redirect(302, getLegacyApiChoicePageLocation(req, canonicalPath));
   }
 
-  if (isBrowserDocumentNavigation(req) && isFrontendAdminModulePath(normalizedRequestPath)) {
-    // SPA 模块页的深链：整页导航时直接放行给前端兜底，不做旧 API 重定向。
+  if (
+    isBrowserDocumentNavigation(req) &&
+    (isFrontendAdminModulePath(normalizedRequestPath) || isFrontendSpaRoutePath(normalizedRequestPath))
+  ) {
+    // SPA 页面（管理模块页 + App.tsx 里的全部前端路由）的深链：整页导航时直接放行给
+    // 前端兜底，不做旧 API 重定向。碰撞集已在上方拦截，走到这里的一定是「只有页面语义」
+    // 的路径。
     return next();
   }
 

@@ -25,6 +25,7 @@ export class TtsProviderRouter {
     requestedModel?: string,
     requestedVoice?: string,
     frozenSnapshot?: TtsProviderExecutionSnapshot,
+    requestedProvider?: string,
   ): Promise<TtsProviderExecutionSnapshot> {
     // 冻结快照只在对应提供商仍然注册时沿用，避免历史任务路由到已移除的提供商。
     if (frozenSnapshot && this.providers.has(frozenSnapshot.providerId)) {
@@ -34,7 +35,7 @@ export class TtsProviderRouter {
     const runtimeConfig = await RuntimeConfigService.getRawTtsProviderConfig();
     return buildTtsProviderExecutionSnapshot(
       runtimeConfig,
-      { model: requestedModel, voice: requestedVoice },
+      { model: requestedModel, voice: requestedVoice, provider: requestedProvider },
       {
         model: config.openaiModel,
         voice: config.openaiVoice,

@@ -61,9 +61,10 @@ jobs:
         # swagger-jsdoc 丢弃解析失败的注释块时不报错，端点会静默从 spec 里消失。
         run: pnpm run check:openapi-drift
 
-      - name: Admin SPA path drift gate (backend list vs frontend admin modules)
-        # 清单由 frontend/src/components/admin/adminModules.tsx 生成；漏更新时线上表现是
-        # /admin/<module> 深链被 308 到 API，只看现象很难反推到生成脚本。
+      - name: SPA path drift gate (backend list vs frontend routes)
+        # 清单由 frontend/src/components/admin/adminModules.tsx 与 frontend/src/App.tsx 共同生成
+        # （管理模块页 + 全部前端路由）；漏更新时线上表现是页面深链被 308 到 API，
+        # 只看现象很难反推到生成脚本。
         run: pnpm run check:admin-spa-paths
 
       - name: Obfuscated artifact smoke (production boot of dist-obfuscated)

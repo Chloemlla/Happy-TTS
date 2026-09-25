@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FishAudioCatalogItem, TtsProviderOption, TtsRequest, TtsResponse } from "../types/tts";
+import { FishAudioCatalogItem, TtsProviderId, TtsProviderOption, TtsRequest, TtsResponse } from "../types/tts";
 import { getApiBaseUrl } from "../api/api";
 import { useNotification } from "./Notification";
 import { TurnstileWidget } from "./TurnstileWidget";
@@ -17,12 +17,14 @@ import { cn } from "../utils/cn";
 import {
   studioEyebrowClassName,
   studioFieldClassName,
+  studioPillClassName,
   studioPrimaryButtonClassName,
   studioTextareaClassName,
 } from "./studioTheme";
 import {
   FALLBACK_TTS_PROVIDER_CONFIG,
   getTtsOutputFormats,
+  getTtsProviderLabel,
   isTtsProviderConfigPayload,
   normalizeTtsProviderConfig,
   supportsTtsSpeed,
@@ -114,6 +116,10 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
   const [providerConfig, setProviderConfig] = useState(FALLBACK_TTS_PROVIDER_CONFIG);
   const [providerConfigLoading, setProviderConfigLoading] = useState(true);
   const [usingProviderFallback, setUsingProviderFallback] = useState(false);
+  // 多提供商时用户选中的提供商；初值与主提供商一致。
+  const [selectedProvider, setSelectedProvider] = useState<TtsProviderId>(
+    FALLBACK_TTS_PROVIDER_CONFIG.provider,
+  );
   const [fishCatalog, setFishCatalog] = useState<FishAudioCatalogItem[]>([]);
   const [fishDefaultVoices, setFishDefaultVoices] = useState<FishAudioCatalogItem[]>([]);
   const [fishCatalogLoading, setFishCatalogLoading] = useState(false);
@@ -146,18 +152,52 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
     return () => mediaQuery.removeListener(updateViewport);
   }, []);
 
-  const voices = providerConfig.voices;
-  const models = providerConfig.models;
-  const usesSelectableVoice = providerConfig.voiceMode === "select";
-  const supportsSpeedAdjustment = supportsTtsSpeed(providerConfig.provider);
+  // providers 由归一化保证非空且主提供商排第一；数组兜底是为了兼容未来可能的其它配置来源。
+  const providerEntries = useMemo(
+    () =>
+      providerConfig.providers && providerConfig.providers.length > 0
+        ? providerConfig.providers
+        : [providerConfig],
+    [providerConfig],
+  );
+  // 选中的提供商可能因配置刷新而失效，此时回落到主提供商（列表第一项）。
+  const activeProviderConfig = useMemo(
+    () => providerEntries.find((entry) => entry.provider === selectedProvider) ?? providerEntries[0],
+    [providerEntries, selectedProvider],
+  );
+
+  const voices = activeProviderConfig.voices;
+  const models = activeProviderConfig.models;
+  const usesSelectableVoice = activeProviderConfig.voiceMode === "select";
+  const supportsSpeedAdjustment = supportsTtsSpeed(activeProviderConfig.provider);
   const providerLabel = usingProviderFallback
     ? "兼容模式"
-    : providerConfig.provider === "fish"
-      ? "Fish Audio"
-      : providerConfig.provider === "edge"
-        ? "微软语音"
-        : "OpenAI";
-  const outputFormats = getTtsOutputFormats(usingProviderFallback ? "fish" : providerConfig.provider);
+    : getTtsProviderLabel(activeProviderConfig.provider);
+  const outputFormats = getTtsOutputFormats(
+    usingProviderFallback ? "fish" : activeProviderConfig.provider,
+  );
+
+  // 配置刷新后主提供商可能被管理员改掉（切换控件的初值来自主提供商），收敛回合法值。
+  useEffect(() => {
+    setSelectedProvider(providerConfig.provider);
+  }, [providerConfig]);
+
+  const handleProviderChange = useCallback(
+    (nextProvider: TtsProviderId) => {
+      const next = providerEntries.find((entry) => entry.provider === nextProvider);
+      if (!next) return;
+      setSelectedProvider(next.provider);
+      setModel(next.defaultModel);
+      // defaultVoice 可能缺失（provider_default 模式），此时清空让后端用默认音色。
+      setVoice(next.voiceMode === "select" ? next.defaultVoice || next.voices[0]?.id || "" : "");
+      // 保留仍受支持的格式，否则用该提供商的首个格式，避免把 OpenAI 的 opus 带给只支持 MP3 的提供商。
+      setOutputFormat((current) => {
+        const formats = getTtsOutputFormats(next.provider);
+        return formats.includes(current) ? current : formats[0] || "mp3";
+      });
+    },
+    [providerEntries],
+  );
 
   const voiceLanguageGroups = useMemo(() => {
     const groups = new Map<string, TtsProviderOption[]>();
@@ -357,10 +397,11 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
         const result = await onSubmit({
           text,
           model,
-          ...(usesSelectableVoice || providerConfig.provider === "fish" && voice ? { voice } : {}),
+          ...(usesSelectableVoice || (activeProviderConfig.provider === "fish" && voice) ? { voice } : {}),
           outputFormat,
           speed: supportsSpeedAdjustment ? speed : 1,
           generationCode,
+          provider: activeProviderConfig.provider,
           ...(turnstileConfig.enabled && { cfToken: turnstileToken }),
         });
 
@@ -380,6 +421,7 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
       }
     },
     [
+      activeProviderConfig.provider,
       generationCode,
       model,
       onSubmit,
@@ -580,6 +622,38 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
             <FaCog className="text-slate-400" />
             <span>语音设置</span>
           </div>
+          {/* 只有管理员启用多个提供商时才出现切换控件；单提供商下不渲染任何新元素。 */}
+          {providerEntries.length > 1 ? (
+            <motion.div
+              className="flex flex-wrap items-center gap-2"
+              role="group"
+              aria-label="选择语音提供商"
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              {providerEntries.map((entry) => {
+                const isActive = entry.provider === activeProviderConfig.provider;
+                return (
+                  <motion.button
+                    key={entry.provider}
+                    type="button"
+                    onClick={() => handleProviderChange(entry.provider)}
+                    disabled={providerConfigLoading}
+                    aria-pressed={isActive}
+                    className={cn(
+                      studioPillClassName(isActive),
+                      "disabled:cursor-not-allowed disabled:opacity-50",
+                    )}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {getTtsProviderLabel(entry.provider)}
+                  </motion.button>
+                );
+              })}
+            </motion.div>
+          ) : null}
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" role="status" aria-live="polite">
             <span className="rounded-full border border-border bg-background px-2.5 py-1 text-foreground">当前提供商：{providerLabel}</span>
             {providerConfigLoading ? <span>正在同步模型配置...</span> : null}
@@ -654,10 +728,10 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
               >
                 <div className="flex items-center gap-2 mb-2">
                   <FaVolumeUp className="text-slate-400" />
-                  {usesSelectableVoice || providerConfig.provider === "fish" ? "声音选择" : "声音配置"}
+                  {usesSelectableVoice || activeProviderConfig.provider === "fish" ? "声音选择" : "声音配置"}
                 </div>
               </motion.div>
-              {providerConfig.provider === "fish" ? (
+              {activeProviderConfig.provider === "fish" ? (
                 <div className="space-y-4">
                   {fishCatalogLoading ? <div className="rounded-md border border-border bg-muted/50 p-4 text-sm text-muted-foreground">正在加载 Fish Audio 音色...</div> : null}
                   {fishCatalogError ? <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{fishCatalogError}</div> : null}
@@ -713,7 +787,7 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
                 )
               ) : (
                 <div className="rounded-md border border-border bg-muted/50 p-4 text-sm text-muted-foreground">
-                  {providerConfig.voiceMode === "configured_reference"
+                  {activeProviderConfig.voiceMode === "configured_reference"
                     ? "音色由管理员在 Fish Audio Reference ID 中统一配置，提交时不会发送 OpenAI voice 值。"
                     : "当前提供商使用服务端默认音色，无需在此选择。"}
                 </div>
@@ -754,9 +828,9 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
                   </option>
                 ))}
               </motion.select>
-              {providerConfig.provider === "fish" ? (
+              {activeProviderConfig.provider === "fish" ? (
                 <p className="mt-2 text-xs text-muted-foreground">Fish Audio 当前仅支持 MP3 输出。</p>
-              ) : providerConfig.provider === "edge" ? (
+              ) : activeProviderConfig.provider === "edge" ? (
                 <p className="mt-2 text-xs text-muted-foreground">微软内置语音当前仅支持 MP3 输出。</p>
               ) : null}
             </motion.div>

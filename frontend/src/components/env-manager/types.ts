@@ -155,6 +155,8 @@ export interface FirstVisitVerificationConfigSetting {
 
 export interface TtsProviderAdminConfig {
   provider: TtsProviderId;
+  /** 同时启用的提供商；必含 provider 且 provider 排第一（前端 /tts 按此顺序展示）。 */
+  enabledProviders: TtsProviderId[];
   defaultModel: string;
   fish: {
     baseUrl: string;
@@ -175,6 +177,8 @@ export interface TtsProviderAdminConfig {
 
 export interface TtsProviderAdminUpdate {
   provider: TtsProviderId;
+  /** 顺序即展示顺序；服务端会补上 provider 并去重，这里仍按默认提供商排第一发送。 */
+  enabledProviders: TtsProviderId[];
   defaultModel: string;
   fish: {
     baseUrl: string;

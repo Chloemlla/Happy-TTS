@@ -357,6 +357,7 @@ export function buildRuntimeConfigDefaults(options: {
     },
     ttsProvider: {
       provider: ttsProvider,
+      enabledProviders: [ttsProvider],
       defaultModel: ttsDefaultModel,
       fish: {
         apiKey: options.fishAudioApiKey?.trim() || "",
@@ -488,6 +489,9 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
     },
     ttsProvider: {
       ...config.ttsProvider,
+      enabledProviders: [
+        ...(config.ttsProvider.enabledProviders ?? [config.ttsProvider.provider]),
+      ],
       fish: {
         ...config.ttsProvider.fish,
         catalog: {

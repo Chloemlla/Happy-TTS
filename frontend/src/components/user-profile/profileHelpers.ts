@@ -162,7 +162,9 @@ export const normalizeDeviceSession = (
   return {
     id,
     deviceName: firstString(record, ['deviceName', 'name', 'deviceLabel']) || '未知设备',
-    client: firstString(record, ['client', 'clientName', 'appName', 'application']) || '未知客户端',
+    // clientType 是后端 /api/admin/user/profile/devices 实际返回的字段（落库名也是它），
+    // 少了它时官方客户端登录的会话会一律显示成「未知客户端」。
+    client: firstString(record, ['client', 'clientName', 'clientType', 'appName', 'application']) || '未知客户端',
     platform: firstString(record, ['platform', 'operatingSystem', 'os']) || '未知平台',
     lastActiveAt: firstDateValue(record, ['lastActiveAt', 'lastActivityAt', 'lastSeen', 'updatedAt']),
     ip: firstString(record, ['ip', 'ipAddress', 'lastLoginIp', 'lastLoginIP']) || null,

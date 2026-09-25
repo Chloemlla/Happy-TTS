@@ -5,6 +5,11 @@ export interface TtsRequest {
   outputFormat: string;
   speed: number;
   generationCode: string;
+  /**
+   * 目标提供商。始终发送：后端对未启用/非法的值会回落主提供商，
+   * 让单提供商与多提供商走同一条请求路径。
+   */
+  provider?: TtsProviderId;
   cfToken?: string;
   fingerprint?: string;
 }
@@ -37,6 +42,11 @@ export interface TtsProviderPublicConfig {
   models: TtsProviderOption[];
   voices: TtsProviderOption[];
   voiceMode: TtsVoiceMode;
+  /**
+   * 管理员启用多个提供商时后端才下发的列表，主提供商排第一；
+   * 单项本身不会嵌套 providers（避免自引用）。
+   */
+  providers?: TtsProviderPublicConfig[];
 }
 
 export interface TtsUsageSummary {

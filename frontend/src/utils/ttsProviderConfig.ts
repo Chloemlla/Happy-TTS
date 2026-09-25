@@ -30,13 +30,20 @@ export const OPENAI_TTS_VOICES: TtsProviderOption[] = [
   { id: "shimmer", name: "Shimmer", description: "女性、温柔、轻柔" },
 ];
 
-export const FALLBACK_TTS_PROVIDER_CONFIG: TtsProviderPublicConfig = {
+const FALLBACK_TTS_PROVIDER_BASE: TtsProviderPublicConfig = {
   provider: "openai",
   defaultModel: OPENAI_DEFAULT_TTS_MODEL,
   defaultVoice: "nova",
   models: OPENAI_TTS_MODELS,
   voices: OPENAI_TTS_VOICES,
   voiceMode: "select",
+};
+
+// providers 指向同一份基础配置而非自身，否则会形成自引用；主提供商排第一。
+// 回退路径下 TTSForm 的切换控件靠这个列表取到“当前提供商”。
+export const FALLBACK_TTS_PROVIDER_CONFIG: TtsProviderPublicConfig = {
+  ...FALLBACK_TTS_PROVIDER_BASE,
+  providers: [FALLBACK_TTS_PROVIDER_BASE],
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -104,11 +111,23 @@ function normalizeOptions(value: unknown): TtsProviderOption[] {
 }
 
 function cloneFallback(): TtsProviderPublicConfig {
-  return {
-    ...FALLBACK_TTS_PROVIDER_CONFIG,
-    models: [...FALLBACK_TTS_PROVIDER_CONFIG.models],
-    voices: [...FALLBACK_TTS_PROVIDER_CONFIG.voices],
+  const base: TtsProviderPublicConfig = {
+    ...FALLBACK_TTS_PROVIDER_BASE,
+    models: [...FALLBACK_TTS_PROVIDER_BASE.models],
+    voices: [...FALLBACK_TTS_PROVIDER_BASE.voices],
   };
+  return { ...base, providers: [base] };
+}
+
+const TTS_PROVIDER_LABELS: Record<TtsProviderId, string> = {
+  openai: "OpenAI",
+  fish: "Fish Audio",
+  edge: "微软语音",
+};
+
+/** 提供商的中文展示名，供 TTSForm 的切换控件与当前提供商标签共用。 */
+export function getTtsProviderLabel(provider: TtsProviderId): string {
+  return TTS_PROVIDER_LABELS[provider];
 }
 
 export function getTtsOutputFormats(provider: TtsProviderId): readonly string[] {
@@ -126,16 +145,17 @@ export function isTtsProviderConfigPayload(payload: unknown): boolean {
   return Boolean(source && normalizeProvider(source.provider));
 }
 
-export function normalizeTtsProviderConfig(payload: unknown): TtsProviderPublicConfig {
-  const source = unwrapConfig(payload);
-  const provider = normalizeProvider(source?.provider);
-  if (!source || !provider) return cloneFallback();
+/** 按单个提供商归一化：修正默认值、模型与音色列表。provider 非法时返回 null。 */
+export function normalizeTtsProviderEntry(value: unknown): TtsProviderPublicConfig | null {
+  if (!isRecord(value)) return null;
+  const provider = normalizeProvider(value.provider);
+  if (!provider) return null;
 
   const providerDefaultModel = defaultModelForProvider(provider);
   const defaultModelCandidate =
-    typeof source.defaultModel === "string" ? source.defaultModel.trim() : "";
+    typeof value.defaultModel === "string" ? value.defaultModel.trim() : "";
   const hasProviderMismatch = isForeignTtsModelId(defaultModelCandidate, provider);
-  let models = normalizeOptions(source.models).filter(
+  let models = normalizeOptions(value.models).filter(
     (option) => !isForeignTtsModelId(option.id, provider),
   );
   if (provider === "openai" && models.length === 0) {
@@ -168,8 +188,8 @@ export function normalizeTtsProviderConfig(payload: unknown): TtsProviderPublicC
       ? defaultModelCandidate
       : models.find((option) => option.id === providerDefaultModel)?.id || models[0]?.id || providerDefaultModel;
 
-  let voices = normalizeOptions(source.voices);
-  let voiceMode = normalizeVoiceMode(source.voiceMode, provider, voices.length > 0);
+  let voices = normalizeOptions(value.voices);
+  let voiceMode = normalizeVoiceMode(value.voiceMode, provider, voices.length > 0);
   if (voiceMode === "select" && provider === "openai" && voices.length === 0) {
     voices = [...OPENAI_TTS_VOICES];
   }
@@ -178,7 +198,7 @@ export function normalizeTtsProviderConfig(payload: unknown): TtsProviderPublicC
   }
 
   const defaultVoiceCandidate =
-    typeof source.defaultVoice === "string" ? source.defaultVoice.trim() : "";
+    typeof value.defaultVoice === "string" ? value.defaultVoice.trim() : "";
   const defaultVoice =
     voiceMode === "select"
       ? (defaultVoiceCandidate && voices.some((option) => option.id === defaultVoiceCandidate)
@@ -194,4 +214,26 @@ export function normalizeTtsProviderConfig(payload: unknown): TtsProviderPublicC
     voices,
     voiceMode,
   };
+}
+
+export function normalizeTtsProviderConfig(payload: unknown): TtsProviderPublicConfig {
+  const source = unwrapConfig(payload);
+  const primary = normalizeTtsProviderEntry(source);
+  if (!primary) return cloneFallback();
+
+  // 主配置恒排第一：调用方（TTSForm）用它作切换控件的初值，
+  // 这样即便后端漏发主提供商或数组顺序异常，控件也一定包含当前提供商。
+  const providers: TtsProviderPublicConfig[] = [primary];
+  const seen = new Set<TtsProviderId>([primary.provider]);
+  const rawProviders = source?.providers;
+  if (Array.isArray(rawProviders)) {
+    for (const candidate of rawProviders) {
+      const entry = normalizeTtsProviderEntry(candidate);
+      if (!entry || seen.has(entry.provider)) continue;
+      seen.add(entry.provider);
+      providers.push(entry);
+    }
+  }
+
+  return { ...primary, providers };
 }

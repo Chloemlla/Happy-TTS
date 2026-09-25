@@ -27,12 +27,37 @@ const REFRESH_BUTTON_CLASS =
 
 const EDGE_VOICE_ID_PATTERN = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})+-[A-Za-z0-9]{1,32}Neural$/;
 
+/** 勾选框的固定展示顺序，不随状态里的数组顺序变化跳动。 */
+const TTS_PROVIDER_IDS: readonly TtsProviderId[] = ['openai', 'fish', 'edge'];
+
+const TTS_PROVIDER_LABELS: Record<TtsProviderId, string> = {
+  openai: 'OpenAI',
+  fish: 'Fish Audio',
+  edge: '微软语音',
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isTtsProviderId(value: unknown): value is TtsProviderId {
   return value === 'openai' || value === 'fish' || value === 'edge';
+}
+
+/**
+ * 与服务端同一套规则：只留合法 id、去重、必含默认提供商且默认提供商排第一；
+ * 缺失或非法时回退为 [provider]。前端只做一次归一化，避免回显与保存结果不一致。
+ */
+function normalizeEnabledProviders(value: unknown, provider: TtsProviderId): TtsProviderId[] {
+  const rest: TtsProviderId[] = [];
+  if (Array.isArray(value)) {
+    for (const candidate of value) {
+      if (isTtsProviderId(candidate) && candidate !== provider && !rest.includes(candidate)) {
+        rest.push(candidate);
+      }
+    }
+  }
+  return [provider, ...rest];
 }
 
 function unwrapConfig(payload: unknown, depth = 0): Record<string, unknown> {
@@ -70,6 +95,7 @@ function normalizeAdminConfig(payload: unknown): TtsProviderAdminConfig {
 
   return {
     provider,
+    enabledProviders: normalizeEnabledProviders(source.enabledProviders, provider),
     defaultModel,
     fish: {
       baseUrl:
@@ -174,6 +200,7 @@ export default function TtsProviderConfigSection({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [provider, setProvider] = useState<TtsProviderId>('openai');
+  const [enabledProviders, setEnabledProviders] = useState<TtsProviderId[]>(['openai']);
   const [defaultModel, setDefaultModel] = useState(() => defaultModelForProvider('openai'));
   const [fishBaseUrl, setFishBaseUrl] = useState(FISH_DEFAULT_TTS_BASE_URL);
   const [fishReferenceId, setFishReferenceId] = useState('');
@@ -193,6 +220,7 @@ export default function TtsProviderConfigSection({
 
   const applyConfig = useCallback((config: TtsProviderAdminConfig) => {
     setProvider(config.provider);
+    setEnabledProviders(config.enabledProviders);
     setDefaultModel(config.defaultModel);
     setFishBaseUrl(config.fish.baseUrl);
     setFishReferenceId(config.fish.referenceId);
@@ -236,9 +264,35 @@ export default function TtsProviderConfigSection({
 
   const handleProviderChange = (nextProvider: TtsProviderId) => {
     setProvider(nextProvider);
+    // 默认提供商必须处于启用集合内：设为默认时自动勾上
+    setEnabledProviders((current) =>
+      current.includes(nextProvider) ? current : [...current, nextProvider],
+    );
     setDefaultModel(defaultModelForProvider(nextProvider));
     setError('');
     setStatus('');
+  };
+
+  const handleEnabledProviderToggle = (id: TtsProviderId, checked: boolean) => {
+    setError('');
+    setStatus('');
+    if (checked) {
+      setEnabledProviders((current) => (current.includes(id) ? current : [...current, id]));
+      return;
+    }
+    // 至少保留一个启用的提供商，取消最后一项时保持原样并提示
+    if (enabledProviders.length <= 1) {
+      setError('至少需要启用一个 TTS 提供商');
+      return;
+    }
+    const next = enabledProviders.filter((item) => item !== id);
+    setEnabledProviders(next);
+    // 默认提供商不能落在启用集合之外：取消当前默认项时改选剩下的第一项
+    if (provider === id) {
+      const nextProvider = next[0];
+      setProvider(nextProvider);
+      setDefaultModel(defaultModelForProvider(nextProvider));
+    }
   };
 
   const handleSave = async () => {
@@ -291,8 +345,14 @@ export default function TtsProviderConfigSection({
     setError('');
     setStatus('');
     try {
+      // 顺序即展示顺序：默认提供商排第一，其余按当前勾选顺序
+      const enabledForSave: TtsProviderId[] = [
+        provider,
+        ...enabledProviders.filter((id) => id !== provider),
+      ];
       const savedConfig = await client.save({
         provider,
+        enabledProviders: enabledForSave,
         defaultModel: model,
         fish: {
           baseUrl: baseUrl || FISH_DEFAULT_TTS_BASE_URL,
@@ -363,7 +423,7 @@ export default function TtsProviderConfigSection({
   return (
     <CollapsibleSection
       title="TTS 提供商与模型"
-      description="选择当前语音提供商、默认模型，并配置 Fish Audio 的服务地址与参考音色、微软语音的接口地址与音色清单。影响所有 TTS 语音合成请求的默认路由。"
+      description="可同时启用多个提供商（OpenAI / Fish Audio / 微软语音），前端 /tts 会展示这些选项并允许用户切换；默认提供商决定用户未指定时请求的路由，并始终处于启用状态。同时可配置各提供商的服务地址、参考音色与音色清单。"
       sectionKey="ttsProvider"
       isOpen={isOpen}
       onToggle={() => setIsOpen((value) => !value)}
@@ -416,6 +476,28 @@ export default function TtsProviderConfigSection({
             <span className="mt-1 block text-xs text-slate-500">微软语音只有固定的一种模型，此处填写其它值也会被服务端忽略。</span>
           ) : null}
         </label>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-3 sm:p-4">
+        <div className="text-sm font-medium text-slate-700">启用的提供商</div>
+        <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
+          {TTS_PROVIDER_IDS.map((id) => (
+            <label key={id} className="inline-flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={enabledProviders.includes(id)}
+                onChange={(event) => handleEnabledProviderToggle(id, event.target.checked)}
+                className="h-4 w-4"
+                disabled={loading || saving || !canWrite}
+              />
+              {TTS_PROVIDER_LABELS[id]}
+              {id === provider ? <span className="text-xs text-slate-500">（默认）</span> : null}
+            </label>
+          ))}
+        </div>
+        <span className="mt-2 block text-xs text-slate-500">
+          至少启用一个提供商；默认提供商始终处于启用状态，取消勾选它会自动改用剩下的第一个提供商。
+        </span>
       </div>
 
       {provider === 'fish' ? (

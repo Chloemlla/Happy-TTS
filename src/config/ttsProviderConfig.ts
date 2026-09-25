@@ -24,6 +24,8 @@ export interface EdgeTtsRuntimeConfig {
 
 export interface TtsProviderRuntimeConfig {
   provider: TtsProviderId;
+  /** 管理员启用的提供商集合；可选是为了让历史/测试里手写的配置字面量继续编译，读端一律走 resolveEnabledTtsProviders。 */
+  enabledProviders?: TtsProviderId[];
   defaultModel: string;
   fish: {
     apiKey: string;
@@ -50,6 +52,8 @@ export interface TtsProviderPublicConfig {
   models: TtsProviderOption[];
   voices: TtsProviderOption[];
   voiceMode: "select" | "configured_reference" | "provider_default";
+  /** 仅在启用多个提供商时下发；主提供商排第一，其余为该提供商自己的完整配置。 */
+  providers?: TtsProviderPublicConfig[];
 }
 
 export const FISH_AUDIO_DEFAULT_BASE_URL = "https://api.fish.audio";
@@ -140,6 +144,31 @@ export function normalizeTtsProviderId(value: unknown, fallback: TtsProviderId =
   return normalized === "fish" || normalized === "openai" || normalized === "edge" ? normalized : fallback;
 }
 
+function isTtsProviderId(value: unknown): value is TtsProviderId {
+  return value === "openai" || value === "fish" || value === "edge";
+}
+
+/**
+ * 主提供商必须存在且排第一：job 的冻结快照、公开配置与管理端回显都依赖这个顺序，
+ * 而输入可能来自旧配置（无该字段）或经过手工编辑的脏数据（非法 id / 重复项）。
+ */
+export function normalizeEnabledTtsProviders(value: unknown, primary: TtsProviderId): TtsProviderId[] {
+  const enabled = new Set<TtsProviderId>();
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const candidate = typeof entry === "string" ? entry.trim().toLowerCase() : "";
+      if (isTtsProviderId(candidate)) enabled.add(candidate);
+    }
+  }
+  enabled.delete(primary);
+  return [primary, ...enabled];
+}
+
+/** 读端统一入口：字段可选，规范化后一定非空且含主提供商。 */
+export function resolveEnabledTtsProviders(config: TtsProviderRuntimeConfig): TtsProviderId[] {
+  return normalizeEnabledTtsProviders(config.enabledProviders, config.provider);
+}
+
 export function normalizeEdgeBaseUrl(value: unknown, fallback = EDGE_DEFAULT_BASE_URL): string {
   const candidate = normalizeString(value, fallback);
   try {
@@ -215,6 +244,7 @@ export function normalizeTtsProviderRuntimeConfig(
 
   return {
     provider,
+    enabledProviders: normalizeEnabledTtsProviders(raw.enabledProviders, provider),
     defaultModel:
       provider === "fish"
         ? resolveFishModel(normalizedModel)
@@ -238,6 +268,10 @@ export function mergeTtsProviderAdminUpdate(
   const raw = asObject(input);
   const fish = asObject(raw.fish);
   const provider = normalizeTtsProviderId(raw.provider, current.provider);
+  // 未提交该字段 = 保留现有启用集合（管理端保存其它分区时不该顺带改它）。
+  const enabledProviders = Object.prototype.hasOwnProperty.call(raw, "enabledProviders")
+    ? normalizeEnabledTtsProviders(raw.enabledProviders, provider)
+    : normalizeEnabledTtsProviders(current.enabledProviders, provider);
   let defaultModel = normalizeOptionalString(raw.defaultModel, current.defaultModel, 256);
   if (!defaultModel) {
     throw new Error("TTS 默认模型不能为空");
@@ -338,6 +372,7 @@ export function mergeTtsProviderAdminUpdate(
 
   return {
     provider,
+    enabledProviders,
     defaultModel,
     fish: {
       apiKey,
@@ -355,12 +390,15 @@ export function mergeTtsProviderAdminUpdate(
   };
 }
 
-export function buildTtsProviderPublicConfig(
+export function buildProviderPublicConfig(
   runtimeConfig: TtsProviderRuntimeConfig,
+  providerId: TtsProviderId,
   openAiDefaults: { model: string; voice: string },
 ): TtsProviderPublicConfig {
-  if (runtimeConfig.provider === "fish") {
-    const defaultModel = resolveFishModel(runtimeConfig.defaultModel);
+  const isPrimary = providerId === runtimeConfig.provider;
+
+  if (providerId === "fish") {
+    const defaultModel = isPrimary ? resolveFishModel(runtimeConfig.defaultModel) : FISH_AUDIO_DEFAULT_MODEL;
     return {
       provider: "fish",
       defaultModel,
@@ -376,7 +414,7 @@ export function buildTtsProviderPublicConfig(
     };
   }
 
-  if (runtimeConfig.provider === "edge") {
+  if (providerId === "edge") {
     const voices = runtimeConfig.edge.voices.length
       ? runtimeConfig.edge.voices.map((entry) => ({ ...entry }))
       : EDGE_BUILTIN_VOICE_OPTIONS.map((entry) => ({ ...entry }));
@@ -395,7 +433,11 @@ export function buildTtsProviderPublicConfig(
     };
   }
 
-  const configuredModel = resolveOpenAiModel(runtimeConfig.defaultModel, openAiDefaults.model || "tts-1");
+  // runtimeConfig.defaultModel 属于主提供商，非主提供商只能用自己的默认模型，
+  // 否则会把主提供商的私有模型 id 当成 OpenAI 模型下发。
+  const configuredModel = isPrimary
+    ? resolveOpenAiModel(runtimeConfig.defaultModel, openAiDefaults.model || "tts-1")
+    : resolveOpenAiModel(openAiDefaults.model, "tts-1");
   const models = [...OPENAI_TTS_MODELS];
   if (!models.some((item) => item.id === configuredModel)) {
     models.unshift({ id: configuredModel, name: configuredModel, description: "管理员配置模型" });
@@ -415,13 +457,45 @@ export function buildTtsProviderPublicConfig(
   };
 }
 
+export function buildTtsProviderPublicConfig(
+  runtimeConfig: TtsProviderRuntimeConfig,
+  openAiDefaults: { model: string; voice: string },
+): TtsProviderPublicConfig {
+  const primaryConfig = buildProviderPublicConfig(runtimeConfig, runtimeConfig.provider, openAiDefaults);
+  // 单提供商时保持原有扁平结构不变，旧前端包无需理解 providers 字段。
+  const enabledProviders = resolveEnabledTtsProviders(runtimeConfig);
+  if (enabledProviders.length <= 1) {
+    return primaryConfig;
+  }
+
+  return {
+    ...primaryConfig,
+    providers: enabledProviders.map((providerId) =>
+      buildProviderPublicConfig(runtimeConfig, providerId, openAiDefaults),
+    ),
+  };
+}
+
+/** 未启用或非法的 provider 一律回落主提供商：老客户端不带该字段必须照旧工作，因此绝不抛错。 */
+function resolveRequestedTtsProvider(
+  runtimeConfig: TtsProviderRuntimeConfig,
+  requested?: string,
+): TtsProviderId {
+  const enabledProviders = resolveEnabledTtsProviders(runtimeConfig);
+  const candidate = normalizeTtsProviderId(requested, runtimeConfig.provider);
+  return enabledProviders.includes(candidate) ? candidate : runtimeConfig.provider;
+}
+
 export function buildTtsProviderExecutionSnapshot(
   runtimeConfig: TtsProviderRuntimeConfig,
-  input: { model?: string; voice?: string },
+  input: { model?: string; voice?: string; provider?: string },
   openAiDefaults: { model: string; voice: string; baseUrl?: string },
 ): TtsProviderExecutionSnapshot {
-  if (runtimeConfig.provider === "fish") {
-    const model = resolveFishModel(runtimeConfig.defaultModel);
+  const providerId = resolveRequestedTtsProvider(runtimeConfig, input.provider);
+  const isPrimary = providerId === runtimeConfig.provider;
+
+  if (providerId === "fish") {
+    const model = isPrimary ? resolveFishModel(runtimeConfig.defaultModel) : FISH_AUDIO_DEFAULT_MODEL;
     const requestedReferenceId = typeof input.voice === "string" ? input.voice.trim() : "";
     const referenceId = requestedReferenceId || runtimeConfig.fish.referenceId.trim();
     const safeReferenceId = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(referenceId) ? referenceId : "";
@@ -437,7 +511,7 @@ export function buildTtsProviderExecutionSnapshot(
     };
   }
 
-  if (runtimeConfig.provider === "edge") {
+  if (providerId === "edge") {
     const requestedVoice = typeof input.voice === "string" ? input.voice.trim() : "";
     const voice = isEdgeVoiceId(requestedVoice) ? requestedVoice : runtimeConfig.edge.defaultVoice;
     const baseUrl = normalizeEdgeBaseUrl(runtimeConfig.edge.baseUrl);
@@ -450,7 +524,10 @@ export function buildTtsProviderExecutionSnapshot(
     };
   }
 
-  const configuredModel = resolveOpenAiModel(runtimeConfig.defaultModel, openAiDefaults.model || "tts-1");
+  // 同公开配置：runtimeConfig.defaultModel 只属于主提供商，非主 OpenAI 不能继承它。
+  const configuredModel = isPrimary
+    ? resolveOpenAiModel(runtimeConfig.defaultModel, openAiDefaults.model || "tts-1")
+    : resolveOpenAiModel(openAiDefaults.model, "tts-1");
   const allowedModels = new Set([...OPENAI_TTS_MODELS.map((item) => item.id), configuredModel]);
   const requestedModel = typeof input.model === "string" ? input.model.trim() : "";
   const model = allowedModels.has(requestedModel) ? requestedModel : configuredModel;

@@ -70,7 +70,7 @@ describe("TtsProviderRouter runtime switching", () => {
       expect.objectContaining({
         model: "s2.1-pro-free",
         voice: "configured_reference",
-        providerExecution: expect.objectContaining({ providerId: "fish", referenceId: "reference-1" }),
+        providerExecution: expect.objectContaining({ providerId: "fish", referenceId: "client-voice" }),
       }),
     );
   });
@@ -109,5 +109,25 @@ describe("TtsProviderRouter runtime switching", () => {
     );
     expect(openAi.synthesize).not.toHaveBeenCalled();
     expect(fish.synthesize).not.toHaveBeenCalled();
+  });
+
+  it("passes an explicitly requested provider through to the snapshot builder", async () => {
+    jest.spyOn(RuntimeConfigService, "getRawTtsProviderConfig").mockResolvedValue({
+      ...buildRuntimeConfig("openai"),
+      enabledProviders: ["openai", "fish"],
+    });
+    const router = new TtsProviderRouter([buildProvider("openai"), buildProvider("fish")]);
+
+    const requested = await router.resolveExecutionSnapshot("client-model", "client-voice", undefined, "fish");
+
+    expect(requested).toMatchObject({
+      providerId: "fish",
+      model: "s2.1-pro-free",
+      voice: "configured_reference",
+    });
+
+    // 未启用的提供商不能借请求参数越权选路，必须回落主提供商。
+    const disabled = await router.resolveExecutionSnapshot("client-model", "client-voice", undefined, "edge");
+    expect(disabled).toMatchObject({ providerId: "openai", model: "tts-1-hd" });
   });
 });

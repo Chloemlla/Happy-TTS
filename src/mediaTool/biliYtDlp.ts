@@ -69,6 +69,36 @@ function isPlaylistUrl(url: string): boolean {
 const PLAYLIST_TEMPLATE = "%(playlist_title)s/%(playlist_index)02d-%(title)s.%(ext)s";
 const SINGLE_TEMPLATE = "%(title)s.%(ext)s";
 
+// B 站 WAF 会把缺少浏览器化请求头的请求直接判为爬虫并返回 412 Precondition Failed,
+// yt-dlp 内置的默认 UA 同样会被拦;因此凡是会访问 B 站的调用都必须显式带上桌面 Chrome UA
+// 与 Referer/Origin,否则表现为“无法下载网页: HTTP Error 412”。
+const DEFAULT_YTDLP_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+const BILI_REFERER = "https://www.bilibili.com/";
+const BILI_ORIGIN = "https://www.bilibili.com";
+
+/**
+ * UA 覆盖入口:MEDIA_TOOL_YTDLP_USER_AGENT(留空/未设则用内置桌面 Chrome UA)。
+ * 这里直接读进程环境而不落进 BiliOptions,是为了不改动设置快照(Mongo/JSON)的持久化结构;
+ * 取值语义与本模块显式环境层一致:trim 后为空视作未设置。
+ */
+function resolveYtDlpUserAgent(env: NodeJS.ProcessEnv = process.env): string {
+  const raw = env.MEDIA_TOOL_YTDLP_USER_AGENT;
+  return typeof raw === "string" && raw.trim() !== "" ? raw.trim() : DEFAULT_YTDLP_USER_AGENT;
+}
+
+/** 所有访问 B 站的 yt-dlp 调用共用(下载与合集展开两条路径都从这里取,避免只补一半)。 */
+function browserHeaderArgs(env: NodeJS.ProcessEnv = process.env): string[] {
+  return [
+    "--user-agent",
+    resolveYtDlpUserAgent(env),
+    "--add-header",
+    `Referer:${BILI_REFERER}`,
+    "--add-header",
+    `Origin:${BILI_ORIGIN}`,
+  ];
+}
+
 function cookiesArgs(opts: BiliOptions): string[] {
   const cf = (opts.cookiesFile || "").trim();
   if (!cf || !fs.existsSync(cf)) return [];
@@ -79,6 +109,7 @@ function cookiesArgs(opts: BiliOptions): string[] {
 export function expandPlaylist(opts: BiliOptions, url: string): Array<{ index: number; url: string }> {
   try {
     const out = runToolChecked(resolveYtDlpBin(opts.ytDlpPath), [
+      ...browserHeaderArgs(),
       ...cookiesArgs(opts),
       "--flat-playlist",
       "--no-warnings",
@@ -209,6 +240,7 @@ function seedFromDisk(opts: BiliOptions, state: BiliState): number {
 // ---------------------------------------------------------------------------
 function buildArgs(opts: BiliOptions, item: BiliItem, videoMode: boolean): string[] {
   const a = [
+    ...browserHeaderArgs(),
     ...cookiesArgs(opts),
     "--concurrent-fragments",
     "4",

@@ -124,8 +124,9 @@ export class TtsService {
     model?: string,
     voice?: string,
     frozenSnapshot?: TtsProviderExecutionSnapshot,
+    requestedProvider?: string,
   ): Promise<TtsProviderExecutionSnapshot> {
-    return this.providerRouter.resolveExecutionSnapshot(model, voice, frozenSnapshot);
+    return this.providerRouter.resolveExecutionSnapshot(model, voice, frozenSnapshot, requestedProvider);
   }
 
   public resolveOutputFormat(format: string): OutputFormat {

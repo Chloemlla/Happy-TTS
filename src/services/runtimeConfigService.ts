@@ -22,6 +22,7 @@ import {
 import {
   mergeTtsProviderAdminUpdate,
   normalizeTtsProviderRuntimeConfig,
+  resolveEnabledTtsProviders,
   type TtsProviderOption,
   type TtsProviderRuntimeConfig,
 } from "../config/ttsProviderConfig";
@@ -1987,6 +1988,7 @@ export class RuntimeConfigService {
   static async getTtsProviderSetting(): Promise<{
     config: {
       provider: TtsProviderRuntimeConfig["provider"];
+      enabledProviders: NonNullable<TtsProviderRuntimeConfig["enabledProviders"]>;
       defaultModel: string;
       fish: {
         baseUrl: string;
@@ -2019,6 +2021,7 @@ export class RuntimeConfigService {
     return {
       config: {
         provider: config.provider,
+        enabledProviders: resolveEnabledTtsProviders(config),
         defaultModel: config.defaultModel,
         fish: {
           baseUrl: config.fish.baseUrl,

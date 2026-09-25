@@ -63,6 +63,9 @@ const ttsAdminOperationLimiter = adminLimiter;
  *               model:
  *                 type: string
  *                 description: 语音模型
+ *               provider:
+ *                 type: string
+ *                 description: 指定提供商（openai | fish | edge）。仅在管理员启用了多个提供商时可选；未启用或缺失时回落到默认提供商。
  *               voice:
  *                 type: string
  *                 description: 发音人

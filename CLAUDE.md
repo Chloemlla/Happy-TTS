@@ -171,6 +171,18 @@ SPA allowlist (`src/generated/adminSpaModulePaths.ts`) is generated from that lo
 `dev:backend` and is drift-checked in CI (`pnpm run check:admin-spa-paths`). Miss it and deep
 links to the new page 308-redirect to `/api/admin/<module>` instead of rendering the panel.
 
+**Frontend routes vs legacy API redirects**: the same generator also parses the static
+`<Route path="...">` entries in `frontend/src/App.tsx` and emits them as
+`FRONTEND_SPA_ROUTE_PATHS` (exact match; wildcard and root routes are dropped) plus
+`FRONTEND_SPA_ROUTE_PREFIX_PATHS` (the static prefix of parameterized routes such as
+`/artifacts/:shortId` → `/artifacts`). `src/routes/legacyApiRedirect.ts` uses the union of both
+lists (and `ADMIN_SPA_MODULE_PATHS`) to let full-page navigations reach the SPA instead of
+being 308'd to `/api/...`. So adding any `<Route path>` in `App.tsx` is enough — no manual
+registration — but the drift gate above fails until you re-run the generator. Paths that are
+both a panel page and a legacy API path stay in the hand-written
+`frontendRoutesWithLegacyApiCollision` set, which is checked *before* the generated lists so
+users still get the page-vs-API choice.
+
 ### Testing Configuration
 
 Jest with ts-jest preset:

@@ -1,10 +1,14 @@
 /**
  * 本文件由 `pnpm run generate:admin-spa-paths` 生成，请勿手工编辑。
  *
- * 数据源：frontend/src/components/admin/adminModules.tsx 的 ADMIN_MODULE_LOADERS。
- * 用途：src/routes/legacyApiRedirect.ts 判断哪些 /admin/<module> 是前端面板页面，
- * 整页导航时放行给 SPA，而不是 308 到对应的 API 路径。
+ * 数据源：
+ * - frontend/src/components/admin/adminModules.tsx 的 ADMIN_MODULE_LOADERS（管理面板模块页）
+ * - frontend/src/App.tsx 的 <Route path="..."> 静态路径（全部前端路由）
+ * 用途：src/routes/legacyApiRedirect.ts 判断哪些路径是前端页面，整页导航时放行给 SPA，
+ * 而不是 308 到对应的 API 路径。
  */
+
+/** 管理面板模块页（/admin/<module>）。前缀匹配：同一模块下的子路径仍属于该页面。 */
 export const ADMIN_SPA_MODULE_PATHS = [
   "/admin/announcement",
   "/admin/apikey-billing",
@@ -43,4 +47,69 @@ export const ADMIN_SPA_MODULE_PATHS = [
   "/admin/tts-history",
   "/admin/users",
   "/admin/webhookevents",
+] as const;
+
+/** 全部前端字面路由。精确匹配：前缀匹配会把 /tts/generate 这类旧 API 调用也误放行。 */
+export const FRONTEND_SPA_ROUTE_PATHS = [
+  "/admin",
+  "/admin/lottery",
+  "/admin/store",
+  "/admin/store/cdks",
+  "/admin/store/resources",
+  "/admin/users",
+  "/age-calculator",
+  "/anti-counterfeit",
+  "/api-docs",
+  "/articles",
+  "/auth/linuxdo/callback",
+  "/auth/provider/bind",
+  "/campus-emergency",
+  "/case-converter",
+  "/cdn-cgi",
+  "/coin-flip",
+  "/demo",
+  "/demo/finance",
+  "/demo/meditation",
+  "/demo/music",
+  "/demo/xiaohongshu",
+  "/email-sender",
+  "/fbi-wanted",
+  "/forgot-password",
+  "/github-billing",
+  "/hcaptcha-verify",
+  "/image-upload",
+  "/legacy-api-choice",
+  "/librechat",
+  "/login",
+  "/logshare",
+  "/lottery",
+  "/markdown-export",
+  "/modlist",
+  "/nexai-security",
+  "/notification-test",
+  "/oauth/authorize",
+  "/outemail",
+  "/policy",
+  "/profile",
+  "/public-shortlink",
+  "/register",
+  "/reset-password",
+  "/smart-human-check",
+  "/store",
+  "/support",
+  "/tamper-detection-demo",
+  "/tiger-adventure",
+  "/transcribe",
+  "/translate",
+  "/tts",
+  "/verify-email",
+  "/vt-ratios",
+  "/welcome",
+  "/word-count",
+] as const;
+
+/** 参数路由的静态前缀（/artifacts/:shortId → /artifacts）。这类前缀下的子路径才是页面，按前缀放行。 */
+export const FRONTEND_SPA_ROUTE_PREFIX_PATHS = [
+  "/artifacts",
+  "/store/resources",
 ] as const;

@@ -1,6 +1,11 @@
 import express from "express";
 import request from "supertest";
 import { legacyApiRedirectMiddleware, resolveLegacyApiPath } from "../routes/legacyApiRedirect";
+import {
+  ADMIN_SPA_MODULE_PATHS,
+  FRONTEND_SPA_ROUTE_PATHS,
+  FRONTEND_SPA_ROUTE_PREFIX_PATHS,
+} from "../generated/adminSpaModulePaths";
 
 function createApp() {
   const app = express();
@@ -208,6 +213,68 @@ describe("legacyApiRedirectMiddleware", () => {
       .set("Accept", "text/html")
       .expect(308)
       .expect("Location", "/api/tts/generate");
+  });
+
+  it("keeps the generated path lists on their documented semantics", () => {
+    const adminModulePaths: readonly string[] = ADMIN_SPA_MODULE_PATHS;
+    const frontendRoutePaths: readonly string[] = FRONTEND_SPA_ROUTE_PATHS;
+    const frontendRoutePrefixPaths: readonly string[] = FRONTEND_SPA_ROUTE_PREFIX_PATHS;
+
+    // ADMIN_SPA_MODULE_PATHS 的名字与语义保持不变：/admin/<module>，既有引用按此前缀匹配。
+    expect(adminModulePaths).toContain("/admin/ip-risk-logs");
+    expect(adminModulePaths.every((path) => path.startsWith("/admin/"))).toBe(true);
+
+    // 全部前端路由清单来自 App.tsx：必须有非 admin 页面，且不能混进参数/通配/根路由。
+    expect(frontendRoutePaths).toContain("/lottery");
+    expect(frontendRoutePaths).toContain("/transcribe");
+    expect(frontendRoutePaths).toContain("/store");
+    expect(frontendRoutePaths.some((path) => path.includes(":") || path.includes("*"))).toBe(false);
+    expect(frontendRoutePaths).not.toContain("/");
+
+    // 参数路由只登记静态前缀；/admin（/admin/:module 的前缀）必须不在其中，否则
+    // /admin/audit-events 这类未知模块深链会被新清单抢先放行。
+    expect(frontendRoutePrefixPaths).toContain("/artifacts");
+    expect(frontendRoutePrefixPaths).toContain("/store/resources");
+    expect(frontendRoutePrefixPaths).not.toContain("/admin");
+  });
+
+  it("serves the SPA for browser navigation to a non-admin frontend route that collides with a legacy API prefix", async () => {
+    // /lottery 在 App.tsx 里是真实页面，同时命中旧前缀 /lottery → /api/lottery。
+    // 它不在碰撞集里，整页导航必须直接放行给 SPA（此前会被 308 到 API）。
+    expect(resolveLegacyApiPath("/lottery")).toBe("/api/lottery");
+
+    await request(createApp())
+      .get("/lottery")
+      .set("Accept", "text/html,application/xhtml+xml")
+      .set("Sec-Fetch-Mode", "navigate")
+      .set("Sec-Fetch-Dest", "document")
+      .expect(204);
+
+    await request(createApp())
+      .get("/lottery?tab=winners")
+      .set("Accept", "text/html")
+      .expect(204);
+  });
+
+  it("still redirects non-document requests to a non-admin frontend route to the API", async () => {
+    await request(createApp())
+      .get("/lottery")
+      .set("Accept", "application/json")
+      .expect(308)
+      .expect("Location", "/api/lottery")
+      .expect("X-Canonical-API-Path", "/api/lottery");
+  });
+
+  it("keeps colliding frontend routes on the choice page ahead of the generated frontend route list", async () => {
+    // /policy 与 /admin/users 既在 App.tsx 的静态路由清单里，也是旧 API 路径：
+    // 生成清单不能抢在碰撞集之前把它们静默放行。
+    const policyLocation = await getChoiceLocation("/policy");
+    expect(policyLocation.pathname).toBe("/legacy-api-choice");
+    expect(policyLocation.searchParams.get("api")).toBe("/api/policy");
+
+    const adminUsersLocation = await getChoiceLocation("/admin/users");
+    expect(adminUsersLocation.pathname).toBe("/legacy-api-choice");
+    expect(adminUsersLocation.searchParams.get("api")).toBe("/api/admin/users");
   });
 
   it("redirects browser navigation to legacy API paths when no matching frontend page exists", async () => {

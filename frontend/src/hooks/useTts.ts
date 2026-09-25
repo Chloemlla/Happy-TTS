@@ -197,6 +197,7 @@ export const useTts = () => {
       setResult(null);
 
       const fingerprint = request.fingerprint || (await getFingerprint());
+      // request 整体透传（含 provider），无需逐字段映射；后端对未启用的 provider 会回落主提供商。
       const requestPayload = {
         ...request,
         ...(fingerprint ? { fingerprint } : {}),

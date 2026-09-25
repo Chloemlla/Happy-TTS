@@ -76,11 +76,13 @@ COPY src/ ./src/
 COPY tsconfig.json ./
 
 # build:backend 的第一步（scripts/generate-admin-spa-paths.js）要从管理面板 loader 表推导
-# /admin SPA 路径清单，所以后端阶段必须看得见 adminModules.tsx。只拷这一个文件：生成的清单
-# src/generated/adminSpaModulePaths.ts 已入库，其余前端源码在后端阶段没用，整个 frontend/
-# 拉进来只会多占一层缓存。缺了它构建会以「找不到管理模块注册表」直接失败（故意不降级，
-# 免得清单少页面时线上表现为深链 308 到 API）。
+# /admin SPA 路径清单、并从 App.tsx 推导全部前端路由清单，所以后端阶段必须看得见这两个
+# 文件。只拷这两个文件：生成的清单 src/generated/adminSpaModulePaths.ts 已入库，其余前端
+# 源码在后端阶段没用，整个 frontend/ 拉进来只会多占一层缓存。缺了它们构建会以「找不到
+# 管理模块注册表 / 前端路由表」直接失败（故意不降级，免得清单少页面时线上表现为深链 308
+# 到 API）。
 COPY frontend/src/components/admin/adminModules.tsx ./frontend/src/components/admin/adminModules.tsx
+COPY frontend/src/App.tsx ./frontend/src/App.tsx
 
 RUN pnpm run build:backend
 RUN mkdir -p dist-obfuscated/templates && cp src/templates/*.html dist-obfuscated/templates/

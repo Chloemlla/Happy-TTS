@@ -141,3 +141,108 @@ describe("normalizeTtsProviderConfig", () => {
     expect(config.models.map((option) => option.id)).not.toContain("tts-1-hd");
   });
 });
+
+describe("normalizeTtsProviderConfig providers 列表", () => {
+  it("按序归一化 providers，丢弃非法项与重复项", () => {
+    const config = normalizeTtsProviderConfig({
+      provider: "openai",
+      defaultModel: "tts-1-hd",
+      models: ["tts-1", "tts-1-hd"],
+      voices: [{ id: "nova", name: "Nova" }],
+      providers: [
+        { provider: "openai", defaultModel: "tts-1-hd", models: ["tts-1-hd"], voices: ["nova"] },
+        { provider: "bogus", defaultModel: "whatever" },
+        { notAProvider: true },
+        {
+          provider: "fish",
+          defaultModel: FISH_DEFAULT_TTS_MODEL,
+          models: [FISH_DEFAULT_TTS_MODEL],
+          voices: [],
+          voiceMode: "provider_default",
+        },
+        // 重复的 fish：应被丢弃，且保留先出现的那一份
+        { provider: "fish", defaultModel: "fish-dup", models: ["fish-dup"] },
+        {
+          provider: "edge",
+          defaultModel: EDGE_DEFAULT_TTS_MODEL,
+          defaultVoice: EDGE_DEFAULT_TTS_VOICE,
+          models: [EDGE_DEFAULT_TTS_MODEL],
+          voices: [EDGE_DEFAULT_TTS_VOICE],
+          voiceMode: "select",
+        },
+      ],
+    });
+
+    expect(config.providers?.map((entry) => entry.provider)).toEqual(["openai", "fish", "edge"]);
+    // 主配置来自扁平字段，且恒排第一
+    expect(config.providers?.[0].provider).toBe(config.provider);
+    expect(config.providers?.[1].defaultModel).toBe(FISH_DEFAULT_TTS_MODEL);
+    expect(config.providers?.[2].defaultVoice).toBe(EDGE_DEFAULT_TTS_VOICE);
+  });
+
+  it("后端不返回 providers 时回退成 [主配置]", () => {
+    const config = normalizeTtsProviderConfig({
+      provider: "fish",
+      defaultModel: FISH_DEFAULT_TTS_MODEL,
+      models: [FISH_DEFAULT_TTS_MODEL],
+      voices: [],
+      voiceMode: "provider_default",
+    });
+
+    expect(config.providers).toHaveLength(1);
+    expect(config.providers?.[0].provider).toBe(config.provider);
+    expect(config.providers?.[0].defaultModel).toBe(config.defaultModel);
+
+    // 回退路径（payload 非法）同样保证 providers 非空，切换控件才拿得到列表
+    const fallback = normalizeTtsProviderConfig({ provider: "unknown" });
+    expect(fallback.providers).toHaveLength(1);
+    expect(fallback.providers?.[0].provider).toBe("openai");
+
+    // providers 不是数组时也不能抛错
+    const notAnArray = normalizeTtsProviderConfig({ provider: "edge", providers: { provider: "fish" } });
+    expect(notAnArray.providers?.map((entry) => entry.provider)).toEqual(["edge"]);
+  });
+
+  it("每个子配置按各自 provider 归一化，模型/音色不串味", () => {
+    const config = normalizeTtsProviderConfig({
+      provider: "openai",
+      defaultModel: "tts-1-hd",
+      models: ["tts-1", "tts-1-hd"],
+      voices: ["nova"],
+      providers: [
+        { provider: "openai", defaultModel: "tts-1-hd", models: ["tts-1", "tts-1-hd"], voices: ["nova"] },
+        {
+          provider: "fish",
+          // 别家的模型 ID 对 fish 非法，应被丢弃并回落到 Fish 默认模型
+          defaultModel: "tts-1-hd",
+          models: ["tts-1-hd"],
+          voices: [{ id: "reference-a", name: "参考音色 A" }],
+        },
+        {
+          provider: "edge",
+          defaultModel: EDGE_DEFAULT_TTS_MODEL,
+          defaultVoice: EDGE_DEFAULT_TTS_VOICE,
+          models: [EDGE_DEFAULT_TTS_MODEL],
+          voices: [{ id: EDGE_DEFAULT_TTS_VOICE, name: "晓晓" }],
+          voiceMode: "select",
+        },
+      ],
+    });
+
+    const fish = config.providers?.find((entry) => entry.provider === "fish");
+    expect(fish?.defaultModel).toBe(FISH_DEFAULT_TTS_MODEL);
+    expect(fish?.models.map((option) => option.id)).not.toContain("tts-1-hd");
+    expect(fish?.voiceMode).toBe("select");
+    expect(fish?.defaultVoice).toBe("reference-a");
+
+    const edge = config.providers?.find((entry) => entry.provider === "edge");
+    expect(edge?.defaultModel).toBe(EDGE_DEFAULT_TTS_MODEL);
+    expect(edge?.defaultVoice).toBe(EDGE_DEFAULT_TTS_VOICE);
+    expect(edge?.voiceMode).toBe("select");
+    expect(edge?.models.map((option) => option.id)).toEqual([EDGE_DEFAULT_TTS_MODEL]);
+
+    // 主配置仍是 OpenAI，不受子项影响
+    expect(config.provider).toBe("openai");
+    expect(config.defaultModel).toBe("tts-1-hd");
+  });
+});

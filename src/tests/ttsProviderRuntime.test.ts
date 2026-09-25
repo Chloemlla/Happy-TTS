@@ -7,6 +7,7 @@ import {
   buildTtsProviderExecutionSnapshot,
   buildTtsProviderPublicConfig,
   mergeTtsProviderAdminUpdate,
+  normalizeEnabledTtsProviders,
   type TtsProviderRuntimeConfig,
 } from "../config/ttsProviderConfig";
 import { EDGE_BUILTIN_VOICE_OPTIONS } from "../tts/edge/edge.voices.snapshot";
@@ -84,13 +85,17 @@ describe("TTS provider runtime capability", () => {
       { model: "tts-1", voice: "nova" },
       { model: "tts-1", voice: "alloy" },
     );
+    // Fish 分支上客户端的 voice 就是音色目录里选中的 _id（PRD 08-01-fish-audio-reference
+    // 「Selecting a model or default voice results in a generation request using that record's
+    // Fish reference ID」），因此它优先于管理员配置的 referenceId；只有客户端没带 voice 时
+    // 才回落到 runtimeConfig.fish.referenceId。
     expect(fishExecution).toMatchObject({
       providerId: "fish",
       model: "future-fish-model",
       voice: "configured_reference",
-      referenceId: "reference-a",
+      referenceId: "nova",
       cacheIdentity:
-        "fish|future-fish-model|configured_reference|reference-a|https://api.fish.audio",
+        "fish|future-fish-model|configured_reference|nova|https://api.fish.audio",
     });
 
     const openAiExecution = buildTtsProviderExecutionSnapshot(
@@ -301,5 +306,112 @@ describe("TTS provider runtime capability", () => {
       service.generateLegacyContentHash(identity),
     ]);
     expect(candidates[0]).not.toBe(candidates[1]);
+  });
+
+  it("normalizes the enabled provider list to unique valid ids with the primary provider first", () => {
+    expect(normalizeEnabledTtsProviders(["fish", "fish", "openai", "bogus"], "openai")).toEqual([
+      "openai",
+      "fish",
+    ]);
+    expect(normalizeEnabledTtsProviders(["edge", "  FISH  "], "fish")).toEqual(["fish", "edge"]);
+    expect(normalizeEnabledTtsProviders(undefined, "edge")).toEqual(["edge"]);
+    expect(normalizeEnabledTtsProviders([42, null, "unknown-provider"], "openai")).toEqual(["openai"]);
+    expect(normalizeEnabledTtsProviders(["fish"], "openai")).toEqual(["openai", "fish"]);
+  });
+
+  it("keeps the stored enabled provider list when an admin update omits the field", () => {
+    const current: TtsProviderRuntimeConfig = { ...baseConfig, enabledProviders: ["openai", "fish"] };
+
+    const merged = mergeTtsProviderAdminUpdate(current, {
+      provider: "openai",
+      defaultModel: "tts-1",
+      fish: { apiKey: "" },
+    });
+    expect(merged.enabledProviders).toEqual(["openai", "fish"]);
+
+    const explicit = mergeTtsProviderAdminUpdate(current, {
+      provider: "edge",
+      defaultModel: EDGE_MODEL_ID,
+      enabledProviders: ["fish", "edge", "edge", "bogus"],
+      fish: { apiKey: "" },
+    });
+    expect(explicit.enabledProviders).toEqual(["edge", "fish"]);
+  });
+
+  it("only publishes the provider list when more than one provider is enabled", () => {
+    const openAiDefaults = { model: "tts-1-hd", voice: "alloy" };
+    const single = buildTtsProviderPublicConfig(
+      { ...baseConfig, enabledProviders: ["openai"] },
+      openAiDefaults,
+    );
+    expect(single.providers).toBeUndefined();
+    expect(single).toEqual(buildTtsProviderPublicConfig(baseConfig, openAiDefaults));
+
+    const multi = buildTtsProviderPublicConfig(
+      { ...baseConfig, defaultModel: "custom-openai-model", enabledProviders: ["openai", "fish", "edge"] },
+      openAiDefaults,
+    );
+    expect(multi.defaultModel).toBe("custom-openai-model");
+    expect(multi.providers?.map((entry) => entry.provider)).toEqual(["openai", "fish", "edge"]);
+    // 非主提供商不能继承主提供商的私有模型 id，一律回落到各自的自带默认模型。
+    expect(multi.providers?.[1]).toMatchObject({
+      provider: "fish",
+      defaultModel: FISH_AUDIO_DEFAULT_MODEL,
+    });
+    expect(multi.providers?.[2]).toMatchObject({ provider: "edge", defaultModel: EDGE_MODEL_ID });
+
+    const fishPrimary = buildTtsProviderPublicConfig(
+      {
+        ...baseConfig,
+        provider: "fish",
+        defaultModel: "custom-fish-model",
+        enabledProviders: ["fish", "openai"],
+      },
+      openAiDefaults,
+    );
+    expect(fishPrimary.defaultModel).toBe("custom-fish-model");
+    expect(fishPrimary.providers?.[1]).toMatchObject({
+      provider: "openai",
+      defaultModel: "tts-1-hd",
+    });
+  });
+
+  it("honours an explicitly requested provider that is enabled", () => {
+    const execution = buildTtsProviderExecutionSnapshot(
+      { ...baseConfig, enabledProviders: ["openai", "edge"] },
+      { model: "tts-1-hd", voice: "en-US-AriaNeural", provider: "edge" },
+      { model: "tts-1", voice: "alloy" },
+    );
+
+    expect(execution).toEqual({
+      providerId: "edge",
+      model: EDGE_MODEL_ID,
+      voice: "en-US-AriaNeural",
+      baseUrl: EDGE_DEFAULT_BASE_URL,
+      cacheIdentity: ["edge", EDGE_MODEL_ID, "en-US-AriaNeural", EDGE_DEFAULT_BASE_URL].join("|"),
+    });
+  });
+
+  it("falls back to the primary provider when the requested provider is not enabled", () => {
+    const execution = buildTtsProviderExecutionSnapshot(
+      { ...baseConfig, enabledProviders: ["openai", "edge"] },
+      { model: "tts-1-hd", voice: "alloy", provider: "fish" },
+      { model: "tts-1", voice: "alloy", baseUrl: "https://api.openai.com/v1" },
+    );
+
+    expect(execution).toMatchObject({ providerId: "openai", model: "tts-1-hd", voice: "alloy" });
+  });
+
+  it("resolves the same snapshot as before when the client sends no provider", () => {
+    const openAiDefaults = { model: "tts-1", voice: "alloy", baseUrl: "https://api.openai.com/v1" };
+    const before = buildTtsProviderExecutionSnapshot(baseConfig, { model: "tts-1-hd", voice: "nova" }, openAiDefaults);
+    const after = buildTtsProviderExecutionSnapshot(
+      { ...baseConfig, enabledProviders: ["openai", "fish"] },
+      { model: "tts-1-hd", voice: "nova", provider: undefined },
+      openAiDefaults,
+    );
+
+    expect(after).toEqual(before);
+    expect(after.providerId).toBe("openai");
   });
 });

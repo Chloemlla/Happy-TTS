@@ -27,6 +27,8 @@ export interface TtsSubmissionInput {
   fingerprint: unknown;
   generationCode: unknown;
   cfToken: unknown;
+  /** 用户在前端选择的提供商；老客户端不带该字段。 */
+  provider?: unknown;
 }
 
 export interface TtsSubmissionContext {
@@ -93,7 +95,8 @@ export class TtsSubmissionPipeline {
     return buildUsageSummaryFromSnapshot(snapshot.user, snapshot);
   }
 
-  private buildRequestPayload(input: TtsSubmissionInput): TtsJobRequestPayload {
+  // provider 只用于冻结快照的选路，不进入 TtsJobRequestPayload 的既有契约（Mongo schema 会忽略多余键）。
+  private buildRequestPayload(input: TtsSubmissionInput): TtsJobRequestPayload & { provider?: string } {
     const normalizedOutputFormat =
       typeof input.outputFormat === "string" && input.outputFormat.trim().length > 0
         ? input.outputFormat.trim()
@@ -107,6 +110,7 @@ export class TtsSubmissionPipeline {
       voice: typeof input.voice === "string" ? input.voice : "",
       outputFormat: this.ttsService.resolveOutputFormat(normalizedOutputFormat),
       speed: this.ttsService.resolveSpeed(input.speed),
+      ...(typeof input.provider === "string" ? { provider: input.provider } : {}),
     };
   }
 
@@ -295,6 +299,8 @@ export class TtsSubmissionPipeline {
     const providerExecution = await this.ttsService.resolveProviderExecution(
       rawRequestPayload.model,
       rawRequestPayload.voice,
+      undefined,
+      rawRequestPayload.provider,
     );
     const requestPayload: TtsJobRequestPayload = {
       ...rawRequestPayload,
