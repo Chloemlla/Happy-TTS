@@ -161,6 +161,36 @@ describe("legacyApiRedirectMiddleware", () => {
       .expect("Location", "/api/admin/qq-guard");
   });
 
+  it("serves the SPA for browser navigation to the /tts workbench page", async () => {
+    await request(createApp())
+      .get("/tts")
+      .set("Accept", "text/html,application/xhtml+xml")
+      .set("Sec-Fetch-Mode", "navigate")
+      .set("Sec-Fetch-Dest", "document")
+      .expect(204);
+
+    // 尾斜杠变体经 normalizePathname 归一后同样放行
+    await request(createApp())
+      .get("/tts/")
+      .set("Accept", "text/html")
+      .expect(204);
+  });
+
+  it("still redirects legacy /tts API calls that are not document navigations", async () => {
+    await request(createApp())
+      .get("/tts")
+      .set("Accept", "application/json")
+      .expect(308)
+      .expect("Location", "/api/tts");
+
+    // 放行只针对精确路径 /tts，子路径上的旧 API 调用继续被重定向
+    await request(createApp())
+      .post("/tts/generate")
+      .set("Accept", "text/html")
+      .expect(308)
+      .expect("Location", "/api/tts/generate");
+  });
+
   it("redirects browser navigation to legacy API paths when no matching frontend page exists", async () => {
     await request(createApp())
       .get("/admin/audit-events")

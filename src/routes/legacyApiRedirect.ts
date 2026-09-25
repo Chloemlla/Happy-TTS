@@ -84,6 +84,13 @@ const frontendRoutesWithLegacyApiCollision = new Set<string>([
   "/policy",
 ]);
 
+// 前端独立页：路径与旧 API 前缀重名（/tts 的旧前缀映射到 /api/tts），但裸路径
+// 从来没有旧 API 消费方依赖。只对浏览器整页导航放行给 SPA；带 API 语义的请求
+// （无 text/html Accept）仍走 308 → /api/*，老客户端行为不变。
+// 新增这类页面时在此登记，且只用精确路径——前缀会让 /tts/generate 这类旧 API
+// 调用也被误放行。
+const frontendOnlySpaPaths = new Set<string>(["/tts"]);
+
 // 现代 /admin 面板的 SPA 模块页（镜像 frontend/src/components/admin/adminModules.tsx 的
 // loader key → `/admin/<key>`；除已在碰撞集里按静态路由处理的 lottery/users/store 外）。
 // 这些路径从未在非 /api 前缀下提供可书签内容，浏览器深链时不存在
@@ -332,6 +339,10 @@ function isFrontendAdminModulePath(pathname: string): boolean {
   return frontendAdminModulePathPrefixes.some((prefix) => hasPathPrefix(pathname, prefix));
 }
 
+function isFrontendOnlySpaPath(pathname: string): boolean {
+  return frontendOnlySpaPaths.has(pathname);
+}
+
 function getChoiceStateSecret(): string {
   // 用独立派生密钥，避免把 JWT 签名密钥直接用于纯 UI 状态签名
   if (process.env.LEGACY_API_CHOICE_SECRET) return process.env.LEGACY_API_CHOICE_SECRET;
@@ -415,6 +426,11 @@ export const legacyApiRedirectMiddleware: RequestHandler = (req, res, next) => {
 
   if (isBrowserDocumentNavigation(req) && isFrontendAdminModulePath(normalizedRequestPath)) {
     // SPA 模块页的深链：整页导航时直接放行给前端兜底，不做旧 API 重定向。
+    return next();
+  }
+
+  if (isBrowserDocumentNavigation(req) && isFrontendOnlySpaPath(normalizedRequestPath)) {
+    // 与旧 API 前缀重名、但从未作为 API 暴露过的前端页面：整页导航直接放行给 SPA。
     return next();
   }
 
