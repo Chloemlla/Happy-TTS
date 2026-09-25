@@ -23,18 +23,14 @@ import api from "../api/api";
 import { useAuth } from "../hooks/useAuth";
 import { isSuperAdmin } from "../utils/rbac";
 import { useNotification } from "./Notification";
+import { studioFieldClassName, studioTileClassName } from './studioTheme';
 import {
   InfoBadge,
   InfoMetricCard,
   InfoPanel,
-  InfoPrimaryButton,
   InfoQueryHero,
   InfoSectionTitle,
-  logShareDangerButtonClass,
-  logShareInputClass,
-  logShareSecondaryButtonClass,
-  logShareTileClass,
-} from "./LogShareStyleScaffold";
+} from './InfoQueryScaffold';
 
 /* ─────────── Types ─────────── */
 
@@ -101,7 +97,7 @@ interface OpsAuditLog {
 const API_BASE = "/api/ecoenchants/v1";
 
 const labelClass = "text-xs font-semibold uppercase tracking-[0.18em] text-slate-500";
-const inputClass = `${logShareInputClass} py-2.5`;
+const inputClass = `${studioFieldClassName} py-2.5`;
 
 const statusBadgeTone = (status: string): "emerald" | "amber" | "slate" | "rose" => {
   switch (status) {
@@ -258,7 +254,7 @@ function OpsInstancesSection({
             key={inst.instanceId}
             type="button"
             onClick={() => onSelect(inst.instanceId)}
-            className={`${logShareTileClass} w-full p-4 text-left transition hover:shadow-md`}
+            className={`${studioTileClassName} w-full p-4 text-left transition hover:shadow-md`}
           >
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0 flex-1">
@@ -613,7 +609,7 @@ function InstanceDetailSection({
           ) : (
             <div className="space-y-2">
               {jobs.map((job) => (
-                <div key={job.jobId} className={`${logShareTileClass} p-4`}>
+                <div key={job.jobId} className={`${studioTileClassName} p-4`}>
                   <div className="flex flex-wrap items-center gap-2">
                     <InfoBadge tone={statusBadgeTone(job.status)}>{job.status}</InfoBadge>
                     <span className="font-mono text-xs text-slate-400">{job.jobId.slice(0, 16)}...</span>
@@ -753,7 +749,7 @@ function InstanceDetailSection({
           ) : (
             <div className="space-y-2">
               {backups.map((bk) => (
-                <div key={bk.backupId} className={`${logShareTileClass} flex items-center justify-between p-4`}>
+                <div key={bk.backupId} className={`${studioTileClassName} flex items-center justify-between p-4`}>
                   <div>
                     <div className="font-mono text-sm text-slate-700">{bk.backupId.slice(0, 20)}...</div>
                     <div className="mt-1 text-xs text-slate-500">
@@ -815,7 +811,7 @@ function OpsAuditLogsSection({
       )}
       <div className="space-y-2">
         {logs.map((log) => (
-          <div key={log.auditId} className={`${logShareTileClass} p-4`}>
+          <div key={log.auditId} className={`${studioTileClassName} p-4`}>
             <div className="flex flex-wrap items-center gap-2">
               <InfoBadge tone={log.result === "success" ? "emerald" : "rose"}>{log.result}</InfoBadge>
               <span className="font-medium text-slate-900">{log.action}</span>
@@ -872,7 +868,7 @@ function OpsCommandPoliciesSection({
       )}
       <div className="space-y-3">
         {policies.map((p) => (
-          <div key={p.commandId} className={`${logShareTileClass} p-4`}>
+          <div key={p.commandId} className={`${studioTileClassName} p-4`}>
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono font-semibold text-slate-900">{p.commandId}</span>
               <InfoBadge

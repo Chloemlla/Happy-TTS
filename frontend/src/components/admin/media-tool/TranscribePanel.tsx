@@ -12,7 +12,7 @@ import {
 } from 'react-icons/fa';
 import { mediaToolApi } from '../../../api/mediaTool';
 import type { MediaDirEntry, MediaJobRecord, MediaTarget, MediaToolSettings } from '../../../api/mediaTool';
-import { InfoSectionTitle, logSharePanelClass } from '../../LogShareStyleScaffold';
+import { studioSurfaceClassName } from '../../studioTheme';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
 import {
   btnIndigo,
@@ -23,6 +23,7 @@ import {
   Toggle,
   fmtBytes,
 } from './ui';
+import { InfoSectionTitle } from '../../InfoQueryScaffold';
 
 /**
  * 音频转写:两类来源 —— 浏览器直接上传(进 workDir/inbox)与浏览服务端已有文件。
@@ -133,7 +134,7 @@ export const TranscribePanel: React.FC<{ target: MediaTarget; settings: MediaToo
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className={`${logSharePanelClass} space-y-3 p-5`}>
+        <div className={`${studioSurfaceClassName} space-y-3 p-5`}>
           <div className="flex items-center justify-between">
             <div className="text-sm font-semibold text-slate-800">浏览器上传</div>
             <span className="text-[11px] text-slate-400">上限 {fmtBytes(settings.maxUploadBytes)} · 单文件</span>
@@ -233,7 +234,7 @@ export const TranscribePanel: React.FC<{ target: MediaTarget; settings: MediaToo
           </div>
         </div>
 
-        <div className={`${logSharePanelClass} flex flex-col gap-3 p-5`}>
+        <div className={`${studioSurfaceClassName} flex flex-col gap-3 p-5`}>
           <div className="text-sm font-semibold text-slate-800">
             待转写文件 <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] text-violet-700">{chosen.length}</span>
           </div>

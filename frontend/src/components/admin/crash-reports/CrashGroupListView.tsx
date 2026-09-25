@@ -19,15 +19,7 @@ import {
   FaUsers,
 } from 'react-icons/fa';
 import type { CrashGroup } from '@/api/crashReports';
-import {
-  InfoBadge,
-  InfoMetricCard,
-  InfoPanel,
-  InfoPrimaryButton,
-  InfoQueryHero,
-  InfoQueryShell,
-  logShareInputClass,
-} from '@/components/LogShareStyleScaffold';
+import { studioFieldClassName } from '@/components/studioTheme';
 import {
   AUTO_REFRESH_OPTIONS,
   GROUP_SORTS,
@@ -40,6 +32,14 @@ import {
 import { buildGroupSummaryText, formatRelativeTime, formatTime, shortKey, topFrame } from './format';
 import { buildGroupsCsv, downloadCsvFile, downloadJsonFile, fileStamp } from './exporters';
 import { CopyButton, DownloadButton, FilterChip, ToolbarSelect } from './ui';
+import {
+  InfoBadge,
+  InfoMetricCard,
+  InfoPanel,
+  InfoPrimaryButton,
+  InfoQueryHero,
+  InfoQueryShell,
+} from '../../InfoQueryScaffold';
 
 interface Props {
   groups: CrashGroup[];
@@ -169,7 +169,7 @@ const CrashGroupListView: React.FC<Props> = ({
                 if (event.key === 'Escape') setDraftSearch('');
               }}
               placeholder="搜索 groupKey 或堆栈内容（回车立即查询）"
-              className={logShareInputClass}
+              className={studioFieldClassName}
             />
             {draftSearch ? (
               <button
@@ -192,7 +192,7 @@ const CrashGroupListView: React.FC<Props> = ({
               }}
               placeholder="按设备 ID 筛选（支持前缀）"
               aria-label="按设备 ID 筛选"
-              className={`${logShareInputClass} ${
+              className={`${studioFieldClassName} ${
                 query.device ? 'border-indigo-300 bg-indigo-50/60' : ''
               }`}
             />

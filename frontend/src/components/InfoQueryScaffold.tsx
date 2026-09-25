@@ -1,15 +1,21 @@
 import React from 'react';
 import type { IconType } from 'react-icons';
+import { cn } from '../utils/cn';
+import {
+  studioHeroCardClassName,
+  studioPrimaryButtonClassName,
+  studioSurfaceClassName,
+  studioTileClassName,
+} from './studioTheme';
 
 export type InfoTone = 'teal' | 'amber' | 'rose' | 'slate' | 'emerald' | 'sky' | 'violet';
 
-const toneClasses: Record<InfoTone, {
-  accent: string;
-  icon: string;
-  badge: string;
-  text: string;
-  button: string;
-}> = {
+// Info 家族唯一的语义调色板。结构类（面板/磁贴/按钮基类）一律从 studioTheme 取，
+// 这里只放颜色，避免又长出一套版面字面量。
+const toneClasses: Record<
+  InfoTone,
+  { accent: string; icon: string; badge: string; text: string; button: string }
+> = {
   teal: {
     accent: 'bg-teal-500',
     icon: 'bg-teal-50 text-teal-700 ring-teal-100',
@@ -36,7 +42,7 @@ const toneClasses: Record<InfoTone, {
     icon: 'bg-slate-100 text-slate-700 ring-slate-200',
     badge: 'border-slate-200 bg-slate-100 text-slate-700',
     text: 'text-slate-700',
-    button: 'bg-slate-800 text-white hover:bg-slate-900 focus-visible:ring-slate-500',
+    button: 'bg-slate-900 text-white hover:bg-slate-800 focus-visible:ring-slate-400',
   },
   emerald: {
     accent: 'bg-emerald-500',
@@ -61,7 +67,7 @@ const toneClasses: Record<InfoTone, {
   },
 };
 
-export const getInfoToneClasses = (tone: InfoTone = 'teal') => toneClasses[tone];
+export const getInfoToneClasses = (tone: InfoTone = 'slate') => toneClasses[tone];
 
 export const InfoQueryShell: React.FC<{
   children: React.ReactNode;
@@ -81,11 +87,11 @@ export const InfoQueryHero: React.FC<{
   tone?: InfoTone;
   meta?: React.ReactNode;
   actions?: React.ReactNode;
-}> = ({ eyebrow, title, description, icon: Icon, tone = 'teal', meta, actions }) => {
+}> = ({ eyebrow, title, description, icon: Icon, tone = 'slate', meta, actions }) => {
   const classes = getInfoToneClasses(tone);
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl sm:p-10">
+    <section className={studioHeroCardClassName}>
       <div className={`pointer-events-none absolute inset-x-0 top-0 h-1 ${classes.accent}`} />
       <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-3xl">
@@ -107,8 +113,14 @@ export const InfoBadge: React.FC<{
   children: React.ReactNode;
   tone?: InfoTone;
   className?: string;
-}> = ({ children, tone = 'teal', className = '' }) => (
-  <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${getInfoToneClasses(tone).badge} ${className}`}>
+}> = ({ children, tone = 'slate', className = '' }) => (
+  <span
+    className={cn(
+      'inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold',
+      getInfoToneClasses(tone).badge,
+      className,
+    )}
+  >
     {children}
   </span>
 );
@@ -118,7 +130,7 @@ export const InfoPanel: React.FC<{
   className?: string;
   compact?: boolean;
 }> = ({ children, className = '', compact = false }) => (
-  <section className={`relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 shadow-sm backdrop-blur-xl ${compact ? 'p-4' : 'p-5 sm:p-7'} ${className}`}>
+  <section className={cn(studioSurfaceClassName, compact ? 'p-4' : 'p-5 sm:p-7', className)}>
     {children}
   </section>
 );
@@ -129,18 +141,18 @@ export const InfoMetricCard: React.FC<{
   detail?: string;
   icon: IconType;
   tone?: InfoTone;
-}> = ({ label, value, detail, icon: Icon, tone = 'teal' }) => {
+}> = ({ label, value, detail, icon: Icon, tone = 'slate' }) => {
   const classes = getInfoToneClasses(tone);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white/82 p-4 shadow-sm backdrop-blur-xl">
+    <div className={cn(studioTileClassName, 'p-4')}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
-          <div className="mt-2 text-xl font-semibold text-slate-950 sm:text-2xl">{value}</div>
+          <div className="mt-2 text-2xl font-semibold text-slate-950">{value}</div>
           {detail && <p className="mt-2 text-xs leading-5 text-slate-500">{detail}</p>}
         </div>
-        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1 ${classes.icon}`}>
+        <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1', classes.icon)}>
           <Icon className="h-4 w-4" />
         </div>
       </div>
@@ -154,20 +166,26 @@ export const InfoSectionTitle: React.FC<{
   icon?: IconType;
   tone?: InfoTone;
   action?: React.ReactNode;
-}> = ({ title, description, icon: Icon, tone = 'teal', action }) => {
+  eyebrow?: string;
+}> = ({ title, description, icon: Icon, tone = 'slate', action, eyebrow }) => {
   const classes = getInfoToneClasses(tone);
 
   return (
     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex gap-3">
         {Icon && (
-          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[16px] ring-1 ${classes.icon}`}>
+          <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl ring-1', classes.icon)}>
             <Icon className="h-4 w-4" />
           </div>
         )}
         <div>
-          <h2 className="text-lg font-semibold text-slate-950">{title}</h2>
-          {description && <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>}
+          {eyebrow && (
+            <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
+              {eyebrow}
+            </div>
+          )}
+          <h3 className="mt-1 text-xl font-semibold text-slate-900">{title}</h3>
+          {description && <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{description}</p>}
         </div>
       </div>
       {action}
@@ -177,11 +195,8 @@ export const InfoSectionTitle: React.FC<{
 
 export const InfoPrimaryButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {
   tone?: InfoTone;
-}> = ({ tone = 'teal', className = '', children, ...props }) => (
-  <button
-    {...props}
-    className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${getInfoToneClasses(tone).button} ${className}`}
-  >
+}> = ({ tone = 'slate', className = '', children, ...props }) => (
+  <button {...props} className={cn(studioPrimaryButtonClassName, getInfoToneClasses(tone).button, className)}>
     {children}
   </button>
 );

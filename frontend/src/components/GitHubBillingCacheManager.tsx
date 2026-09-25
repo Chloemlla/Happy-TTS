@@ -7,13 +7,8 @@ import { isFirstVisitVerificationEnabled } from '../utils/firstVisitVerification
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
 import { getBackendErrorMessage } from '../utils/backendError';
-import {
-    InfoMetricCard,
-    InfoPanel,
-    InfoSectionTitle,
-    logShareDangerButtonClass,
-    logShareSecondaryButtonClass,
-} from './LogShareStyleScaffold';
+import { studioDangerButtonClassName, studioSecondaryButtonClassName } from './studioTheme';
+import { InfoMetricCard, InfoPanel, InfoSectionTitle } from './InfoQueryScaffold';
 
 interface CachedCustomer {
     customerId: string;
@@ -229,7 +224,7 @@ const GitHubBillingCacheManager: React.FC = () => {
                         <button
                             onClick={loadCachedCustomers}
                             disabled={loading}
-                            className={logShareSecondaryButtonClass}
+                            className={studioSecondaryButtonClassName}
                         >
                             <FaSync className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                             {loading ? '刷新中' : '刷新'}
@@ -303,7 +298,7 @@ const GitHubBillingCacheManager: React.FC = () => {
                         <button
                             onClick={clearExpiredCache}
                             disabled={clearingExpired}
-                            className={logShareDangerButtonClass}
+                            className={studioDangerButtonClassName}
                         >
                             <FaClock className={`w-4 h-4 ${clearingExpired ? 'animate-spin' : ''}`} />
                             {clearingExpired ? '清理中' : '清理过期缓存'}
@@ -340,7 +335,7 @@ const GitHubBillingCacheManager: React.FC = () => {
                                         <button
                                             onClick={() => clearCustomerCache(customer.customerId)}
                                             disabled={clearingCache === customer.customerId}
-                                            className={logShareDangerButtonClass}
+                                            className={studioDangerButtonClassName}
                                         >
                                             <FaTrash className={`w-3 h-3 ${clearingCache === customer.customerId ? 'animate-spin' : ''}`} />
                                             {clearingCache === customer.customerId ? '清除中' : '清除'}

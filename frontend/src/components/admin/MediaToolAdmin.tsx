@@ -12,13 +12,14 @@ import {
 import type { IconType } from 'react-icons';
 import { emptyTarget, mediaToolApi } from '../../api/mediaTool';
 import type { MediaTarget, MediaToolHealth, MediaToolSettings } from '../../api/mediaTool';
-import { InfoSectionTitle, InfoMetricCard, logSharePanelClass } from '../LogShareStyleScaffold';
+import { studioSurfaceClassName } from '../studioTheme';
 import { SimpleLoadingSpinner } from '../LoadingSpinner';
 import { BiliPanel } from './media-tool/BiliPanel';
 import { JobsPanel } from './media-tool/JobsPanel';
 import { SettingsPanel } from './media-tool/SettingsPanel';
 import { TranscribePanel } from './media-tool/TranscribePanel';
 import { btnGhost, cx, ErrLine, inputCls } from './media-tool/ui';
+import { InfoMetricCard, InfoSectionTitle } from '../InfoQueryScaffold';
 
 const LS_KEY = 'media-tool-conn-v1';
 
@@ -215,7 +216,7 @@ export const MediaToolAdmin: React.FC = () => {
         }
       />
 
-      <div className={`${logSharePanelClass} space-y-4 p-5`}>
+      <div className={`${studioSurfaceClassName} space-y-4 p-5`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm font-semibold text-slate-800">运行目标</div>
           <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">

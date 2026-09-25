@@ -33,23 +33,25 @@ import { LibreChatContext, LibreChatContextValue } from './LibreChatContext';
 import { LibreChatRealtimeDialog } from './LibreChatRealtimeDialog';
 import { getBackendErrorMessage } from '../utils/backendError';
 import {
+  studioFieldClassName,
+  studioPrimaryButtonClassName,
+  studioSecondaryButtonClassName,
+  studioSurfaceClassName,
+  studioTileClassName,
+} from './studioTheme';
+import {
   InfoBadge,
   InfoPanel,
   InfoQueryHero,
   InfoQueryShell,
   InfoSectionTitle,
-  logShareInputClass,
-  logSharePanelClass,
-  logSharePrimaryButtonClass,
-  logShareSecondaryButtonClass,
-  logShareTileClass
-} from './LogShareStyleScaffold';
+} from './InfoQueryScaffold';
 
-const librePanelClass = logSharePanelClass;
-const libreTileClass = logShareTileClass;
-const libreInputClass = logShareInputClass;
-const librePrimaryButtonClass = logSharePrimaryButtonClass;
-const libreGhostButtonClass = logShareSecondaryButtonClass;
+const librePanelClass = studioSurfaceClassName;
+const libreTileClass = studioTileClassName;
+const libreInputClass = studioFieldClassName;
+const librePrimaryButtonClass = studioPrimaryButtonClassName;
+const libreGhostButtonClass = studioSecondaryButtonClassName;
 
 // 将英文标点符号替换为中文标点符号
 function convertToChinesePunctuation(text: string): string {

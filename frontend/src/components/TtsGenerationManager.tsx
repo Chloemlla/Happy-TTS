@@ -20,7 +20,7 @@ import type {
 } from "../types/tts";
 import { cn } from "../utils/cn";
 import { SimpleLoadingSpinner } from "./LoadingSpinner";
-import { InfoSectionTitle } from "./LogShareStyleScaffold";
+import { InfoSectionTitle } from './InfoQueryScaffold';
 import { useNotification } from "./Notification";
 import { useAuth } from "../hooks/useAuth";
 import { isSuperAdmin } from "../utils/rbac";

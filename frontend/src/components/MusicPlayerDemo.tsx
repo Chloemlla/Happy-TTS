@@ -6,12 +6,7 @@ import {
   List, ChevronUp, X, Plus
 } from 'lucide-react';
 import { FaMusic } from 'react-icons/fa';
-import {
-  InfoBadge,
-  InfoPanel,
-  InfoQueryHero,
-  InfoQueryShell,
-} from './LogShareStyleScaffold';
+import { InfoBadge, InfoPanel, InfoQueryHero, InfoQueryShell } from './InfoQueryScaffold';
 
 // 音乐播放器UI展示页面 (类似Spotify深色主题)
 const MusicPlayerDemo: React.FC = () => {

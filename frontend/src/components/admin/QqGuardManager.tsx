@@ -13,16 +13,13 @@ import {
 import { qqGuardApi } from '../../api/qqGuard';
 import type { QqGuardPendingTask, QqGuardStats, QqGuardHealth } from '../../api/qqGuard';
 import { SimpleLoadingSpinner } from '../LoadingSpinner';
-import {
-  InfoMetricCard,
-  InfoSectionTitle,
-  logSharePanelClass,
-} from '../LogShareStyleScaffold';
+import { studioSurfaceClassName } from '../studioTheme';
 import { AuditLogPanel } from './qq-guard/AuditLogPanel';
 import { WhitelistPanel } from './qq-guard/WhitelistPanel';
 import { CommandPanel } from './qq-guard/CommandPanel';
 import { TimelineDrawer } from './qq-guard/TimelineDrawer';
 import { cx, formatDateTime, shortText } from './qq-guard/ui';
+import { InfoMetricCard, InfoSectionTitle } from '../InfoQueryScaffold';
 
 type TabKey = 'overview' | 'audit' | 'whitelist' | 'commands';
 
@@ -199,7 +196,7 @@ export const QqGuardManager: React.FC = () => {
       {tab === 'overview' ? (
         <div className="space-y-5">
           {healthBar(health)}
-          <div className={cx(logSharePanelClass, 'p-5')}>
+          <div className={cx(studioSurfaceClassName, 'p-5')}>
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
               {cards.map((card) => (
                 <InfoMetricCard key={card.label} label={card.label} value={card.value} icon={card.icon} tone={card.tone} />
@@ -217,7 +214,7 @@ export const QqGuardManager: React.FC = () => {
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{msg}</div>
           )}
 
-          <div className={cx(logSharePanelClass, 'overflow-hidden')}>
+          <div className={cx(studioSurfaceClassName, 'overflow-hidden')}>
             <div className="flex items-center justify-between px-5 pt-4">
               <div className="text-sm font-semibold text-slate-800">
                 待复审任务

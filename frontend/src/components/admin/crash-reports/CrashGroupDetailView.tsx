@@ -13,15 +13,7 @@ import {
   FaUsers,
 } from 'react-icons/fa';
 import type { FullCrashReport } from '@/api/crashReports';
-import {
-  InfoBadge,
-  InfoMetricCard,
-  InfoPanel,
-  InfoPrimaryButton,
-  InfoQueryHero,
-  InfoQueryShell,
-  logShareInputClass,
-} from '@/components/LogShareStyleScaffold';
+import { studioFieldClassName } from '@/components/studioTheme';
 import { REPORT_SORTS, type ReportSortKey } from './constants';
 import {
   buildGroupReportsText,
@@ -38,6 +30,14 @@ import {
 } from './format';
 import { buildReportsCsv, downloadCsvFile, downloadJsonFile, downloadTextFile, fileStamp } from './exporters';
 import { CollapsibleBlock, CopyButton, DetailField, DownloadButton, ToolbarSelect } from './ui';
+import {
+  InfoBadge,
+  InfoMetricCard,
+  InfoPanel,
+  InfoPrimaryButton,
+  InfoQueryHero,
+  InfoQueryShell,
+} from '../../InfoQueryScaffold';
 
 interface Props {
   groupKey: string;
@@ -182,7 +182,7 @@ const CrashGroupDetailView: React.FC<Props> = ({
               if (event.key === 'Escape') setSearch('');
             }}
             placeholder="在已加载报告中搜索异常类型 / 根因 / 设备 / 线程 / 堆栈"
-            className={logShareInputClass}
+            className={studioFieldClassName}
           />
           {search ? (
             <button

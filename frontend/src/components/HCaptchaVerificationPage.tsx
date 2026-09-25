@@ -4,13 +4,8 @@ import { FaShieldAlt } from 'react-icons/fa';
 import HCaptchaWidget, { HCaptchaWidgetRef } from './HCaptchaWidget';
 import { SimpleLoadingSpinner } from './LoadingSpinner';
 import { api } from '../api/api';
-import {
-  InfoBadge,
-  InfoPanel,
-  InfoQueryShell,
-  logSharePrimaryButtonClass,
-  logShareSecondaryButtonClass,
-} from './LogShareStyleScaffold';
+import { studioPrimaryButtonClassName, studioSecondaryButtonClassName } from './studioTheme';
+import { InfoBadge, InfoPanel, InfoQueryShell } from './InfoQueryScaffold';
 
 interface VerificationResult {
   success: boolean;
@@ -325,7 +320,7 @@ const HCaptchaVerificationPageFrame: React.FC<HCaptchaVerificationPageFrameProps
             {backAction && (
               <button
                 onClick={backAction.onBack}
-                className={`flex-1 ${logShareSecondaryButtonClass}`}
+                className={`flex-1 ${studioSecondaryButtonClassName}`}
               >
                 {backAction.label}
               </button>
@@ -334,7 +329,7 @@ const HCaptchaVerificationPageFrame: React.FC<HCaptchaVerificationPageFrameProps
             {(error || (verificationResult && !verificationResult.success)) && (
               <button
                 onClick={handleRetry}
-                className={`flex-1 ${logSharePrimaryButtonClass}`}
+                className={`flex-1 ${studioPrimaryButtonClassName}`}
               >
                 重新验证
               </button>
@@ -343,7 +338,7 @@ const HCaptchaVerificationPageFrame: React.FC<HCaptchaVerificationPageFrameProps
             {verificationResult?.success && (
               <button
                 onClick={() => window.location.reload()}
-                className={`flex-1 ${logSharePrimaryButtonClass}`}
+                className={`flex-1 ${studioPrimaryButtonClassName}`}
               >
                 继续
               </button>

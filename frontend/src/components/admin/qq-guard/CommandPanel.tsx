@@ -3,13 +3,9 @@ import { FaPaperPlane, FaRedo, FaTerminal } from 'react-icons/fa';
 import { qqGuardApi } from '../../../api/qqGuard';
 import type { QqGuardCommandRow } from '../../../api/qqGuard';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
-import {
-  InfoSectionTitle,
-  logSharePanelClass,
-  logSharePrimaryButtonClass,
-  logShareSecondaryButtonClass,
-} from '../../LogShareStyleScaffold';
+import { studioPrimaryButtonClassName, studioSecondaryButtonClassName, studioSurfaceClassName } from '../../studioTheme';
 import { cx, formatDateTime, shortText } from './ui';
+import { InfoSectionTitle } from '../../InfoQueryScaffold';
 
 const inputClass =
   'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition focus:border-indigo-300';
@@ -132,7 +128,7 @@ export const CommandPanel: React.FC = () => {
         <button
           type="submit"
           disabled={busyAction !== null}
-          className={logSharePrimaryButtonClass}
+          className={studioPrimaryButtonClassName}
         >
           <FaPaperPlane className="text-xs" />
           {busyAction === action ? '下发中...' : '下发'}
@@ -156,7 +152,7 @@ export const CommandPanel: React.FC = () => {
           icon={FaTerminal}
           tone="violet"
         />
-        <button onClick={() => void load()} disabled={loading} className={logShareSecondaryButtonClass}>
+        <button onClick={() => void load()} disabled={loading} className={studioSecondaryButtonClassName}>
           <FaRedo className="text-sm" />
           刷新
         </button>
@@ -201,7 +197,7 @@ export const CommandPanel: React.FC = () => {
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{msg}</div>
       )}
 
-      <div className={cx(logSharePanelClass, 'overflow-hidden')}>
+      <div className={cx(studioSurfaceClassName, 'overflow-hidden')}>
         <div className="px-5 pt-4 text-sm font-semibold text-slate-800">最近命令</div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-left text-sm">

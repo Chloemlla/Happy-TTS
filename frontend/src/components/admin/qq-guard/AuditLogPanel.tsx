@@ -3,13 +3,9 @@ import { FaListUl, FaRedo, FaSearch } from 'react-icons/fa';
 import { qqGuardApi } from '../../../api/qqGuard';
 import type { QqGuardAuditRow } from '../../../api/qqGuard';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
-import {
-  InfoSectionTitle,
-  logSharePanelClass,
-  logSharePrimaryButtonClass,
-  logShareSecondaryButtonClass,
-} from '../../LogShareStyleScaffold';
+import { studioPrimaryButtonClassName, studioSecondaryButtonClassName, studioSurfaceClassName } from '../../studioTheme';
 import { cx, eventBadge, formatDateTime, shortText } from './ui';
+import { InfoSectionTitle } from '../../InfoQueryScaffold';
 
 const PAGE_SIZE = 30;
 
@@ -113,7 +109,7 @@ export const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ onOpenTrace }) => 
           icon={FaListUl}
           tone="slate"
         />
-        <button onClick={refresh} disabled={loading} className={logShareSecondaryButtonClass}>
+        <button onClick={refresh} disabled={loading} className={studioSecondaryButtonClassName}>
           <FaRedo className="text-sm" />
           刷新
         </button>
@@ -163,7 +159,7 @@ export const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ onOpenTrace }) => 
           <option value="clean">clean</option>
           <option value="undetermined">undetermined</option>
         </select>
-        <button type="submit" className={cx(logSharePrimaryButtonClass, 'col-span-2 sm:col-span-1')}>
+        <button type="submit" className={cx(studioPrimaryButtonClassName, 'col-span-2 sm:col-span-1')}>
           <FaSearch className="text-xs" />
           查询
         </button>
@@ -173,7 +169,7 @@ export const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ onOpenTrace }) => 
         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
       )}
 
-      <div className={cx(logSharePanelClass, 'overflow-hidden')}>
+      <div className={cx(studioSurfaceClassName, 'overflow-hidden')}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-left text-sm">
             <thead>
@@ -246,14 +242,14 @@ export const AuditLogPanel: React.FC<AuditLogPanelProps> = ({ onOpenTrace }) => 
             <button
               onClick={() => goTo(page - 1)}
               disabled={page <= 1 || loading}
-              className={logShareSecondaryButtonClass}
+              className={studioSecondaryButtonClassName}
             >
               上一页
             </button>
             <button
               onClick={() => goTo(page + 1)}
               disabled={page >= totalPages || loading}
-              className={logSharePrimaryButtonClass}
+              className={studioPrimaryButtonClassName}
             >
               下一页
             </button>

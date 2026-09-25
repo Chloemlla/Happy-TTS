@@ -22,16 +22,14 @@ import { turnstileApi, type FingerprintStats } from '../api/turnstile';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
 import { useNotification } from './Notification';
+import { studioDangerButtonClassName, studioFieldClassName, studioSecondaryButtonClassName } from './studioTheme';
 import {
   InfoBadge,
   InfoMetricCard,
   InfoPanel,
   InfoPrimaryButton,
   InfoSectionTitle,
-  logShareDangerButtonClass,
-  logShareInputClass,
-  logShareSecondaryButtonClass,
-} from './LogShareStyleScaffold';
+} from './InfoQueryScaffold';
 
 interface FingerprintRecord {
   id: string;
@@ -338,7 +336,7 @@ export default function FingerprintManager() {
           description="统一查看临时验证指纹与用户账号指纹，用户级数据与用户管理页面使用同一套管理端接口。"
           icon={FaFingerprint}
           action={
-            <Link to="/admin" className={logShareSecondaryButtonClass}>
+            <Link to="/admin" className={studioSecondaryButtonClassName}>
               <FaInfoCircle className="text-xs" />
               返回仪表板
             </Link>
@@ -355,7 +353,7 @@ export default function FingerprintManager() {
                 if (event.key === 'Enter') handleSearch();
               }}
               placeholder="用户名、邮箱、用户ID、登录IP"
-              className={logShareInputClass}
+              className={studioFieldClassName}
             />
           </label>
           <label className="space-y-2 text-sm font-semibold text-slate-700">
@@ -366,7 +364,7 @@ export default function FingerprintManager() {
                 setSecurityFilter(event.target.value as SecurityFilter);
                 setPage(1);
               }}
-              className={logShareInputClass}
+              className={studioFieldClassName}
             >
               <option value="all">全部用户</option>
               <option value="fingerprintRequired">需上报指纹</option>
@@ -380,7 +378,7 @@ export default function FingerprintManager() {
                 setPageSize(Number(event.target.value));
                 setPage(1);
               }}
-              className={logShareInputClass}
+              className={studioFieldClassName}
             >
               {[10, 20, 50, 100].map((value) => (
                 <option key={value} value={value}>{value} 条</option>
@@ -392,7 +390,7 @@ export default function FingerprintManager() {
               <FaSearch className="text-xs" />
               查询
             </InfoPrimaryButton>
-            <button type="button" onClick={handleRefresh} disabled={refreshing} className={logShareSecondaryButtonClass}>
+            <button type="button" onClick={handleRefresh} disabled={refreshing} className={studioSecondaryButtonClassName}>
               <FaSync className={`text-xs ${refreshing ? 'animate-spin' : ''}`} />
               刷新
             </button>
@@ -418,7 +416,7 @@ export default function FingerprintManager() {
                 type="button"
                 onClick={handleCleanup}
                 disabled={!canWrite || cleaning || (tempStats?.expired || 0) <= 0}
-                className={logShareDangerButtonClass}
+                className={studioDangerButtonClassName}
               >
                 <FaTrash className={`text-xs ${cleaning ? 'animate-spin' : ''}`} />
                 清理过期临时指纹
@@ -482,7 +480,7 @@ export default function FingerprintManager() {
                       </td>
                       <td className="px-3 py-3 align-top">
                         <div className="flex flex-wrap gap-2">
-                          <button type="button" onClick={() => void openUserDetail(user)} className={logShareSecondaryButtonClass}>
+                          <button type="button" onClick={() => void openUserDetail(user)} className={studioSecondaryButtonClassName}>
                             <FaEye className="text-xs" />
                             查看
                           </button>
@@ -490,7 +488,7 @@ export default function FingerprintManager() {
                             type="button"
                             onClick={() => void requestUserFingerprint(user.id)}
                             disabled={!canWrite || actionUserId === user.id}
-                            className={logShareSecondaryButtonClass}
+                            className={studioSecondaryButtonClassName}
                           >
                             <FaUserShield className="text-xs" />
                             上报
@@ -520,7 +518,7 @@ export default function FingerprintManager() {
                 type="button"
                 disabled={page <= 1}
                 onClick={() => setPage((current) => Math.max(1, current - 1))}
-                className={logShareSecondaryButtonClass}
+                className={studioSecondaryButtonClassName}
               >
                 上一页
               </button>
@@ -528,7 +526,7 @@ export default function FingerprintManager() {
                 type="button"
                 disabled={page >= pagination.totalPages}
                 onClick={() => setPage((current) => Math.min(pagination.totalPages, current + 1))}
-                className={logShareSecondaryButtonClass}
+                className={studioSecondaryButtonClassName}
               >
                 下一页
               </button>
@@ -565,7 +563,7 @@ export default function FingerprintManager() {
                     type="button"
                     onClick={() => void requestUserFingerprint(selectedUser.id)}
                     disabled={!canWrite || actionUserId === selectedUser.id}
-                    className={logShareSecondaryButtonClass}
+                    className={studioSecondaryButtonClassName}
                   >
                     <FaUserShield className="text-xs" />
                     请求下次上报
@@ -574,7 +572,7 @@ export default function FingerprintManager() {
                     type="button"
                     onClick={() => void clearUserFingerprints(selectedUser.id)}
                     disabled={!canWrite || actionUserId === selectedUser.id || selectedFingerprints.length === 0}
-                    className={logShareDangerButtonClass}
+                    className={studioDangerButtonClassName}
                   >
                     <FaTrash className="text-xs" />
                     清空全部
@@ -603,7 +601,7 @@ export default function FingerprintManager() {
                           <button
                             type="button"
                             onClick={() => void copyText(record.id, '指纹 ID 已复制')}
-                            className={logShareSecondaryButtonClass}
+                            className={studioSecondaryButtonClassName}
                           >
                             <FaClipboard className="text-xs" />
                             复制
@@ -634,7 +632,7 @@ export default function FingerprintManager() {
                             type="button"
                             onClick={() => void deleteUserFingerprint(selectedUser.id, record, recordKey)}
                             disabled={!canWrite || deletingFingerprintKey === recordKey}
-                            className={logShareDangerButtonClass}
+                            className={studioDangerButtonClassName}
                           >
                             <FaTrash className="text-xs" />
                             删除

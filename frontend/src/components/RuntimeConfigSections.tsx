@@ -4,12 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import { getConfigurationSectionKey } from './env-manager/configurationNotice';
-import {
-  logSharePrimaryButtonClass,
-  logShareSecondaryButtonClass,
-  logShareDangerButtonClass,
-  logShareInputClass,
-} from './LogShareStyleScaffold';
+import { studioDangerButtonClassName, studioFieldClassName, studioPrimaryButtonClassName, studioSecondaryButtonClassName } from './studioTheme';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
 import { getBackendErrorMessage } from '../utils/backendError';
@@ -142,7 +137,7 @@ function SectionCard(props: {
             type="button"
             onClick={onRefresh}
             disabled={loading}
-            className={logSharePrimaryButtonClass}
+            className={studioPrimaryButtonClassName}
           >
             <FaSync className={loading ? 'animate-spin' : ''} />
             刷新
@@ -150,7 +145,7 @@ function SectionCard(props: {
           <button
             type="button"
             onClick={onToggle}
-            className={logShareSecondaryButtonClass}
+            className={studioSecondaryButtonClassName}
           >
             <FaChevronDown className={`transition-transform ${isOpen ? '' : '-rotate-90'}`} />
             {isOpen ? '收起' : '展开'}
@@ -975,7 +970,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={adminOperationPasswordInput}
               onChange={(e) => setAdminOperationPasswordInput(e.target.value)}
               placeholder="用于 LogShare、CommandManager，留空表示保持现有"
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -986,7 +981,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={serverStatusPasswordInput}
               onChange={(e) => setServerStatusPasswordInput(e.target.value)}
               placeholder="用于服务器状态接口，留空表示保持现有"
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -997,7 +992,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={publicShortUrlPasswordInput}
               onChange={(e) => setPublicShortUrlPasswordInput(e.target.value)}
               placeholder="用于匿名公共短链创建，留空表示保持现有"
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1019,7 +1014,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={deleteAdminSecuritySetting}
               disabled={adminSecurityDeleting || !canWrite}
-              className={`${logShareDangerButtonClass} disabled:opacity-40 disabled:cursor-not-allowed`}
+              className={`${studioDangerButtonClassName} disabled:opacity-40 disabled:cursor-not-allowed`}
             >
               {adminSecurityDeleting ? '重置中...' : '重置'}
             </button>
@@ -1027,7 +1022,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={saveAdminSecuritySetting}
               disabled={adminSecuritySaving || !canWrite}
-              className={`${logSharePrimaryButtonClass} disabled:opacity-40 disabled:cursor-not-allowed`}
+              className={`${studioPrimaryButtonClassName} disabled:opacity-40 disabled:cursor-not-allowed`}
             >
               {adminSecuritySaving ? '保存中...' : '保存'}
             </button>
@@ -1052,7 +1047,7 @@ const RuntimeConfigSections: React.FC = () => {
               onChange={(e) => setIpqsApiKeysInput(e.target.value)}
               rows={4}
               placeholder="每行一个，或用逗号分隔"
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
             <div className="mt-2 text-xs text-slate-500">
@@ -1067,7 +1062,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={ipqsForm.scamalyticsUser}
               onChange={(e) => setIpqsForm((prev) => ({ ...prev, scamalyticsUser: e.target.value }))}
               placeholder="留空表示使用默认用户名"
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1079,7 +1074,7 @@ const RuntimeConfigSections: React.FC = () => {
               max={3}
               value={ipqsForm.strictness}
               onChange={(e) => setIpqsForm((prev) => ({ ...prev, strictness: Number(e.target.value) || 0 }))}
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1090,7 +1085,7 @@ const RuntimeConfigSections: React.FC = () => {
               min={1}
               value={ipqsForm.tokenTtlMinutes}
               onChange={(e) => setIpqsForm((prev) => ({ ...prev, tokenTtlMinutes: Number(e.target.value) || 1 }))}
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1101,7 +1096,7 @@ const RuntimeConfigSections: React.FC = () => {
               min={1000}
               value={ipqsForm.timeoutMs}
               onChange={(e) => setIpqsForm((prev) => ({ ...prev, timeoutMs: Number(e.target.value) || 1000 }))}
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1112,7 +1107,7 @@ const RuntimeConfigSections: React.FC = () => {
               min={1}
               value={ipqsForm.monthlyQuotaPerKey}
               onChange={(e) => setIpqsForm((prev) => ({ ...prev, monthlyQuotaPerKey: Number(e.target.value) || 1 }))}
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1124,7 +1119,7 @@ const RuntimeConfigSections: React.FC = () => {
               max={100}
               value={ipqsForm.challengeFraudScore}
               onChange={(e) => setIpqsForm((prev) => ({ ...prev, challengeFraudScore: Number(e.target.value) || 0 }))}
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1156,7 +1151,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={deleteIpqsSetting}
               disabled={ipqsDeleting || !canWrite}
-              className={`${logShareDangerButtonClass} disabled:opacity-40 disabled:cursor-not-allowed`}
+              className={`${studioDangerButtonClassName} disabled:opacity-40 disabled:cursor-not-allowed`}
             >
               {ipqsDeleting ? '重置中...' : '重置'}
             </button>
@@ -1164,7 +1159,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={saveIpqsSetting}
               disabled={ipqsSaving || !canWrite}
-              className={`${logSharePrimaryButtonClass} disabled:opacity-40 disabled:cursor-not-allowed`}
+              className={`${studioPrimaryButtonClassName} disabled:opacity-40 disabled:cursor-not-allowed`}
             >
               {ipqsSaving ? '保存中...' : '保存'}
             </button>
@@ -1187,7 +1182,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={linuxdoForm.clientId}
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, clientId: e.target.value }))}
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1197,7 +1192,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={linuxdoSecretInput}
               onChange={(e) => setLinuxdoSecretInput(e.target.value)}
               placeholder="留空表示保持现有 Client Secret"
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1206,7 +1201,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={linuxdoForm.discoveryUrl}
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, discoveryUrl: e.target.value }))}
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1215,7 +1210,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={linuxdoForm.scopes}
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, scopes: e.target.value }))}
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1224,7 +1219,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={linuxdoForm.authorizationEndpoint}
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, authorizationEndpoint: e.target.value }))}
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1233,7 +1228,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={linuxdoForm.tokenEndpoint}
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, tokenEndpoint: e.target.value }))}
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1242,7 +1237,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={linuxdoForm.userEndpoint}
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, userEndpoint: e.target.value }))}
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1251,7 +1246,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={linuxdoForm.forumBaseUrl}
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, forumBaseUrl: e.target.value }))}
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1260,7 +1255,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={linuxdoForm.callbackUrl}
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, callbackUrl: e.target.value }))}
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
             <p className="mt-1 text-xs text-slate-500">
@@ -1272,7 +1267,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={linuxdoForm.frontendCallbackUrl}
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, frontendCallbackUrl: e.target.value }))}
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
             <p className="mt-1 text-xs text-slate-500">
@@ -1289,7 +1284,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={deleteLinuxDoSetting}
               disabled={linuxdoDeleting || !canWrite}
-              className={`${logShareDangerButtonClass} disabled:opacity-40 disabled:cursor-not-allowed`}
+              className={`${studioDangerButtonClassName} disabled:opacity-40 disabled:cursor-not-allowed`}
             >
               {linuxdoDeleting ? '重置中...' : '重置'}
             </button>
@@ -1297,7 +1292,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={saveLinuxDoSetting}
               disabled={linuxdoSaving || !canWrite}
-              className={`${logSharePrimaryButtonClass} disabled:opacity-40 disabled:cursor-not-allowed`}
+              className={`${studioPrimaryButtonClassName} disabled:opacity-40 disabled:cursor-not-allowed`}
             >
               {linuxdoSaving ? '保存中...' : '保存'}
             </button>
@@ -1335,7 +1330,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={() => googleAuthImportInputRef.current?.click()}
               disabled={googleAuthImporting || !canWrite}
-              className={`${logSharePrimaryButtonClass} disabled:opacity-40 disabled:cursor-not-allowed`}
+              className={`${studioPrimaryButtonClassName} disabled:opacity-40 disabled:cursor-not-allowed`}
             >
               <FaUpload />
               {googleAuthImporting ? '导入中...' : '导入 JSON'}
@@ -1350,7 +1345,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={googleAuthForm.clientId}
               onChange={(e) => setGoogleAuthForm((prev) => ({ ...prev, clientId: e.target.value }))}
               placeholder="GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com"
-              className={logShareInputClass}
+              className={studioFieldClassName}
               autoComplete="off"
               spellCheck={false}
               disabled={!canWrite}
@@ -1368,7 +1363,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={deleteGoogleAuthSetting}
               disabled={googleAuthDeleting || googleAuthImporting || !canWrite}
-              className={`${logShareDangerButtonClass} disabled:opacity-40 disabled:cursor-not-allowed`}
+              className={`${studioDangerButtonClassName} disabled:opacity-40 disabled:cursor-not-allowed`}
             >
               {googleAuthDeleting ? '重置中...' : '重置'}
             </button>
@@ -1376,7 +1371,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={saveGoogleAuthSetting}
               disabled={googleAuthSaving || googleAuthImporting || !canWrite}
-              className={`${logSharePrimaryButtonClass} disabled:opacity-40 disabled:cursor-not-allowed`}
+              className={`${studioPrimaryButtonClassName} disabled:opacity-40 disabled:cursor-not-allowed`}
             >
               {googleAuthSaving ? '保存中...' : '保存'}
             </button>
@@ -1400,7 +1395,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={deeplxForm.baseUrl}
               onChange={(e) => setDeeplxForm((prev) => ({ ...prev, baseUrl: e.target.value }))}
               placeholder="https://api.deeplx.org"
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1410,7 +1405,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={deeplxApiKeyInput}
               onChange={(e) => setDeeplxApiKeyInput(e.target.value)}
               placeholder="留空表示保持现有 API Key"
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1429,7 +1424,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={deleteDeepLXSetting}
               disabled={deeplxDeleting || !canWrite}
-              className={`${logShareDangerButtonClass} disabled:opacity-40 disabled:cursor-not-allowed`}
+              className={`${studioDangerButtonClassName} disabled:opacity-40 disabled:cursor-not-allowed`}
             >
               {deeplxDeleting ? '重置中...' : '重置'}
             </button>
@@ -1437,7 +1432,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={saveDeepLXSetting}
               disabled={deeplxSaving || !canWrite}
-              className={`${logSharePrimaryButtonClass} disabled:opacity-40 disabled:cursor-not-allowed`}
+              className={`${studioPrimaryButtonClassName} disabled:opacity-40 disabled:cursor-not-allowed`}
             >
               {deeplxSaving ? '保存中...' : '保存'}
             </button>
@@ -1461,7 +1456,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={nexaiJwtSecretInput}
               onChange={(e) => setNexaiJwtSecretInput(e.target.value)}
               placeholder="留空表示保持现有 JWT Secret"
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1470,7 +1465,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={nexaiForm.frontendUrl}
               onChange={(e) => setNexaiForm((prev) => ({ ...prev, frontendUrl: e.target.value }))}
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1479,7 +1474,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={nexaiForm.jwtExpiresIn}
               onChange={(e) => setNexaiForm((prev) => ({ ...prev, jwtExpiresIn: e.target.value }))}
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1488,7 +1483,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={nexaiForm.refreshExpiresIn}
               onChange={(e) => setNexaiForm((prev) => ({ ...prev, refreshExpiresIn: e.target.value }))}
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1498,7 +1493,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={nexaiForm.googleClientId}
               onChange={(e) => setNexaiForm((prev) => ({ ...prev, googleClientId: e.target.value }))}
               placeholder="NEXAI_GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com"
-              className={logShareInputClass}
+              className={studioFieldClassName}
               autoComplete="off"
               spellCheck={false}
               disabled={!canWrite}
@@ -1512,7 +1507,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={nexaiForm.githubClientId}
               onChange={(e) => setNexaiForm((prev) => ({ ...prev, githubClientId: e.target.value }))}
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1522,7 +1517,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={nexaiGithubSecretInput}
               onChange={(e) => setNexaiGithubSecretInput(e.target.value)}
               placeholder="留空表示保持现有 GitHub Client Secret"
-              className={logShareInputClass}
+              className={studioFieldClassName}
               disabled={!canWrite}
             />
           </div>
@@ -1535,7 +1530,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={deleteNexaiSetting}
               disabled={nexaiDeleting || !canWrite}
-              className={`${logShareDangerButtonClass} disabled:opacity-40 disabled:cursor-not-allowed`}
+              className={`${studioDangerButtonClassName} disabled:opacity-40 disabled:cursor-not-allowed`}
             >
               {nexaiDeleting ? '重置中...' : '重置'}
             </button>
@@ -1543,7 +1538,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={saveNexaiSetting}
               disabled={nexaiSaving || !canWrite}
-              className={`${logSharePrimaryButtonClass} disabled:opacity-40 disabled:cursor-not-allowed`}
+              className={`${studioPrimaryButtonClassName} disabled:opacity-40 disabled:cursor-not-allowed`}
             >
               {nexaiSaving ? '保存中...' : '保存'}
             </button>

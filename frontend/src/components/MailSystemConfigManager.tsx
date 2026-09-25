@@ -7,14 +7,8 @@ import { isSuperAdmin } from '../utils/rbac';
 import { getBackendErrorMessage } from '../utils/backendError';
 import { SimpleLoadingSpinner } from './LoadingSpinner';
 import { useNotification } from './Notification';
-import {
-  InfoPanel,
-  InfoSectionTitle,
-  logShareDangerButtonClass,
-  logShareInputClass,
-  logShareSecondaryButtonClass,
-  logSharePrimaryButtonClass,
-} from './LogShareStyleScaffold';
+import { studioDangerButtonClassName, studioFieldClassName, studioPrimaryButtonClassName, studioSecondaryButtonClassName } from './studioTheme';
+import { InfoPanel, InfoSectionTitle } from './InfoQueryScaffold';
 
 const MAIL_SYSTEM_API = `${getApiBaseUrl()}/api/admin/email-system/setting`;
 
@@ -299,7 +293,7 @@ const MailSystemConfigManager: React.FC = () => {
               type="button"
               onClick={loadSetting}
               disabled={loading || saving || resetting}
-              className={logShareSecondaryButtonClass}
+              className={studioSecondaryButtonClassName}
               whileTap={{ scale: 0.97 }}
             >
               <FaSync className={loading ? 'animate-spin' : ''} />
@@ -309,7 +303,7 @@ const MailSystemConfigManager: React.FC = () => {
               type="button"
               onClick={resetSetting}
               disabled={saving || resetting || !canWrite}
-              className={logShareDangerButtonClass}
+              className={studioDangerButtonClassName}
               whileTap={{ scale: 0.97 }}
             >
               {resetting ? <FaRedo className="animate-spin" /> : <FaTrash />}
@@ -319,7 +313,7 @@ const MailSystemConfigManager: React.FC = () => {
               type="button"
               onClick={saveSetting}
               disabled={saving || resetting || !canWrite}
-              className={logSharePrimaryButtonClass}
+              className={studioPrimaryButtonClassName}
               whileTap={{ scale: 0.97 }}
             >
               {saving ? <FaRedo className="animate-spin" /> : <FaSave />}
@@ -363,7 +357,7 @@ const MailSystemConfigManager: React.FC = () => {
                   onChange={(event) => setForm((prev) => ({ ...prev, resendDomain: event.target.value }))}
                   placeholder="example.com"
                   disabled={!canWrite}
-                  className={`${logShareInputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`${studioFieldClassName} disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
               </div>
               <div>
@@ -374,7 +368,7 @@ const MailSystemConfigManager: React.FC = () => {
                   onChange={(event) => setResendApiKey(event.target.value)}
                   placeholder="留空表示保留现有 API Key"
                   disabled={!canWrite}
-                  className={`${logShareInputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`${studioFieldClassName} disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
               </div>
               <div>
@@ -385,7 +379,7 @@ const MailSystemConfigManager: React.FC = () => {
                   value={form.quotaTotal}
                   onChange={(event) => setForm((prev) => ({ ...prev, quotaTotal: Number(event.target.value) || 1 }))}
                   disabled={!canWrite}
-                  className={`${logShareInputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`${studioFieldClassName} disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
               </div>
             </div>
@@ -413,7 +407,7 @@ const MailSystemConfigManager: React.FC = () => {
                   onChange={(event) => setForm((prev) => ({ ...prev, outemailDomain: event.target.value }))}
                   placeholder="example.com"
                   disabled={!canWrite}
-                  className={`${logShareInputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`${studioFieldClassName} disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
               </div>
               <div>
@@ -424,7 +418,7 @@ const MailSystemConfigManager: React.FC = () => {
                   onChange={(event) => setOutemailApiKey(event.target.value)}
                   placeholder="留空表示保留现有 API Key"
                   disabled={!canWrite}
-                  className={`${logShareInputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`${studioFieldClassName} disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
               </div>
               <div>
@@ -435,7 +429,7 @@ const MailSystemConfigManager: React.FC = () => {
                   onChange={(event) => setOutemailCode(event.target.value)}
                   placeholder="留空表示保留现有校验码"
                   disabled={!canWrite}
-                  className={`${logShareInputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`${studioFieldClassName} disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
               </div>
               <div>
@@ -446,7 +440,7 @@ const MailSystemConfigManager: React.FC = () => {
                   value={form.outemailQuotaTotal}
                   onChange={(event) => setForm((prev) => ({ ...prev, outemailQuotaTotal: Number(event.target.value) || 1 }))}
                   disabled={!canWrite}
-                  className={`${logShareInputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`${studioFieldClassName} disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
               </div>
             </div>

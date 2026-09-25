@@ -11,11 +11,7 @@ import {
   VERIFY_TTL_MS,
 } from '@/utils/adminVerifyCache';
 import { SimpleLoadingSpinner } from '@/components/LoadingSpinner';
-import {
-  InfoPanel,
-  InfoPrimaryButton,
-  InfoQueryShell,
-} from '@/components/LogShareStyleScaffold';
+import { InfoPanel, InfoPrimaryButton, InfoQueryShell } from '@/components/InfoQueryScaffold';
 import { useNotification } from '@/components/Notification';
 import { FaShieldAlt, FaExclamationCircle } from 'react-icons/fa';
 

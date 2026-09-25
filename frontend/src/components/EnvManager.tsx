@@ -55,16 +55,8 @@ import {
   FaCog, FaLock, FaList, FaSync, FaInfoCircle, FaCheckCircle, FaChevronDown, FaEdit, FaTrash, FaCheck, FaTimes,
 } from 'react-icons/fa';
 import { DURATION_06, DURATION_03, ENTER_ANIMATE, ENTER_INITIAL, NO_DURATION } from './env-manager/motion';
-import {
-  InfoPanel,
-  InfoSectionTitle,
-  InfoBadge,
-  InfoQueryHero,
-  logSharePanelClass,
-  logShareInputClass,
-  logSharePrimaryButtonClass,
-  logShareSecondaryButtonClass,
-} from './LogShareStyleScaffold';
+import { studioFieldClassName, studioPrimaryButtonClassName, studioSecondaryButtonClassName, studioSurfaceClassName } from './studioTheme';
+import { InfoBadge, InfoPanel, InfoQueryHero } from './InfoQueryScaffold';
 
 export { handleSourceClick, handleSourceModalClose };
 
@@ -378,17 +370,17 @@ const EnvManager: React.FC = () => {
         )}
 
         {/* Env Vars Table */}
-        <m.section data-env-section="envs" className={logSharePanelClass} initial={ENTER_INITIAL} animate={ENTER_ANIMATE} transition={trans06}>
+        <m.section data-env-section="envs" className={studioSurfaceClassName} initial={ENTER_INITIAL} animate={ENTER_ANIMATE} transition={trans06}>
           <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="text-lg font-semibold text-slate-800">环境变量列表</h3>
               <p className="mt-1 text-sm text-slate-500">查看系统环境变量配置，支持加密传输、自动解密和数据来源标记。</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <m.button onClick={() => { envFetchedRef.current = true; fetchEnvs(); }} disabled={loading} className={logSharePrimaryButtonClass} whileTap={{ scale: 0.97 }}>
+              <m.button onClick={() => { envFetchedRef.current = true; fetchEnvs(); }} disabled={loading} className={studioPrimaryButtonClassName} whileTap={{ scale: 0.97 }}>
                 <FaSync className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />刷新
               </m.button>
-              <m.button onClick={() => { startTransition(() => setEnvSectionExpanded((v) => !v)); }} className={logShareSecondaryButtonClass} whileTap={{ scale: 0.97 }}>
+              <m.button onClick={() => { startTransition(() => setEnvSectionExpanded((v) => !v)); }} className={studioSecondaryButtonClassName} whileTap={{ scale: 0.97 }}>
                 <m.span animate={{ rotate: envSectionExpanded ? 0 : -90 }} transition={prefersReducedMotion ? NO_DURATION : { duration: 0.2 }} className="inline-flex"><FaChevronDown className="w-4 h-4" /></m.span>
                 {envSectionExpanded ? '收起' : '展开'}
               </m.button>
@@ -431,7 +423,7 @@ const EnvManager: React.FC = () => {
                                 </div>
                                 {editingKey === item.key ? (
                                   <div className="mt-2 space-y-2">
-                                    <input value={form.value || ''} onChange={(e) => setForm((prev) => ({ ...prev, value: e.target.value }))} className={logShareInputClass} autoComplete="off" spellCheck={false} />
+                                    <input value={form.value || ''} onChange={(e) => setForm((prev) => ({ ...prev, value: e.target.value }))} className={studioFieldClassName} autoComplete="off" spellCheck={false} />
                                     <div className="flex items-center gap-2 justify-end">
                                       <button onClick={handleCancelEdit} className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"><FaTimes className="w-3 h-3" />取消</button>
                                       <button onClick={handleSaveEdit} className="inline-flex items-center gap-1 rounded-2xl bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-800"><FaCheck className="w-3 h-3" />保存</button>
@@ -464,7 +456,7 @@ const EnvManager: React.FC = () => {
                               <td className="px-4 py-3 font-mono text-sm text-slate-700 align-top">
                                 {editingKey === item.key ? (
                                   <div className="flex items-center gap-2">
-                                    <input value={form.value || ''} onChange={(e) => setForm((prev) => ({ ...prev, value: e.target.value }))} className={`${logShareInputClass} flex-1`} autoComplete="off" spellCheck={false} />
+                                    <input value={form.value || ''} onChange={(e) => setForm((prev) => ({ ...prev, value: e.target.value }))} className={`${studioFieldClassName} flex-1`} autoComplete="off" spellCheck={false} />
                                     <button onClick={handleSaveEdit} className="p-2 text-slate-900 hover:text-slate-700 transition rounded hover:bg-slate-100" title="保存"><FaCheck className="w-4 h-4" /></button>
                                     <button onClick={handleCancelEdit} className="p-2 text-slate-400 hover:text-slate-600 transition rounded hover:bg-slate-100" title="取消"><FaTimes className="w-4 h-4" /></button>
                                   </div>
@@ -546,7 +538,7 @@ const EnvManager: React.FC = () => {
                   </div>
                   <h3 className="text-xl font-bold text-slate-900 mb-2">数据来源</h3>
                   <p className="text-slate-600 mb-6">{selectedSource}</p>
-                  <button onClick={handleSourceModalCloseWrapper} className={logSharePrimaryButtonClass}>确定</button>
+                  <button onClick={handleSourceModalCloseWrapper} className={studioPrimaryButtonClassName}>确定</button>
                 </div>
               </m.div>
             </m.div>

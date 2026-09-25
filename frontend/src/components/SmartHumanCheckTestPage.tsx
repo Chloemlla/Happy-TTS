@@ -2,17 +2,14 @@ import React, { Suspense } from 'react';
 import { FaClipboard, FaKey, FaRobot, FaShieldAlt } from 'react-icons/fa';
 import { SimpleLoadingSpinner } from './LoadingSpinner';
 import getApiBaseUrl from '../api';
+import { studioFieldClassName, studioPrimaryButtonClassName, studioSecondaryButtonClassName, studioTileClassName } from './studioTheme';
 import {
   InfoBadge,
   InfoPanel,
   InfoQueryHero,
   InfoQueryShell,
   InfoSectionTitle,
-  logShareInputClass,
-  logSharePrimaryButtonClass,
-  logShareSecondaryButtonClass,
-  logShareTileClass,
-} from './LogShareStyleScaffold';
+} from './InfoQueryScaffold';
 
 // 懒加载 SmartHumanCheck 组件
 const ManualNonceSmartHumanCheck = React.lazy(() =>
@@ -131,7 +128,7 @@ const SmartHumanCheckTestPage: React.FC = () => {
               Challenge Nonce
             </span>
             <input
-              className={`${logShareInputClass} font-mono`}
+              className={`${studioFieldClassName} font-mono`}
               placeholder="用于与后端配合的随机挑战串"
               value={nonce}
               onChange={(e) => setNonce(e.target.value)}
@@ -140,7 +137,7 @@ const SmartHumanCheckTestPage: React.FC = () => {
           <button
             onClick={fetchNonce}
             disabled={nonceLoading}
-            className={`${logShareSecondaryButtonClass} h-[46px]`}
+            className={`${studioSecondaryButtonClassName} h-[46px]`}
           >
             {nonceLoading ? '获取中...' : '从后端获取'}
           </button>
@@ -160,7 +157,7 @@ const SmartHumanCheckTestPage: React.FC = () => {
           title="验证组件"
           description="组件完成验证后会自动触发后端校验，并刷新挑战参数避免复用。"
         />
-        <div className={`${logShareTileClass} p-4`}>
+        <div className={`${studioTileClassName} p-4`}>
           <Suspense fallback={<div className="flex min-h-[180px] items-center justify-center"><SimpleLoadingSpinner size={0.9} /></div>}>
             {nonce && nonceKey ? (
               <ManualNonceSmartHumanCheck
@@ -204,14 +201,14 @@ const SmartHumanCheckTestPage: React.FC = () => {
           action={token && (
             <button
               onClick={() => navigator.clipboard.writeText(token).catch(() => {})}
-              className={logSharePrimaryButtonClass}
+              className={studioPrimaryButtonClassName}
             >
               复制
             </button>
           )}
         />
         <textarea
-          className={`${logShareInputClass} h-32 sm:h-40 font-mono text-xs`}
+          className={`${studioFieldClassName} h-32 sm:h-40 font-mono text-xs`}
           readOnly
           value={token}
           placeholder="验证通过后，这里会显示生成的 token（Base64）"

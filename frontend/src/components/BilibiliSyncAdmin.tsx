@@ -21,17 +21,14 @@ import {
 } from 'react-icons/fa';
 import { useAuth } from '@/hooks/useAuth';
 import { isAdminRole } from '@/utils/rbac';
+import { studioFieldClassName, studioSecondaryButtonClassName } from './studioTheme';
 import {
   InfoBadge,
   InfoMetricCard,
   InfoPanel,
   InfoQueryHero,
   InfoSectionTitle,
-  logShareDangerButtonClass,
-  logShareInputClass,
-  logShareSecondaryButtonClass,
-  logShareTileClass,
-} from './LogShareStyleScaffold';
+} from './InfoQueryScaffold';
 
 interface BilibiliSyncRecord {
   _id: string;
@@ -90,7 +87,7 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
   return fallback;
 };
 
-const inputClass = `${logShareInputClass} py-2.5`;
+const inputClass = `${studioFieldClassName} py-2.5`;
 
 const BilibiliSyncAdmin: React.FC = () => {
   const { user } = useAuth();
@@ -208,7 +205,7 @@ const BilibiliSyncAdmin: React.FC = () => {
         actions={
           <button
             type="button"
-            className={logShareSecondaryButtonClass}
+            className={studioSecondaryButtonClassName}
             onClick={() => fetchRecords(pagination.page, keyword)}
             disabled={loading}
           >
@@ -299,7 +296,7 @@ const BilibiliSyncAdmin: React.FC = () => {
                   type="button"
                   onClick={handleSearch}
                   disabled={loading}
-                  className={`${logShareSecondaryButtonClass} disabled:opacity-50`}
+                  className={`${studioSecondaryButtonClassName} disabled:opacity-50`}
                 >
                   <FaSearch />
                   搜索
@@ -308,7 +305,7 @@ const BilibiliSyncAdmin: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => { setKeyword(''); fetchRecords(1, ''); }}
-                    className={logShareSecondaryButtonClass}
+                    className={studioSecondaryButtonClassName}
                   >
                     <FaTimes />
                     清除
@@ -338,7 +335,7 @@ const BilibiliSyncAdmin: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => { setKeyword(''); fetchRecords(1, ''); }}
-                    className={`${logShareSecondaryButtonClass} mt-4`}
+                    className={`${studioSecondaryButtonClassName} mt-4`}
                   >
                     <FaTimes />
                     清除搜索
@@ -628,7 +625,7 @@ const BilibiliSyncAdmin: React.FC = () => {
                     type="button"
                     onClick={() => handlePageChange(pagination.page - 1)}
                     disabled={pagination.page <= 1 || loading}
-                    className={logShareSecondaryButtonClass + ' disabled:opacity-40'}
+                    className={studioSecondaryButtonClassName + ' disabled:opacity-40'}
                   >
                     <FaAngleLeft />
                     上一页
@@ -665,7 +662,7 @@ const BilibiliSyncAdmin: React.FC = () => {
                     type="button"
                     onClick={() => handlePageChange(pagination.page + 1)}
                     disabled={pagination.page >= pagination.totalPages || loading}
-                    className={logShareSecondaryButtonClass + ' disabled:opacity-40'}
+                    className={studioSecondaryButtonClassName + ' disabled:opacity-40'}
                   >
                     下一页
                     <FaAngleRight />

@@ -7,14 +7,8 @@ import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
 import { FaListAlt, FaSync, FaSearch, FaEye, FaTimes, FaTrash, FaCopy, FaClipboard } from 'react-icons/fa';
 import { handleSourceClick, handleSourceModalClose } from './EnvManager';
-import {
-  InfoPanel,
-  InfoSectionTitle,
-  logShareDangerButtonClass,
-  logShareInputClass,
-  logSharePanelClass,
-  logShareSecondaryButtonClass,
-} from './LogShareStyleScaffold';
+import { studioDangerButtonClassName, studioFieldClassName, studioSecondaryButtonClassName, studioSurfaceClassName } from './studioTheme';
+import { InfoPanel, InfoSectionTitle } from './InfoQueryScaffold';
 
 type TraceItem = {
   traceId: string;
@@ -72,7 +66,7 @@ const TraceTableRow = memo(({
       <td className="p-3">
         <div className="flex flex-wrap items-center gap-2">
           <button 
-            className={logShareSecondaryButtonClass}
+            className={studioSecondaryButtonClassName}
             onClick={() => onOpenDetail(item.traceId)}
           >
             <FaEye className="w-3.5 h-3.5" /> <span className="hidden sm:inline">详情</span>
@@ -130,7 +124,7 @@ const TraceMobileCard = memo(({
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:grid-cols-none">
         <button 
-          className={logShareSecondaryButtonClass}
+          className={studioSecondaryButtonClassName}
           onClick={() => onOpenDetail(item.traceId)}
         >
           <FaEye className="w-3.5 h-3.5" /> 详情
@@ -540,10 +534,10 @@ const SmartHumanCheckTraces: React.FC = () => {
           icon={FaListAlt}
           action={
             <div className="flex flex-wrap gap-2">
-              <button onClick={() => fetchList(page, pageSize)} className={logShareSecondaryButtonClass} title="刷新">
+              <button onClick={() => fetchList(page, pageSize)} className={studioSecondaryButtonClassName} title="刷新">
                 <FaSync className="w-4 h-4" /> 刷新
               </button>
-              <button onClick={resetAndSearch} className={logShareSecondaryButtonClass}>
+              <button onClick={resetAndSearch} className={studioSecondaryButtonClassName}>
                 <FaSearch className="w-4 h-4" /> 重置筛选
               </button>
             </div>
@@ -553,7 +547,7 @@ const SmartHumanCheckTraces: React.FC = () => {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-6">
           <label className="space-y-2 text-sm font-semibold text-slate-700">
             <span>结果</span>
-            <select value={success} onChange={e => { setSuccess(e.target.value); fetchList(1, pageSize); }} className={logShareInputClass}>
+            <select value={success} onChange={e => { setSuccess(e.target.value); fetchList(1, pageSize); }} className={studioFieldClassName}>
               <option value="">全部</option>
               <option value="true">成功</option>
               <option value="false">失败</option>
@@ -561,23 +555,23 @@ const SmartHumanCheckTraces: React.FC = () => {
           </label>
           <label className="space-y-2 text-sm font-semibold text-slate-700">
             <span>原因</span>
-            <input value={reason} onChange={e => setReason(e.target.value)} placeholder="low_score / bad_token_sig ..." className={logShareInputClass} />
+            <input value={reason} onChange={e => setReason(e.target.value)} placeholder="low_score / bad_token_sig ..." className={studioFieldClassName} />
           </label>
           <label className="space-y-2 text-sm font-semibold text-slate-700">
             <span>Trace ID</span>
-            <input value={traceId} onChange={e => setTraceId(e.target.value)} placeholder="traceId" className={logShareInputClass} />
+            <input value={traceId} onChange={e => setTraceId(e.target.value)} placeholder="traceId" className={studioFieldClassName} />
           </label>
           <label className="space-y-2 text-sm font-semibold text-slate-700">
             <span>IP</span>
-            <input value={ip} onChange={e => setIp(e.target.value)} placeholder="ip" className={logShareInputClass} />
+            <input value={ip} onChange={e => setIp(e.target.value)} placeholder="ip" className={studioFieldClassName} />
           </label>
           <label className="space-y-2 text-sm font-semibold text-slate-700">
             <span>UA 包含</span>
-            <input value={ua} onChange={e => setUa(e.target.value)} placeholder="user-agent 关键字" className={logShareInputClass} />
+            <input value={ua} onChange={e => setUa(e.target.value)} placeholder="user-agent 关键字" className={studioFieldClassName} />
           </label>
           <label className="space-y-2 text-sm font-semibold text-slate-700">
             <span>每页</span>
-            <select value={pageSize} onChange={(e)=>fetchList(1, Number(e.target.value))} className={logShareInputClass}>
+            <select value={pageSize} onChange={(e)=>fetchList(1, Number(e.target.value))} className={studioFieldClassName}>
               {[20,50,100,200].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </label>
@@ -585,7 +579,7 @@ const SmartHumanCheckTraces: React.FC = () => {
       </InfoPanel>
 
       {/* List & Table */}
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`${logSharePanelClass} overflow-hidden`}>
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`${studioSurfaceClassName} overflow-hidden`}>
         {/* 批量操作工具栏 */}
         <div className="flex flex-col gap-3 border-b border-slate-100 bg-white/70 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-slate-500">已选 {selectedIds.length} 条</div>
@@ -594,18 +588,18 @@ const SmartHumanCheckTraces: React.FC = () => {
               <input type="checkbox" checked={isAllSelected} onChange={toggleSelectAll} />
               <span>本页全选</span>
             </label>
-            <button onClick={() => setSelectedIds([])} className={logShareSecondaryButtonClass}>清空选择</button>
-            <button onClick={viewSelectedLogs} disabled={!selectedIds.length || batchLoading} className={logShareSecondaryButtonClass}>
+            <button onClick={() => setSelectedIds([])} className={studioSecondaryButtonClassName}>清空选择</button>
+            <button onClick={viewSelectedLogs} disabled={!selectedIds.length || batchLoading} className={studioSecondaryButtonClassName}>
               <FaEye className="w-4 h-4" /> 查看合并
             </button>
-            <button onClick={copySelectedIds} disabled={!selectedIds.length} className={logShareSecondaryButtonClass}>
+            <button onClick={copySelectedIds} disabled={!selectedIds.length} className={studioSecondaryButtonClassName}>
               <FaCopy className="w-4 h-4" /> 复制 TraceID
             </button>
-            <button onClick={copySelectedLogs} disabled={!selectedIds.length || batchLoading} className={logShareSecondaryButtonClass}>
+            <button onClick={copySelectedLogs} disabled={!selectedIds.length || batchLoading} className={studioSecondaryButtonClassName}>
               <FaClipboard className="w-4 h-4" /> 一键复制日志
             </button>
             {canWrite && (
-            <button onClick={deleteSelected} disabled={!selectedIds.length || batchLoading} className={logShareDangerButtonClass}>
+            <button onClick={deleteSelected} disabled={!selectedIds.length || batchLoading} className={studioDangerButtonClassName}>
               <FaTrash className="w-4 h-4" /> 删除
             </button>
             )}
@@ -670,15 +664,15 @@ const SmartHumanCheckTraces: React.FC = () => {
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-slate-500">共 {total} 条 • 第 {page}/{pages} 页</div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <button disabled={page <= 1} onClick={() => fetchList(page - 1, pageSize)} className={`${logShareSecondaryButtonClass} w-full sm:w-auto`}>上一页</button>
-          <button disabled={page >= pages} onClick={() => fetchList(page + 1, pageSize)} className={`${logShareSecondaryButtonClass} w-full sm:w-auto`}>下一页</button>
+          <button disabled={page <= 1} onClick={() => fetchList(page - 1, pageSize)} className={`${studioSecondaryButtonClassName} w-full sm:w-auto`}>上一页</button>
+          <button disabled={page >= pages} onClick={() => fetchList(page + 1, pageSize)} className={`${studioSecondaryButtonClassName} w-full sm:w-auto`}>下一页</button>
         </div>
       </div>
 
       {/* 详情弹窗 — Portal 到 body */}
       {ReactDOM.createPortal(selected && (
         <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <div className={`${logSharePanelClass} max-w-3xl w-[95vw] p-4 sm:p-6 overflow-y-auto max-h-[90vh]`} data-source-modal="trace-detail">
+        <div className={`${studioSurfaceClassName} max-w-3xl w-[95vw] p-4 sm:p-6 overflow-y-auto max-h-[90vh]`} data-source-modal="trace-detail">
           <div className="flex items-center justify-between mb-3">
             <div className="font-semibold text-slate-900">日志详情</div>
             <div className="flex items-center gap-2">
@@ -691,7 +685,7 @@ const SmartHumanCheckTraces: React.FC = () => {
                     setNotification({ type: 'error', message: e?.message || '复制失败' });
                   }
                 }}
-                className={logShareSecondaryButtonClass}
+                className={studioSecondaryButtonClassName}
               >
                 <FaClipboard className="w-4 h-4" /> 复制
               </button>
@@ -709,11 +703,11 @@ const SmartHumanCheckTraces: React.FC = () => {
                     setNotification({ type: 'error', message: e?.message || '复制失败' });
                   }
                 }}
-                className={logShareSecondaryButtonClass}
+                className={studioSecondaryButtonClassName}
               >
                 <FaCopy className="w-4 h-4" /> 复制ID
               </button>
-              <button onClick={closeDetailModal} className={logShareSecondaryButtonClass}>
+              <button onClick={closeDetailModal} className={studioSecondaryButtonClassName}>
                 <FaTimes className="w-4 h-4" /> 关闭
               </button>
             </div>
@@ -726,14 +720,14 @@ const SmartHumanCheckTraces: React.FC = () => {
       {/* 批量合并查看弹窗 — Portal 到 body */}
       {ReactDOM.createPortal(batchView && (
         <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className={`${logSharePanelClass} max-w-5xl w-[95vw] p-4 sm:p-6 overflow-y-auto max-h-[90vh]`} data-source-modal="batch-trace-detail">
+          <div className={`${studioSurfaceClassName} max-w-5xl w-[95vw] p-4 sm:p-6 overflow-y-auto max-h-[90vh]`} data-source-modal="batch-trace-detail">
             <div className="flex items-center justify-between mb-3">
               <div className="font-semibold text-slate-900">合并日志（{batchView.ids.length} 条）</div>
               <div className="flex items-center gap-2">
-                <button onClick={async ()=>{ try { await navigator.clipboard.writeText(JSON.stringify(batchView, null, 2)); setNotification({ type:'success', message:'已复制' }); } catch(e:any){ setNotification({ type:'error', message:e?.message||'复制失败' }); } }} className={logShareSecondaryButtonClass}>
+                <button onClick={async ()=>{ try { await navigator.clipboard.writeText(JSON.stringify(batchView, null, 2)); setNotification({ type:'success', message:'已复制' }); } catch(e:any){ setNotification({ type:'error', message:e?.message||'复制失败' }); } }} className={studioSecondaryButtonClassName}>
                   <FaClipboard className="w-4 h-4" /> 复制
                 </button>
-                <button onClick={closeBatchModal} className={logShareSecondaryButtonClass}>
+                <button onClick={closeBatchModal} className={studioSecondaryButtonClassName}>
                   <FaTimes className="w-4 h-4" /> 关闭
                 </button>
               </div>

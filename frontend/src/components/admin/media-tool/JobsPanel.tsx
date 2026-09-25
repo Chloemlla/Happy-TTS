@@ -13,7 +13,7 @@ import {
 } from 'react-icons/fa';
 import { mediaToolApi } from '../../../api/mediaTool';
 import type { MediaJobRecord, MediaTarget } from '../../../api/mediaTool';
-import { InfoSectionTitle, logSharePanelClass } from '../../LogShareStyleScaffold';
+import { studioSurfaceClassName } from '../../studioTheme';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
 import {
   EmptyHint,
@@ -27,6 +27,7 @@ import {
   fmtTime,
   stageLabel,
 } from './ui';
+import { InfoSectionTitle } from '../../InfoQueryScaffold';
 
 const TEXT_EXTS = new Set(['.txt', '.srt', '.json', '.vtt']);
 const isTextRel = (rel: string) => TEXT_EXTS.has(rel.slice(rel.lastIndexOf('.')).toLowerCase());
@@ -178,7 +179,7 @@ export const JobsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => {
             <SimpleLoadingSpinner size={1} />
           </div>
         ) : jobs.length === 0 ? (
-          <div className={`${logSharePanelClass} overflow-hidden`}>
+          <div className={`${studioSurfaceClassName} overflow-hidden`}>
             <EmptyHint>还没有任务。到「B站下载」或「转写」页提交第一个任务。</EmptyHint>
           </div>
         ) : (
@@ -191,7 +192,7 @@ export const JobsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => {
             const items = full.result?.items ?? [];
             const failedItems = items.filter((it) => !it.ok);
             return (
-              <div key={job.id} className={`${logSharePanelClass} overflow-hidden`}>
+              <div key={job.id} className={`${studioSurfaceClassName} overflow-hidden`}>
                 <div
                   className={cx(
                     'flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3',

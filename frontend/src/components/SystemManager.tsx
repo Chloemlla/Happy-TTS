@@ -12,14 +12,8 @@ import { getBackendErrorMessage } from '../utils/backendError';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
-import {
-  InfoBadge,
-  InfoMetricCard,
-  InfoPanel,
-  InfoSectionTitle,
-  logShareDangerButtonClass,
-  logShareSecondaryButtonClass,
-} from './LogShareStyleScaffold';
+import { studioDangerButtonClassName, studioSecondaryButtonClassName } from './studioTheme';
+import { InfoBadge, InfoMetricCard, InfoPanel, InfoSectionTitle } from './InfoQueryScaffold';
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return '暂无';
@@ -261,7 +255,7 @@ export default function SystemManager() {
           description="管理系统调度器、定时清理和 Redis/MongoDB 数据同步，集中查看运行状态与最近执行结果。"
           icon={FaCog}
           action={
-            <Link to="/admin" className={logShareSecondaryButtonClass}>
+            <Link to="/admin" className={studioSecondaryButtonClassName}>
               <FaInfoCircle className="w-4 h-4" />
               返回仪表板
             </Link>
@@ -368,7 +362,7 @@ export default function SystemManager() {
             <motion.button
               onClick={handleStartScheduler}
               disabled={!canWrite || starting || schedulerStatus.isRunning}
-              className={`${logShareSecondaryButtonClass} flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={`${studioSecondaryButtonClassName} flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
               whileHover={{ scale: !canWrite || starting || schedulerStatus.isRunning ? 1 : 1.02 }}
               whileTap={{ scale: !canWrite || starting || schedulerStatus.isRunning ? 1 : 0.98 }}
             >
@@ -383,7 +377,7 @@ export default function SystemManager() {
             <motion.button
               onClick={handleStopScheduler}
               disabled={!canWrite || stopping || !schedulerStatus.isRunning}
-              className={`${logShareDangerButtonClass} flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={`${studioDangerButtonClassName} flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
               whileHover={{ scale: !canWrite || stopping || !schedulerStatus.isRunning ? 1 : 1.02 }}
               whileTap={{ scale: !canWrite || stopping || !schedulerStatus.isRunning ? 1 : 0.98 }}
             >
@@ -398,7 +392,7 @@ export default function SystemManager() {
             <motion.button
               onClick={handleManualCleanup}
               disabled={!canWrite || cleaning}
-              className={`${logShareSecondaryButtonClass} flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={`${studioSecondaryButtonClassName} flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
               whileHover={{ scale: !canWrite || cleaning ? 1 : 1.02 }}
               whileTap={{ scale: !canWrite || cleaning ? 1 : 0.98 }}
             >
@@ -475,7 +469,7 @@ export default function SystemManager() {
             <motion.button
               onClick={handleSyncIPBans}
               disabled={!canWrite || syncing || !syncStatus.redisAvailable}
-              className={`${logShareSecondaryButtonClass} flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={`${studioSecondaryButtonClassName} flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
               whileHover={{ scale: !canWrite || syncing || !syncStatus.redisAvailable ? 1 : 1.02 }}
               whileTap={{ scale: !canWrite || syncing || !syncStatus.redisAvailable ? 1 : 0.98 }}
             >
@@ -490,7 +484,7 @@ export default function SystemManager() {
             <motion.button
               onClick={handleRefresh}
               disabled={refreshing}
-              className={logShareSecondaryButtonClass}
+              className={studioSecondaryButtonClassName}
               whileHover={{ scale: refreshing ? 1 : 1.02 }}
               whileTap={{ scale: refreshing ? 1 : 0.98 }}
             >

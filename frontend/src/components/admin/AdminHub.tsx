@@ -8,7 +8,7 @@ import {
   InfoQueryHero,
   InfoQueryShell,
   InfoSectionTitle,
-} from '@/components/LogShareStyleScaffold';
+} from '@/components/InfoQueryScaffold';
 import { getAdminNavGroups, getSuperAdminOnlyPaths } from '@/navigation/navConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { isAdminRole, isSuperAdmin } from '@/utils/rbac';

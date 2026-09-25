@@ -17,6 +17,7 @@ import api from "../api/api";
 import { useAuth } from "../hooks/useAuth";
 import { isSuperAdmin } from "../utils/rbac";
 import { useNotification } from "./Notification";
+import { studioDangerButtonClassName, studioFieldClassName, studioSecondaryButtonClassName, studioTileClassName } from './studioTheme';
 import {
   InfoBadge,
   InfoMetricCard,
@@ -24,11 +25,7 @@ import {
   InfoPrimaryButton,
   InfoQueryHero,
   InfoSectionTitle,
-  logShareDangerButtonClass,
-  logShareInputClass,
-  logShareSecondaryButtonClass,
-  logShareTileClass,
-} from "./LogShareStyleScaffold";
+} from './InfoQueryScaffold';
 
 type LicenseStatus = "valid" | "trial" | "expired" | "suspended" | "revoked";
 
@@ -85,7 +82,7 @@ const statusOptions: LicenseStatus[] = [
   "suspended",
   "revoked",
 ];
-const inputClass = `${logShareInputClass} py-2.5`;
+const inputClass = `${studioFieldClassName} py-2.5`;
 
 const isFulfilled = <T,>(
   result: PromiseSettledResult<T>,
@@ -575,7 +572,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
         actions={
           <button
             type="button"
-            className={logShareSecondaryButtonClass}
+            className={studioSecondaryButtonClassName}
             onClick={loadOverview}
             disabled={loading}
           >
@@ -604,7 +601,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
             </div>
             <button
               type="button"
-              className={logShareSecondaryButtonClass}
+              className={studioSecondaryButtonClassName}
               onClick={loadOverview}
               disabled={loading}
             >
@@ -1004,7 +1001,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                 </div>
               </form>
               {createdLicense && (
-                <div className={`${logShareTileClass} mt-5 p-4`}>
+                <div className={`${studioTileClassName} mt-5 p-4`}>
                   <div className="flex flex-wrap items-center gap-2">
                     <InfoBadge tone="emerald">
                       新授权 {createdLicense.status}
@@ -1127,7 +1124,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                 />
                 <button
                   type="submit"
-                  className={logShareDangerButtonClass}
+                  className={studioDangerButtonClassName}
                   disabled={!canWrite || submitting === "license-revoke"}
                 >
                   <FaBan />
@@ -1200,7 +1197,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                 {riskEvents.map((event) => (
                   <div
                     key={event.riskEventId}
-                    className={`${logShareTileClass} p-4`}
+                    className={`${studioTileClassName} p-4`}
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <InfoBadge

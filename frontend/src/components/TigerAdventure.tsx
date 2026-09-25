@@ -6,8 +6,8 @@ import {
   InfoPanel,
   InfoPrimaryButton,
   InfoQueryHero,
-  InfoQueryShell
-} from './LogShareStyleScaffold';
+  InfoQueryShell,
+} from './InfoQueryScaffold';
 
 const tigerGlassButtonClass = 'inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-xl transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-45';
 const tigerScenePanelClass = 'rounded-2xl border border-slate-200 bg-white/90 shadow-sm backdrop-blur-xl';

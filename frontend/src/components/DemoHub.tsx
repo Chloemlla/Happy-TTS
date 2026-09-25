@@ -2,15 +2,14 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, Brain, Code2, Layers, Music, ShoppingBag, Wallet, Wand2 } from 'lucide-react';
 import { FaFlask, FaMobileAlt } from 'react-icons/fa';
+import { studioSecondaryButtonClassName, studioTileClassName } from './studioTheme';
 import {
   InfoBadge,
   InfoPanel,
   InfoQueryHero,
   InfoQueryShell,
   InfoSectionTitle,
-  logShareSecondaryButtonClass,
-  logShareTileClass,
-} from './LogShareStyleScaffold';
+} from './InfoQueryScaffold';
 
 // Demo Hub - 所有UI展示页面的导航中心
 const DemoHub: React.FC = () => {
@@ -96,7 +95,7 @@ const DemoHub: React.FC = () => {
             <Link
               key={demo.id}
               to={demo.path}
-              className={`${logShareTileClass} group flex h-full flex-col p-5 transition duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-sm`}
+              className={`${studioTileClassName} group flex h-full flex-col p-5 transition duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-sm`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 transition group-hover:border-slate-300 group-hover:text-slate-900">
@@ -117,7 +116,7 @@ const DemoHub: React.FC = () => {
                   ))}
                 </div>
 
-                <span className={`${logShareSecondaryButtonClass} mt-6 w-fit`}>
+                <span className={`${studioSecondaryButtonClassName} mt-6 w-fit`}>
                   查看演示
                   <ArrowUpRight className="h-3.5 w-3.5" />
                 </span>
@@ -131,7 +130,7 @@ const DemoHub: React.FC = () => {
         <InfoSectionTitle title="技术栈与特性" description="演示页面共享的实现基础和交互能力。" />
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {techStack.map((item) => (
-            <div key={item.title} className={`${logShareTileClass} p-4`}>
+            <div key={item.title} className={`${studioTileClassName} p-4`}>
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-500">
                 <item.icon className="h-5 w-5" />
               </div>
@@ -143,7 +142,7 @@ const DemoHub: React.FC = () => {
       </InfoPanel>
 
       <div className="flex justify-center">
-        <Link to="/" className={logShareSecondaryButtonClass}>
+        <Link to="/" className={studioSecondaryButtonClassName}>
           返回首页
         </Link>
       </div>

@@ -1,10 +1,6 @@
 import React from 'react';
 import { m } from 'framer-motion';
-import {
-  logSharePrimaryButtonClass,
-  logShareDangerButtonClass,
-  logShareInputClass,
-} from '../LogShareStyleScaffold';
+import { studioDangerButtonClassName, studioFieldClassName, studioPrimaryButtonClassName } from '../studioTheme';
 
 interface ConfigFieldRowProps {
   inputLabel: string;
@@ -58,7 +54,7 @@ const ConfigFieldRow: React.FC<ConfigFieldRowProps> = ({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
-            className={logShareInputClass}
+            className={studioFieldClassName}
             autoComplete="off"
             spellCheck={false}
             disabled={disabled}
@@ -73,7 +69,7 @@ const ConfigFieldRow: React.FC<ConfigFieldRowProps> = ({
             type="button"
             onClick={onDelete}
             disabled={disabled}
-            className={logShareDangerButtonClass}
+            className={studioDangerButtonClassName}
             whileTap={{ scale: 0.97 }}
           >
             {isDeleting ? '删除中...' : '删除'}
@@ -82,7 +78,7 @@ const ConfigFieldRow: React.FC<ConfigFieldRowProps> = ({
             type="button"
             onClick={onSave}
             disabled={disabled}
-            className={logSharePrimaryButtonClass}
+            className={studioPrimaryButtonClassName}
             whileTap={{ scale: 0.97 }}
           >
             {isSaving ? '保存中...' : '保存/更新'}
@@ -103,7 +99,7 @@ const ConfigFieldRow: React.FC<ConfigFieldRowProps> = ({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
-            className={logShareInputClass}
+            className={studioFieldClassName}
             autoComplete="off"
             spellCheck={false}
             disabled={disabled}
@@ -122,7 +118,7 @@ const ConfigFieldRow: React.FC<ConfigFieldRowProps> = ({
           type="button"
           onClick={onDelete}
           disabled={disabled}
-          className={logShareDangerButtonClass}
+          className={studioDangerButtonClassName}
           whileTap={{ scale: 0.97 }}
         >
           {isDeleting ? '删除中...' : '删除'}
@@ -131,7 +127,7 @@ const ConfigFieldRow: React.FC<ConfigFieldRowProps> = ({
           type="button"
           onClick={onSave}
           disabled={disabled}
-          className={logSharePrimaryButtonClass}
+          className={studioPrimaryButtonClassName}
           whileTap={{ scale: 0.97 }}
         >
           {isSaving ? '保存中...' : '保存/更新'}

@@ -2,9 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { FaCheck, FaExclamationTriangle, FaSave, FaSlidersH } from 'react-icons/fa';
 import { mediaToolApi } from '../../../api/mediaTool';
 import type { MediaTarget, MediaToolSettings } from '../../../api/mediaTool';
-import { InfoSectionTitle, logSharePanelClass } from '../../LogShareStyleScaffold';
+import { studioSurfaceClassName } from '../../studioTheme';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
 import { btnIndigo, ErrLine, Field, OkLine, Toggle, inputCls, cx } from './ui';
+import { InfoSectionTitle } from '../../InfoQueryScaffold';
 
 const SECRET_MASK = '********';
 
@@ -119,7 +120,7 @@ export const SettingsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => 
       {error ? <ErrLine>{error}</ErrLine> : null}
       {ok ? <OkLine>{ok}</OkLine> : null}
 
-      <div className={cx(logSharePanelClass, 'space-y-5 p-5')}>
+      <div className={cx(studioSurfaceClassName, 'space-y-5 p-5')}>
         <div className="flex items-center justify-between">
           <div>
             <div className="text-sm font-semibold text-slate-800">启用媒体工具</div>
@@ -152,7 +153,7 @@ export const SettingsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => 
         </div>
       </div>
 
-      <div className={cx(logSharePanelClass, 'space-y-4 p-5')}>
+      <div className={cx(studioSurfaceClassName, 'space-y-4 p-5')}>
         <div className="text-sm font-semibold text-slate-800">vivo 录音转写(LASR)</div>
         {hasMaskedLasr ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
@@ -214,7 +215,7 @@ export const SettingsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => 
         </div>
       </div>
 
-      <div className={cx(logSharePanelClass, 'space-y-4 p-5')}>
+      <div className={cx(studioSurfaceClassName, 'space-y-4 p-5')}>
         <div className="text-sm font-semibold text-slate-800">哔哩哔哩下载(yt-dlp)</div>
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="yt-dlp 路径" hint="留空自动探测 PATH;Windows 常需填绝对路径">

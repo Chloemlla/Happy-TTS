@@ -11,13 +11,8 @@ import { coinFlipApi } from "../../api/coinFlip";
 import type { CoinFlipRecord, CoinFlipStatistics } from "../../api/coinFlip";
 import { cn } from "../../utils/cn";
 import { SimpleLoadingSpinner } from "../LoadingSpinner";
-import {
-  InfoMetricCard,
-  InfoSectionTitle,
-  logSharePanelClass,
-  logSharePrimaryButtonClass,
-  logShareSecondaryButtonClass,
-} from "../LogShareStyleScaffold";
+import { studioPrimaryButtonClassName, studioSecondaryButtonClassName, studioSurfaceClassName } from '../studioTheme';
+import { InfoMetricCard, InfoSectionTitle } from '../InfoQueryScaffold';
 
 const PAGE_SIZE = 20;
 
@@ -132,7 +127,7 @@ const CoinFlipAdmin: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className={logSharePanelClass}>
+      <div className={studioSurfaceClassName}>
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <InfoSectionTitle
             title="硬币翻转记录"
@@ -143,7 +138,7 @@ const CoinFlipAdmin: React.FC = () => {
           <button
             onClick={refresh}
             disabled={loading}
-            className={logShareSecondaryButtonClass}
+            className={studioSecondaryButtonClassName}
           >
             <FaRedo className="text-sm" />
             刷新
@@ -165,7 +160,7 @@ const CoinFlipAdmin: React.FC = () => {
           <button
             type="submit"
             disabled={searching}
-            className={logSharePrimaryButtonClass}
+            className={studioPrimaryButtonClassName}
           >
             <FaSearch className="text-sm" />
             {searching ? "查询中..." : "查找"}
@@ -205,7 +200,7 @@ const CoinFlipAdmin: React.FC = () => {
               <span className="text-xs text-slate-500">查找结果（按结果 ID）</span>
               <button
                 onClick={clearSearch}
-                className={logShareSecondaryButtonClass}
+                className={studioSecondaryButtonClassName}
               >
                 <FaRedo className="text-sm" />
                 返回列表
@@ -261,14 +256,14 @@ const CoinFlipAdmin: React.FC = () => {
                 <button
                   onClick={() => goToPage(page - 1)}
                   disabled={page <= 1 || loading}
-                  className={logShareSecondaryButtonClass}
+                  className={studioSecondaryButtonClassName}
                 >
                   上一页
                 </button>
                 <button
                   onClick={() => goToPage(page + 1)}
                   disabled={page >= totalPages || loading}
-                  className={logSharePrimaryButtonClass}
+                  className={studioPrimaryButtonClassName}
                 >
                   下一页
                 </button>

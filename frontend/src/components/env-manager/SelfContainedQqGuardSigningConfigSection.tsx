@@ -3,7 +3,7 @@ import { m, useReducedMotion } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
 import { isSuperAdmin } from '../../utils/rbac';
 import { useNotification } from '../Notification';
-import { logShareInputClass, logSharePrimaryButtonClass } from '../LogShareStyleScaffold';
+import { studioFieldClassName, studioPrimaryButtonClassName } from '../studioTheme';
 import SecretKeySection from './SecretKeySection';
 import { QQ_GUARD_SIGNING_API, getAuthHeaders, authFetch } from './api';
 
@@ -135,7 +135,7 @@ export default function SelfContainedQqGuardSigningConfigSection({ prefersReduce
               value={alertEmailsInput}
               onChange={(event) => setAlertEmailsInput(event.target.value)}
               placeholder="例 ops@qq.com, admin@gmail.com（多个邮箱用英文逗号分隔）"
-              className={logShareInputClass}
+              className={studioFieldClassName}
               autoComplete="off"
               spellCheck={false}
               disabled={savingAlert || !canWrite}
@@ -149,7 +149,7 @@ export default function SelfContainedQqGuardSigningConfigSection({ prefersReduce
               type="button"
               onClick={handleSaveAlertEmails}
               disabled={savingAlert || !canWrite}
-              className={logSharePrimaryButtonClass}
+              className={studioPrimaryButtonClassName}
               whileTap={{ scale: 0.97 }}
             >
               {savingAlert ? '保存中...' : '保存邮箱'}

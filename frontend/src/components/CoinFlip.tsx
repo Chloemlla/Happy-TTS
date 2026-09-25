@@ -25,23 +25,20 @@ import {
   FaPause,
   FaCog
 } from 'react-icons/fa';
+import { studioPrimaryButtonClassName, studioSecondaryButtonClassName, studioSurfaceClassName, studioTileClassName } from './studioTheme';
+import { coinFlipApi } from '../api/coinFlip';
 import {
   InfoBadge,
   InfoMetricCard,
   InfoQueryHero,
   InfoQueryShell,
   InfoSectionTitle,
-  logSharePanelClass,
-  logSharePrimaryButtonClass,
-  logShareSecondaryButtonClass,
-  logShareTileClass
-} from './LogShareStyleScaffold';
-import { coinFlipApi } from '../api/coinFlip';
+} from './InfoQueryScaffold';
 
-const coinPanelClass = logSharePanelClass;
-const coinTileClass = logShareTileClass;
-const coinButtonClass = logSharePrimaryButtonClass;
-const coinGhostButtonClass = logShareSecondaryButtonClass;
+const coinPanelClass = studioSurfaceClassName;
+const coinTileClass = studioTileClassName;
+const coinButtonClass = studioPrimaryButtonClassName;
+const coinGhostButtonClass = studioSecondaryButtonClassName;
 
 interface CoinFlipStats {
   heads: number;

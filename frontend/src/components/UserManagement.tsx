@@ -26,15 +26,7 @@ import {
   FaLock,
 } from 'react-icons/fa';
 
-import {
-  InfoPanel,
-  InfoSectionTitle,
-  InfoMetricCard,
-  logShareInputClass,
-  logSharePrimaryButtonClass,
-  logShareSecondaryButtonClass,
-  logShareDangerButtonClass,
-} from './LogShareStyleScaffold';
+import { studioDangerButtonClassName, studioPrimaryButtonClassName, studioSecondaryButtonClassName } from './studioTheme';
 
 import {
   ACCOUNT_STATUS_FILTER_OPTIONS,
@@ -70,6 +62,7 @@ import {
   type UserListTicketFilter,
   type UserListTranslationFilter,
 } from './user-management/UserFormControls';
+import { InfoMetricCard, InfoPanel, InfoSectionTitle } from './InfoQueryScaffold';
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (typeof error === 'object' && error !== null) {
@@ -614,7 +607,7 @@ const UserManagement: React.FC = () => {
             action={canWrite ? (
               <motion.button
                 onClick={openCreate}
-                className={logSharePrimaryButtonClass}
+                className={studioPrimaryButtonClassName}
                 whileHover={hoverScale()}
                 whileTap={tapScale()}
               >
@@ -668,7 +661,7 @@ const UserManagement: React.FC = () => {
                 <div className="mt-3">
                   <motion.button
                     onClick={() => navigate('/welcome')}
-                    className={logSharePrimaryButtonClass}
+                    className={studioPrimaryButtonClassName}
                     whileHover={hoverScale()}
                     whileTap={tapScale()}
                   >
@@ -693,7 +686,7 @@ const UserManagement: React.FC = () => {
             <div className="flex flex-wrap gap-2">
               <motion.button
                 onClick={() => fetchUsers(true)}
-                className={logShareSecondaryButtonClass}
+                className={studioSecondaryButtonClassName}
                 whileHover={hoverScale()}
                 whileTap={tapScale()}
               >
@@ -703,7 +696,7 @@ const UserManagement: React.FC = () => {
               {canWrite && (
                 <motion.button
                   onClick={openCreate}
-                  className={logSharePrimaryButtonClass}
+                  className={studioPrimaryButtonClassName}
                   whileHover={hoverScale()}
                   whileTap={tapScale()}
                 >
@@ -798,7 +791,7 @@ const UserManagement: React.FC = () => {
                 <motion.button
                   type="button"
                   onClick={applyFilters}
-                  className={logSharePrimaryButtonClass}
+                  className={studioPrimaryButtonClassName}
                   whileHover={hoverScale()}
                   whileTap={tapScale()}
                 >
@@ -807,7 +800,7 @@ const UserManagement: React.FC = () => {
                 <motion.button
                   type="button"
                   onClick={resetFilters}
-                  className={logShareSecondaryButtonClass}
+                  className={studioSecondaryButtonClassName}
                   whileHover={hoverScale()}
                   whileTap={tapScale()}
                 >
@@ -831,7 +824,7 @@ const UserManagement: React.FC = () => {
                   type="button"
                   onClick={handleBulkAction}
                   disabled={selectedUserIds.length === 0 || !bulkAction || loading}
-                  className={logSharePrimaryButtonClass}
+                  className={studioPrimaryButtonClassName}
                   whileHover={hoverScale(undefined, selectedUserIds.length > 0 && Boolean(bulkAction) && !loading)}
                   whileTap={tapScale(undefined, selectedUserIds.length > 0 && Boolean(bulkAction) && !loading)}
                 >
@@ -1091,7 +1084,7 @@ const UserManagement: React.FC = () => {
                         {canWrite ? (
                         <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
                           <motion.button
-                            className={logShareSecondaryButtonClass}
+                            className={studioSecondaryButtonClassName}
                             onClick={() => openEdit(u)}
                             whileHover={hoverScale()}
                             whileTap={tapScale()}
@@ -1100,7 +1093,7 @@ const UserManagement: React.FC = () => {
                             编辑
                           </motion.button>
                           <motion.button
-                            className={`${logShareDangerButtonClass} disabled:opacity-50 disabled:cursor-not-allowed`}
+                            className={`${studioDangerButtonClassName} disabled:opacity-50 disabled:cursor-not-allowed`}
                             onClick={() => handleDelete(u.id)}
                             disabled={!canDeleteUser(u)}
                             title={deleteDisabledReason(u)}
@@ -1133,7 +1126,7 @@ const UserManagement: React.FC = () => {
                     type="button"
                     onClick={() => setPage(1)}
                     disabled={pagination.page <= 1}
-                    className={logShareSecondaryButtonClass}
+                    className={studioSecondaryButtonClassName}
                     whileHover={hoverScale(undefined, pagination.page > 1)}
                     whileTap={tapScale(undefined, pagination.page > 1)}
                   >
@@ -1143,7 +1136,7 @@ const UserManagement: React.FC = () => {
                     type="button"
                     onClick={() => setPage(pagination.page - 1)}
                     disabled={pagination.page <= 1}
-                    className={logShareSecondaryButtonClass}
+                    className={studioSecondaryButtonClassName}
                     whileHover={hoverScale(undefined, pagination.page > 1)}
                     whileTap={tapScale(undefined, pagination.page > 1)}
                   >
@@ -1153,7 +1146,7 @@ const UserManagement: React.FC = () => {
                     type="button"
                     onClick={() => setPage(pagination.page + 1)}
                     disabled={pagination.page >= pagination.totalPages}
-                    className={logShareSecondaryButtonClass}
+                    className={studioSecondaryButtonClassName}
                     whileHover={hoverScale(undefined, pagination.page < pagination.totalPages)}
                     whileTap={tapScale(undefined, pagination.page < pagination.totalPages)}
                   >
@@ -1163,7 +1156,7 @@ const UserManagement: React.FC = () => {
                     type="button"
                     onClick={() => setPage(pagination.totalPages)}
                     disabled={pagination.page >= pagination.totalPages}
-                    className={logShareSecondaryButtonClass}
+                    className={studioSecondaryButtonClassName}
                     whileHover={hoverScale(undefined, pagination.page < pagination.totalPages)}
                     whileTap={tapScale(undefined, pagination.page < pagination.totalPages)}
                   >
@@ -1196,7 +1189,7 @@ const UserManagement: React.FC = () => {
                     <div className="flex items-center gap-2">
                       {canWrite && (
                       <motion.button
-                        className={logShareSecondaryButtonClass}
+                        className={studioSecondaryButtonClassName}
                         onClick={async () => {
                           if (!fpUser) return;
                           try {
@@ -1213,7 +1206,7 @@ const UserManagement: React.FC = () => {
                       )}
                       {canWrite && (
                       <motion.button
-                        className={logShareDangerButtonClass}
+                        className={studioDangerButtonClassName}
                         onClick={async () => {
                           if (!fpUser) return;
                           if (!window.confirm('确定要清空该用户的全部指纹记录吗？此操作不可撤销')) return;
@@ -1274,7 +1267,7 @@ const UserManagement: React.FC = () => {
                           )}
                           <div className="mt-2 flex gap-2">
                             <motion.button
-                              className={logShareSecondaryButtonClass}
+                              className={studioSecondaryButtonClassName}
                               onClick={async () => {
                                 try {
                                   await navigator.clipboard?.writeText(fp.id);
@@ -1288,7 +1281,7 @@ const UserManagement: React.FC = () => {
                             >复制ID</motion.button>
                             {canWrite && (
                             <motion.button
-                              className={logShareDangerButtonClass}
+                              className={studioDangerButtonClassName}
                               onClick={async () => {
                                 if (!fpUser) return;
                                 if (!window.confirm('确定要删除该指纹记录吗？')) return;
@@ -1364,7 +1357,7 @@ const UserManagement: React.FC = () => {
                   )}
                   <div className="mt-4 text-right">
                     <motion.button
-                      className={logShareSecondaryButtonClass}
+                      className={studioSecondaryButtonClassName}
                       onClick={() => setShowFpModal(false)}
                       whileHover={hoverScale()}
                       whileTap={tapScale()}

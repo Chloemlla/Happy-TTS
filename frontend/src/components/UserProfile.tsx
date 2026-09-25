@@ -15,7 +15,6 @@ import {
   studioAccentBlobBlueClassName,
   studioAccentBlobSkyClassName,
   studioDarkPanelClassName,
-  studioDisplayFont,
   studioEyebrowPillClassName,
   studioFieldClassName,
   studioHeroCardClassName,
@@ -23,8 +22,6 @@ import {
   studioModalCardClassName,
   studioModalOverlayClassName,
   studioPageClassName,
-  studioPageFont,
-  studioPanelClassName,
   studioPrimaryButtonClassName,
 } from './studioTheme';
 
@@ -1643,7 +1640,7 @@ const UserProfile: React.FC = () => {
               {/* Password */}
               <div className="rounded-2xl border border-slate-200 p-4 transition hover:border-slate-300">
                 <div className="mb-3 flex items-center gap-3">
-                  <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-slate-100">
+                  <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-2xl bg-slate-100">
                     <FaLock className="text-sm text-slate-600" />
                   </div>
                   <div>
@@ -1674,7 +1671,7 @@ const UserProfile: React.FC = () => {
               {totpStatus?.enabled && (
                 <div className="rounded-2xl border border-slate-200 p-4 transition hover:border-slate-300">
                   <div className="mb-3 flex items-center gap-3">
-                    <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-sky-100">
+                    <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-2xl bg-sky-100">
                       <FaShieldAlt className="text-sm text-sky-600" />
                     </div>
                     <div>
@@ -1687,7 +1684,7 @@ const UserProfile: React.FC = () => {
                     onComplete={setVerificationCode}
                     loading={submitting}
                     error={undefined}
-                    inputClassName="bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-slate-400/30 focus:border-slate-400 rounded-lg px-2 py-1 text-sm transition-all outline-none mx-1"
+                    inputClassName="bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-slate-400/30 focus:border-slate-400 rounded-2xl px-2 py-1 text-sm transition-all outline-none mx-1"
                   />
                   <button
                     type="button"
@@ -1704,7 +1701,7 @@ const UserProfile: React.FC = () => {
               {totpStatus?.hasPasskey && (
                 <div className="rounded-2xl border border-slate-200 p-4 transition hover:border-emerald-300/50">
                   <div className="mb-3 flex items-center gap-3">
-                    <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-emerald-100">
+                    <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-2xl bg-emerald-100">
                       <FaLock className="text-sm text-emerald-600" />
                     </div>
                     <div>

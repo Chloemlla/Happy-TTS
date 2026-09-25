@@ -6,13 +6,8 @@ import {
   Mountain, Bug, Bell, LogOut, Trophy, Award, Sunrise, Crown, CheckCircle
 } from 'lucide-react';
 import { FaLeaf } from 'react-icons/fa';
-import {
-  InfoBadge,
-  InfoPanel,
-  InfoQueryHero,
-  InfoQueryShell,
-  logShareSecondaryButtonClass,
-} from './LogShareStyleScaffold';
+import { studioSecondaryButtonClassName } from './studioTheme';
+import { InfoBadge, InfoPanel, InfoQueryHero, InfoQueryShell } from './InfoQueryScaffold';
 
 // 冥想APP UI展示页面
 const MeditationAppDemo: React.FC = () => {
@@ -334,7 +329,7 @@ const MeditationAppDemo: React.FC = () => {
             <button
               key={idx}
               onClick={() => setActiveScreen(idx)}
-              className={`${logShareSecondaryButtonClass} ${
+              className={`${studioSecondaryButtonClassName} ${
                 activeScreen === idx
                   ? '!border-slate-900 !bg-slate-900 !text-white shadow-sm'
                   : ''

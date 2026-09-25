@@ -24,6 +24,19 @@ export const studioSubPanelClassName =
 export const studioElevatedPanelClassName =
   'min-w-0 rounded-2xl border-2 border-slate-200 bg-white/80 p-4 sm:p-5';
 
+// 无内边距的裸面/磁贴：padding 由调用方给，供复用组件（InfoPanel/InfoMetricCard）拼装。
+export const studioSurfaceClassName =
+  'relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur-xl';
+
+export const studioTileClassName =
+  'min-w-0 rounded-2xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur-xl';
+
+export const studioSecondaryButtonClassName =
+  'inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2';
+
+export const studioDangerButtonClassName =
+  'inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-rose-200 bg-rose-50/80 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-2';
+
 export const studioDarkPanelClassName =
   'rounded-2xl border border-slate-900 bg-slate-900 p-5 text-white shadow-sm sm:p-6';
 

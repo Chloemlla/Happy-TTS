@@ -2,9 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { FaDownload, FaExclamationTriangle, FaPlay, FaYoutube } from 'react-icons/fa';
 import { mediaToolApi } from '../../../api/mediaTool';
 import type { MediaJobRecord, MediaTarget, MediaToolSettings } from '../../../api/mediaTool';
-import { InfoSectionTitle, logSharePanelClass } from '../../LogShareStyleScaffold';
+import { studioSurfaceClassName } from '../../studioTheme';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
 import { btnIndigo, ErrLine, Field, OkLine, Toggle, inputCls, textareaCls } from './ui';
+import { InfoSectionTitle } from '../../InfoQueryScaffold';
 
 const segBtn = (active: boolean) =>
   `inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
@@ -71,7 +72,7 @@ export const BiliPanel: React.FC<{ target: MediaTarget; settings: MediaToolSetti
         <ErrLine>媒体工具当前处于停用状态,请在「设置」页启用后再提交。</ErrLine>
       ) : null}
 
-      <div className={`${logSharePanelClass} space-y-4 p-5`}>
+      <div className={`${studioSurfaceClassName} space-y-4 p-5`}>
         <Field
           label={`下载目标(已识别 ${lines.length} 项)`}
           hint="示例: BV1xx411c7mD / https://www.bilibili.com/video/BV1xx411c7mD / 合集列表页。yt-dlp 会自动展开合集。"

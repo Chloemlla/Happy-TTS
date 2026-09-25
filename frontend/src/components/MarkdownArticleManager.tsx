@@ -7,15 +7,13 @@ import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
 import {
-  InfoBadge,
-  InfoPanel,
-  InfoSectionTitle,
-  logShareDangerButtonClass,
-  logShareInputClass,
-  logSharePrimaryButtonClass,
-  logShareSecondaryButtonClass,
-  logShareTileClass,
-} from './LogShareStyleScaffold';
+  studioDangerButtonClassName,
+  studioFieldClassName,
+  studioPrimaryButtonClassName,
+  studioSecondaryButtonClassName,
+  studioTileClassName,
+} from './studioTheme';
+import { InfoBadge, InfoPanel, InfoSectionTitle } from './InfoQueryScaffold';
 
 const starterMarkdown = `# 新文章
 
@@ -303,7 +301,7 @@ const MarkdownArticleManager: React.FC = () => {
         description="编辑 Markdown 原文，实时预览完整语法效果，并发布生成对外查看链接。"
         icon={FaRegFileAlt}
         action={
-          <button type="button" className={logShareSecondaryButtonClass} onClick={resetEditor} disabled={!canWrite}>
+          <button type="button" className={studioSecondaryButtonClassName} onClick={resetEditor} disabled={!canWrite}>
             <Plus className="h-4 w-4" />
             新建文章
           </button>
@@ -324,7 +322,7 @@ const MarkdownArticleManager: React.FC = () => {
           <label className="relative mb-3 block">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
-              className={`${logShareInputClass} py-2 pl-9`}
+              className={`${studioFieldClassName} py-2 pl-9`}
               value={searchText}
               onChange={(event) => setSearchText(event.target.value)}
               placeholder="搜索标题、slug、摘要"
@@ -356,7 +354,7 @@ const MarkdownArticleManager: React.FC = () => {
               <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">没有匹配的文章。</div>
             )}
             {filteredArticles.map((article) => (
-              <div key={article.id} className={`${logShareTileClass} p-3`}>
+              <div key={article.id} className={`${studioTileClassName} p-3`}>
                 <button type="button" className="w-full text-left" onClick={() => void selectArticle(article)}>
                   <div className="line-clamp-2 text-sm font-semibold text-slate-900">{article.title}</div>
                   <div className="mt-1 break-all font-mono text-[11px] text-slate-500">/{article.slug}</div>
@@ -394,7 +392,7 @@ const MarkdownArticleManager: React.FC = () => {
               <label className="block">
                 <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">标题</span>
                 <input
-                  className={logShareInputClass}
+                  className={studioFieldClassName}
                   value={current.title}
                   onChange={(event) => handleTitleChange(event.target.value)}
                   placeholder="输入文章标题"
@@ -404,7 +402,7 @@ const MarkdownArticleManager: React.FC = () => {
               <label className="block">
                 <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Slug</span>
                 <input
-                  className={`${logShareInputClass} font-mono`}
+                  className={`${studioFieldClassName} font-mono`}
                   value={current.slug}
                   onChange={(event) => updateField('slug', slugify(event.target.value))}
                   placeholder="article-slug"
@@ -415,7 +413,7 @@ const MarkdownArticleManager: React.FC = () => {
             <label className="mt-4 block">
               <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">摘要</span>
               <textarea
-                className={`${logShareInputClass} min-h-[82px] resize-y`}
+                className={`${studioFieldClassName} min-h-[82px] resize-y`}
                 value={current.excerpt}
                 onChange={(event) => updateField('excerpt', event.target.value)}
                 placeholder="可选，用于文章列表和分享预览"
@@ -423,30 +421,30 @@ const MarkdownArticleManager: React.FC = () => {
               />
             </label>
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              <button type="button" className={logSharePrimaryButtonClass} onClick={() => void saveArticle('draft')} disabled={isSaving || !canWrite}>
+              <button type="button" className={studioPrimaryButtonClassName} onClick={() => void saveArticle('draft')} disabled={isSaving || !canWrite}>
                 <Save className="h-4 w-4" />
                 保存草稿
               </button>
-              <button type="button" className={logSharePrimaryButtonClass} onClick={() => void saveArticle('published')} disabled={isSaving || !canWrite}>
+              <button type="button" className={studioPrimaryButtonClassName} onClick={() => void saveArticle('published')} disabled={isSaving || !canWrite}>
                 <Send className="h-4 w-4" />
                 发布文章
               </button>
-              <button type="button" className={logShareSecondaryButtonClass} onClick={() => setIsPreview((value) => !value)}>
+              <button type="button" className={studioSecondaryButtonClassName} onClick={() => setIsPreview((value) => !value)}>
                 <Eye className="h-4 w-4" />
                 {isPreview ? '隐藏预览' : '显示预览'}
               </button>
-              <button type="button" className={logShareSecondaryButtonClass} onClick={() => void copyPublicLink()} disabled={!current.slug}>
+              <button type="button" className={studioSecondaryButtonClassName} onClick={() => void copyPublicLink()} disabled={!current.slug}>
                 <Copy className="h-4 w-4" />
                 复制链接
               </button>
               {current.status === 'published' && current.slug && (
-                <a className={logShareSecondaryButtonClass} href={`/articles/${current.slug}`} target="_blank" rel="noreferrer">
+                <a className={studioSecondaryButtonClassName} href={`/articles/${current.slug}`} target="_blank" rel="noreferrer">
                   <Link2 className="h-4 w-4" />
                   打开
                 </a>
               )}
               {current.id && (
-                <button type="button" className={logShareDangerButtonClass} onClick={() => void deleteArticle(current)} disabled={isSaving || !canWrite}>
+                <button type="button" className={studioDangerButtonClassName} onClick={() => void deleteArticle(current)} disabled={isSaving || !canWrite}>
                   <Trash2 className="h-4 w-4" />
                   删除
                 </button>

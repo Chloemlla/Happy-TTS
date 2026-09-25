@@ -25,12 +25,12 @@ import {
   type TranslationPenaltyAction,
 } from '../api/translationAudit';
 import {
-  logSharePanelClass,
-  logShareTileClass,
-  logShareInputClass,
-  logSharePrimaryButtonClass,
-  logShareSecondaryButtonClass,
-} from './LogShareStyleScaffold';
+  studioFieldClassName,
+  studioPrimaryButtonClassName,
+  studioSecondaryButtonClassName,
+  studioSurfaceClassName,
+  studioTileClassName,
+} from './studioTheme';
 
 const PAGE_SIZE = 20;
 
@@ -172,20 +172,20 @@ const TranslationAuditViewer: React.FC = () => {
       {/* Stats row */}
       {stats ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className={`${logShareTileClass} p-4`}>
+          <div className={`${studioTileClassName} p-4`}>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">总翻译数</p>
             <p className="mt-2 text-2xl font-semibold text-slate-950">{stats.total.toLocaleString()}</p>
           </div>
-          <div className={`${logShareTileClass} p-4`}>
+          <div className={`${studioTileClassName} p-4`}>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">近24小时</p>
             <p className="mt-2 text-2xl font-semibold text-slate-950">{stats.last24h.toLocaleString()}</p>
           </div>
-          <div className={`${logShareTileClass} p-4`}>
+          <div className={`${studioTileClassName} p-4`}>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">高频用户</p>
             <p className="mt-2 text-2xl font-semibold text-slate-950">{stats.topUsers[0]?.count.toLocaleString() || '0'}</p>
             <p className="mt-2 text-xs leading-5 text-slate-500">{stats.topUsers[0]?.userId || '暂无'}</p>
           </div>
-          <div className={`${logShareTileClass} p-4`}>
+          <div className={`${studioTileClassName} p-4`}>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">列表页数</p>
             <p className="mt-2 text-2xl font-semibold text-slate-950">{totalPages.toLocaleString()}</p>
             <p className="mt-2 text-xs leading-5 text-slate-500">{page}/{totalPages}</p>
@@ -194,7 +194,7 @@ const TranslationAuditViewer: React.FC = () => {
       ) : null}
 
       {/* Search & filter bar */}
-      <div className={logSharePanelClass}>
+      <div className={studioSurfaceClassName}>
         <div className="flex flex-wrap items-center gap-2 px-5 py-4">
           <div className="relative min-w-0 flex-1">
             <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -208,12 +208,12 @@ const TranslationAuditViewer: React.FC = () => {
                 }
               }}
               placeholder="搜索原文、译文或用户 ID"
-              className={`${logShareInputClass} pl-9`}
+              className={`${studioFieldClassName} pl-9`}
             />
           </div>
           <button
             onClick={() => setShowFilters((prev) => !prev)}
-            className={`${logShareSecondaryButtonClass} ${showFilters ? 'bg-slate-200 text-slate-800' : ''}`}
+            className={`${studioSecondaryButtonClassName} ${showFilters ? 'bg-slate-200 text-slate-800' : ''}`}
           >
             <FaFilter />筛选
           </button>
@@ -223,7 +223,7 @@ const TranslationAuditViewer: React.FC = () => {
               void fetchLogs(1);
               void fetchStats();
             }}
-            className={logSharePrimaryButtonClass}
+            className={studioPrimaryButtonClassName}
           >
             搜索
           </button>
@@ -232,7 +232,7 @@ const TranslationAuditViewer: React.FC = () => {
               void fetchLogs(page);
               void fetchStats();
             }}
-            className={logShareSecondaryButtonClass}
+            className={studioSecondaryButtonClassName}
           >
             <FaSync className={loading ? 'animate-spin' : ''} />
           </button>
@@ -253,19 +253,19 @@ const TranslationAuditViewer: React.FC = () => {
                   value={filters.userId}
                   onChange={(event) => setFilters((prev) => ({ ...prev, userId: event.target.value }))}
                   placeholder="按 userId 精确筛选"
-                  className={logShareInputClass}
+                  className={studioFieldClassName}
                 />
                 <input
                   type="date"
                   value={filters.startDate}
                   onChange={(event) => setFilters((prev) => ({ ...prev, startDate: event.target.value }))}
-                  className={logShareInputClass}
+                  className={studioFieldClassName}
                 />
                 <input
                   type="date"
                   value={filters.endDate}
                   onChange={(event) => setFilters((prev) => ({ ...prev, endDate: event.target.value }))}
-                  className={logShareInputClass}
+                  className={studioFieldClassName}
                 />
               </div>
             </motion.div>
@@ -361,7 +361,7 @@ const TranslationAuditViewer: React.FC = () => {
                     setSelectedLogId(null);
                     setSelectedUser(null);
                   }}
-                  className={logShareSecondaryButtonClass}
+                  className={studioSecondaryButtonClassName}
                 >
                   关闭
                 </button>

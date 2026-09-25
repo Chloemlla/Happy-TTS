@@ -2,14 +2,14 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { FaBell, FaInfoCircle, FaLayerGroup, FaListOl } from 'react-icons/fa';
 import { useNotification } from './Notification';
+import { studioSecondaryButtonClassName } from './studioTheme';
 import {
-    InfoBadge,
-    InfoPanel,
-    InfoQueryHero,
-    InfoQueryShell,
-    InfoSectionTitle,
-    logShareSecondaryButtonClass,
-} from './LogShareStyleScaffold';
+  InfoBadge,
+  InfoPanel,
+  InfoQueryHero,
+  InfoQueryShell,
+  InfoSectionTitle,
+} from './InfoQueryScaffold';
 
 const notificationMeta = {
     success: {
@@ -163,13 +163,13 @@ const NotificationTestPage: React.FC = () => {
                             description="模拟连续入队、快速覆盖和简单消息等典型通知压力场景。"
                         />
                         <div className="space-y-3">
-                            <button onClick={handleMultipleNotifications} className={`${logShareSecondaryButtonClass} w-full`}>
+                            <button onClick={handleMultipleNotifications} className={`${studioSecondaryButtonClassName} w-full`}>
                                 顺序显示所有通知 (0.5s 间隔)
                             </button>
-                            <button onClick={handleRapidNotifications} className={`${logShareSecondaryButtonClass} w-full`}>
+                            <button onClick={handleRapidNotifications} className={`${studioSecondaryButtonClassName} w-full`}>
                                 快速连续通知 (0.1s 间隔)
                             </button>
-                            <button onClick={handleSimpleNotifications} className={`${logShareSecondaryButtonClass} w-full`}>
+                            <button onClick={handleSimpleNotifications} className={`${studioSecondaryButtonClassName} w-full`}>
                                 简单通知测试 (0.3s 间隔)
                             </button>
                         </div>
@@ -218,7 +218,7 @@ const NotificationTestPage: React.FC = () => {
                 transition={{ delay: 0.4 }}
                 className="flex justify-center"
             >
-                <button onClick={() => window.history.back()} className={logShareSecondaryButtonClass}>
+                <button onClick={() => window.history.back()} className={studioSecondaryButtonClassName}>
                     返回上一页
                 </button>
             </motion.div>

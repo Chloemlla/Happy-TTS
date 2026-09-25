@@ -2,7 +2,7 @@ import { m } from 'framer-motion';
 import { FaSync } from 'react-icons/fa';
 import CollapsibleSection from './CollapsibleSection';
 import ConfigFieldRow from './ConfigFieldRow';
-import { logShareInputClass } from '../LogShareStyleScaffold';
+import { studioFieldClassName } from '../studioTheme';
 
 const REFRESH_BUTTON_CLASS =
   'inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400';
@@ -67,7 +67,7 @@ export default function SecretKeySection({
         value={extraField.value}
         onChange={(event) => extraField.onChange(event.target.value)}
         placeholder={extraField.placeholder}
-        className={logShareInputClass}
+        className={studioFieldClassName}
         disabled={isDisabled}
       />
     </div>

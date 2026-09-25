@@ -3,13 +3,9 @@ import { FaTrashAlt, FaUserPlus, FaUsers } from 'react-icons/fa';
 import { qqGuardApi } from '../../../api/qqGuard';
 import type { QqGuardWhitelistRow } from '../../../api/qqGuard';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
-import {
-  InfoSectionTitle,
-  logSharePanelClass,
-  logSharePrimaryButtonClass,
-  logShareSecondaryButtonClass,
-} from '../../LogShareStyleScaffold';
+import { studioPrimaryButtonClassName, studioSecondaryButtonClassName, studioSurfaceClassName } from '../../studioTheme';
 import { cx, formatDateTime } from './ui';
+import { InfoSectionTitle } from '../../InfoQueryScaffold';
 
 /**
  * 白名单（免 AI 审查成员）。面板增删即时写库；
@@ -97,14 +93,14 @@ export const WhitelistPanel: React.FC = () => {
           icon={FaUsers}
           tone="emerald"
         />
-        <button onClick={() => void load()} disabled={loading} className={logShareSecondaryButtonClass}>
+        <button onClick={() => void load()} disabled={loading} className={studioSecondaryButtonClassName}>
           刷新
         </button>
       </div>
 
       <form
         onSubmit={add}
-        className={cx(logSharePanelClass, 'grid gap-3 sm:grid-cols-2 lg:grid-cols-[140px_120px_160px_1fr_auto]')}
+        className={cx(studioSurfaceClassName, 'grid gap-3 sm:grid-cols-2 lg:grid-cols-[140px_120px_160px_1fr_auto]')}
       >
         <input
           value={userId}
@@ -130,7 +126,7 @@ export const WhitelistPanel: React.FC = () => {
           placeholder="加入原因（可选）"
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-300"
         />
-        <button type="submit" disabled={busy || !userId.trim()} className={logSharePrimaryButtonClass}>
+        <button type="submit" disabled={busy || !userId.trim()} className={studioPrimaryButtonClassName}>
           <FaUserPlus className="text-sm" />
           {busy ? '处理中...' : '加入'}
         </button>
@@ -143,7 +139,7 @@ export const WhitelistPanel: React.FC = () => {
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{msg}</div>
       )}
 
-      <div className={cx(logSharePanelClass, 'overflow-hidden')}>
+      <div className={cx(studioSurfaceClassName, 'overflow-hidden')}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead>

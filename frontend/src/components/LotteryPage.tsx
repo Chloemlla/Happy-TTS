@@ -10,18 +10,7 @@ import { isAdminRole } from '../utils/rbac';
 import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
-import {
-  InfoBadge,
-  InfoMetricCard,
-  InfoPanel,
-  InfoPrimaryButton,
-  InfoQueryHero,
-  InfoQueryShell,
-  InfoSectionTitle,
-  logSharePanelClass,
-  logSharePrimaryButtonClass,
-  logShareTileClass
-} from './LogShareStyleScaffold';
+import { studioPrimaryButtonClassName, studioSurfaceClassName, studioTileClassName } from './studioTheme';
 import {
   FaChartBar,
   FaTrophy,
@@ -34,9 +23,18 @@ import {
   FaCheckCircle,
   FaExclamationTriangle
 } from 'react-icons/fa';
+import {
+  InfoBadge,
+  InfoMetricCard,
+  InfoPanel,
+  InfoPrimaryButton,
+  InfoQueryHero,
+  InfoQueryShell,
+  InfoSectionTitle,
+} from './InfoQueryScaffold';
 
-const lotteryPanelClass = logSharePanelClass;
-const lotteryTileClass = logShareTileClass;
+const lotteryPanelClass = studioSurfaceClassName;
+const lotteryTileClass = studioTileClassName;
 
 // 奖品展示组件
 const PrizeDisplay: React.FC<{ prize: any }> = ({ prize }) => {
@@ -152,7 +150,7 @@ const LotteryRoundCard: React.FC<{
               className={`${
                 !isActive || hasParticipated || loading || (!isAdmin && !!turnstileConfig?.siteKey && !turnstileVerified)
                   ? 'inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-2xl bg-slate-200 px-5 py-3 text-sm font-semibold text-slate-500'
-                  : logSharePrimaryButtonClass
+                  : studioPrimaryButtonClassName
               }`}
               whileTap={{ scale: 0.95 }}
             >

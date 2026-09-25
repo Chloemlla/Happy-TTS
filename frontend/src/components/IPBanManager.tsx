@@ -12,15 +12,8 @@ import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import { useNotification } from './Notification';
-import {
-  InfoMetricCard,
-  InfoPanel,
-  InfoSectionTitle,
-  logShareDangerButtonClass,
-  logShareInputClass,
-  logSharePanelClass,
-  logShareSecondaryButtonClass,
-} from './LogShareStyleScaffold';
+import { studioDangerButtonClassName, studioFieldClassName, studioSecondaryButtonClassName, studioSurfaceClassName } from './studioTheme';
+import { InfoMetricCard, InfoPanel, InfoSectionTitle } from './InfoQueryScaffold';
 
 interface BanIPModalProps {
   isOpen: boolean;
@@ -133,7 +126,7 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode, canWrite }: BanIPModalPr
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className={`${logSharePanelClass} relative top-0 mx-auto my-4 max-h-[95vh] w-full max-w-2xl overflow-y-auto p-4 sm:top-16 sm:my-0 sm:p-5`}
+          className={`${studioSurfaceClassName} relative top-0 mx-auto my-4 max-h-[95vh] w-full max-w-2xl overflow-y-auto p-4 sm:top-16 sm:my-0 sm:p-5`}
         >
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
@@ -154,7 +147,7 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode, canWrite }: BanIPModalPr
                     type="text"
                     required
                     disabled={!canWrite}
-                    className={`${logShareInputClass} mt-1`}
+                    className={`${studioFieldClassName} mt-1`}
                     value={formData.ipAddress}
                     onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
                     placeholder="例如: 192.168.1.100 或 192.168.1.0/24"
@@ -168,7 +161,7 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode, canWrite }: BanIPModalPr
                     required
                     rows={6}
                     disabled={!canWrite}
-                    className={`${logShareInputClass} mt-1`}
+                    className={`${studioFieldClassName} mt-1`}
                     value={formData.ipAddresses}
                     onChange={(e) => setFormData({ ...formData, ipAddresses: e.target.value })}
                     placeholder="每行一个IP或IP段，例如：&#10;192.168.1.100&#10;192.168.1.0/24&#10;10.0.0.0/8&#10;2001:db8::/32"
@@ -183,7 +176,7 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode, canWrite }: BanIPModalPr
                   required
                   rows={3}
                   disabled={!canWrite}
-                  className={`${logShareInputClass} mt-1`}
+                  className={`${studioFieldClassName} mt-1`}
                   value={formData.reason}
                   onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                   placeholder="请输入封禁原因..."
@@ -198,7 +191,7 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode, canWrite }: BanIPModalPr
                   max="1440"
                   required
                   disabled={!canWrite}
-                  className={`${logShareInputClass} mt-1`}
+                  className={`${studioFieldClassName} mt-1`}
                   value={formData.durationMinutes}
                   onChange={(e) => setFormData({ ...formData, durationMinutes: parseInt(e.target.value) || 60 })}
                 />
@@ -215,14 +208,14 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode, canWrite }: BanIPModalPr
                 <button
                   type="button"
                   onClick={onClose}
-                  className={logShareSecondaryButtonClass}
+                  className={studioSecondaryButtonClassName}
                 >
                   取消
                 </button>
                 <button
                   type="submit"
                   disabled={loading || !canWrite}
-                  className={logShareDangerButtonClass}
+                  className={studioDangerButtonClassName}
                 >
                   {loading ? '处理中...' : (mode === 'single' ? '封禁IP' : '批量封禁')}
                 </button>
@@ -311,7 +304,7 @@ function UnbanIPModal({ isOpen, onClose, onSuccess, mode, canWrite }: UnbanIPMod
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className={`${logSharePanelClass} relative top-0 mx-auto my-4 max-h-[95vh] w-full max-w-2xl overflow-y-auto p-4 sm:top-16 sm:my-0 sm:p-5`}
+          className={`${studioSurfaceClassName} relative top-0 mx-auto my-4 max-h-[95vh] w-full max-w-2xl overflow-y-auto p-4 sm:top-16 sm:my-0 sm:p-5`}
         >
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
@@ -332,7 +325,7 @@ function UnbanIPModal({ isOpen, onClose, onSuccess, mode, canWrite }: UnbanIPMod
                     type="text"
                     required
                     disabled={!canWrite}
-                    className={`${logShareInputClass} mt-1`}
+                    className={`${studioFieldClassName} mt-1`}
                     value={formData.ipAddress}
                     onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
                     placeholder="例如: 192.168.1.100 或 192.168.1.0/24"
@@ -346,7 +339,7 @@ function UnbanIPModal({ isOpen, onClose, onSuccess, mode, canWrite }: UnbanIPMod
                     required
                     rows={6}
                     disabled={!canWrite}
-                    className={`${logShareInputClass} mt-1`}
+                    className={`${studioFieldClassName} mt-1`}
                     value={formData.ipAddresses}
                     onChange={(e) => setFormData({ ...formData, ipAddresses: e.target.value })}
                     placeholder="每行一个IP或IP段，例如：&#10;192.168.1.100&#10;192.168.1.0/24&#10;10.0.0.0/8&#10;2001:db8::/32"
@@ -370,14 +363,14 @@ function UnbanIPModal({ isOpen, onClose, onSuccess, mode, canWrite }: UnbanIPMod
                 <button
                   type="button"
                   onClick={onClose}
-                  className={logShareSecondaryButtonClass}
+                  className={studioSecondaryButtonClassName}
                 >
                   取消
                 </button>
                 <button
                   type="submit"
                   disabled={loading || !canWrite}
-                  className={logShareSecondaryButtonClass}
+                  className={studioSecondaryButtonClassName}
                 >
                   {loading ? <UnifiedLoadingSpinner size="sm" /> : <FaUnlock />}
                   {mode === 'single' ? '解封IP' : '批量解封'}
@@ -452,7 +445,7 @@ export default function IPBanManager() {
           description="管理 IP 与 CIDR 封禁列表，支持单个和批量封禁、解封以及实时统计刷新。"
           icon={FaShieldAlt}
           action={
-            <Link to="/admin" className={logShareSecondaryButtonClass}>
+            <Link to="/admin" className={studioSecondaryButtonClassName}>
               <FaTimes className="w-4 h-4" />
               返回仪表板
             </Link>
@@ -482,7 +475,7 @@ export default function IPBanManager() {
                 setShowBanModal(true);
               }}
               disabled={!canWrite}
-              className={logShareDangerButtonClass}
+              className={studioDangerButtonClassName}
               whileHover={{ scale: canWrite ? 1.02 : 1 }}
               whileTap={{ scale: canWrite ? 0.98 : 1 }}
             >
@@ -496,7 +489,7 @@ export default function IPBanManager() {
                 setShowBanModal(true);
               }}
               disabled={!canWrite}
-              className={logShareDangerButtonClass}
+              className={studioDangerButtonClassName}
               whileHover={{ scale: canWrite ? 1.02 : 1 }}
               whileTap={{ scale: canWrite ? 0.98 : 1 }}
             >
@@ -510,7 +503,7 @@ export default function IPBanManager() {
                 setShowUnbanModal(true);
               }}
               disabled={!canWrite}
-              className={logShareSecondaryButtonClass}
+              className={studioSecondaryButtonClassName}
               whileHover={{ scale: canWrite ? 1.02 : 1 }}
               whileTap={{ scale: canWrite ? 0.98 : 1 }}
             >
@@ -524,7 +517,7 @@ export default function IPBanManager() {
                 setShowUnbanModal(true);
               }}
               disabled={!canWrite}
-              className={logShareSecondaryButtonClass}
+              className={studioSecondaryButtonClassName}
               whileHover={{ scale: canWrite ? 1.02 : 1 }}
               whileTap={{ scale: canWrite ? 0.98 : 1 }}
             >
@@ -535,7 +528,7 @@ export default function IPBanManager() {
             <motion.button
               onClick={handleRefresh}
               disabled={refreshing}
-              className={logShareSecondaryButtonClass}
+              className={studioSecondaryButtonClassName}
               whileHover={{ scale: refreshing ? 1 : 1.02 }}
               whileTap={{ scale: refreshing ? 1 : 0.98 }}
             >
