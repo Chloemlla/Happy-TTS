@@ -203,7 +203,7 @@ const RegistrationInviteManager: React.FC = () => {
           </div>
           <h2 className="mt-2 text-xl font-semibold text-slate-900">注册邀请码</h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            管理本地账号注册使用的邀请码；设置 `REGISTRATION_INVITE_REQUIRED=true` 后，注册必须提供有效邀请码。
+            管理本地账号注册使用的邀请码；在 env-manager 的「注册邀请码」分区开启开关后，注册必须提供有效邀请码。
           </p>
         </div>
         <button

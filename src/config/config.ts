@@ -405,6 +405,13 @@ runtimeDefaults.proxycheck = {
   hmacSecret: process.env.PROXYCHECK_HMAC_SECRET || "",
 };
 
+// 注册邀请码闸门的默认值来自 env；已存 REGISTRATION_INVITE 文档覆盖之。
+// 该开关仅支持在 env-manager 的「注册邀请码」分区配置，env 只是启动默认值（同 proxycheck）。
+runtimeDefaults.registrationInvite = {
+  ...runtimeDefaults.registrationInvite,
+  required: (process.env.REGISTRATION_INVITE_REQUIRED || "").trim().toLowerCase() === "true",
+};
+
 // Project Lumen server-side config defaults come from env; a stored LUMEN doc
 // overrides them at runtime (see src/config/lumen.ts).
 runtimeDefaults.lumen = buildLumenConfigFromEnv();

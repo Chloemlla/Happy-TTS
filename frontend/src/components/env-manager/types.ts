@@ -143,6 +143,11 @@ export interface ProxycheckConfigSetting {
   usePublicKeyForClient: boolean;
 }
 
+/** GET /api/admin/registration-invite/setting 返回体里的 config 对象（updatedAt 在其同级 setting 下）。 */
+export interface RegistrationInviteConfigSetting {
+  required: boolean;
+}
+
 export interface TtsProviderAdminConfig {
   provider: TtsProviderId;
   defaultModel: string;

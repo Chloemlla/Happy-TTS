@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { RegistrationInviteModel, type RegistrationInviteDoc } from "../models/registrationInviteModel";
+import { RuntimeConfigService } from "./runtimeConfigService";
 
 const CODE_PATTERN = /^[A-Z0-9_-]{4,32}$/;
 
@@ -40,8 +41,10 @@ export function normalizeInviteCode(input: unknown): string {
   return typeof input === "string" ? input.trim().toUpperCase() : "";
 }
 
+// 「仅支持在 env-manager 配置」：闸门值来自 Mongo 运行时配置（REGISTRATION_INVITE 分区），
+// REGISTRATION_INVITE_REQUIRED 环境变量只作启动默认值，读内存缓存，保存后无需重启即生效。
 export function isRegistrationInviteRequired(): boolean {
-  return process.env.REGISTRATION_INVITE_REQUIRED === "true";
+  return RuntimeConfigService.getCachedConfig().registrationInvite.required;
 }
 
 function generateInviteCode(): string {

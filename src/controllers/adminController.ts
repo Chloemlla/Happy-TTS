@@ -1890,6 +1890,47 @@ export const adminController = {
     }
   },
 
+  // 注册邀请码闸门（REGISTRATION_INVITE）。仅 env-manager 的「注册邀请码」分区可改，
+  // 保存后 register 接口立即按新值判定，无需重启。
+  async getRegistrationInviteSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      const result = await RuntimeConfigService.getRegistrationInviteSetting();
+      return res.json({ success: true, ...result });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "获取注册邀请码配置失败",
+      });
+    }
+  },
+
+  async setRegistrationInviteSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      const result = await RuntimeConfigService.setRegistrationInviteSetting(req.body || {});
+      return res.json({ success: true, setting: result });
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: error instanceof Error ? error.message : "保存注册邀请码配置失败",
+      });
+    }
+  },
+
+  async deleteRegistrationInviteSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      await RuntimeConfigService.deleteRegistrationInviteSetting();
+      return res.json({ success: true });
+    } catch (_error) {
+      return res.status(500).json({ success: false, error: "重置注册邀请码配置失败" });
+    }
+  },
+
   async getCdictSigningSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });

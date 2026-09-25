@@ -17,6 +17,7 @@ export const RUNTIME_CONFIG_KEYS = [
   "QQ_GUARD_SIGNING",
   "LUMEN",
   "PROXYCHECK",
+  "REGISTRATION_INVITE",
 ] as const;
 
 export type RuntimeConfigKey = (typeof RUNTIME_CONFIG_KEYS)[number];

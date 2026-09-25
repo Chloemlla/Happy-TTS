@@ -13,6 +13,7 @@ import {
   type NexaiSigningRuntimeConfig,
   type ProxycheckRuntimeConfig,
   type QqGuardSigningRuntimeConfig,
+  type RegistrationInviteRuntimeConfig,
   type RuntimeConfigDefaults,
   type SynapseAndroidRuntimeConfig,
   type TtsRuntimeConfig,
@@ -447,6 +448,7 @@ const RUNTIME_CONFIG_KEY_TO_PROP: Partial<Record<RuntimeConfigKey, keyof Runtime
   CDICT_SIGNING: "cdictSigning",
   QQ_GUARD_SIGNING: "qqGuardSigning",
   PROXYCHECK: "proxycheck",
+  REGISTRATION_INVITE: "registrationInvite",
   LUMEN: "lumen",
   NEXAI: "nexai",
 };
@@ -691,6 +693,17 @@ function normalizeStoredLumenConfig(value: unknown, defaults: LumenRuntimeConfig
   };
 }
 
+function normalizeStoredRegistrationInviteConfig(
+  value: unknown,
+  defaults = runtimeConfigDefaults.registrationInvite,
+): RegistrationInviteRuntimeConfig {
+  const raw = asObject(value);
+
+  return {
+    required: normalizeBoolean(raw.required, defaults.required),
+  };
+}
+
 // G5-37: 纯函数——只写传入的 target 缓存，不在遍历中改在用的 runtimeConfigCache。
 function applyCacheForKey(target: RuntimeConfigDefaults, key: RuntimeConfigKey, value: unknown): void {
   switch (key) {
@@ -733,6 +746,9 @@ function applyCacheForKey(target: RuntimeConfigDefaults, key: RuntimeConfigKey, 
     case "PROXYCHECK":
       target.proxycheck = normalizeStoredProxycheckConfig(value);
       return;
+    case "REGISTRATION_INVITE":
+      target.registrationInvite = normalizeStoredRegistrationInviteConfig(value);
+      return;
     case "LUMEN": {
       const config = normalizeStoredLumenConfig(value, target.lumen);
       target.lumen = config;
@@ -765,6 +781,7 @@ const RUNTIME_CONFIG_KEYS: readonly RuntimeConfigKey[] = [
   "QQ_GUARD_SIGNING",
   "LUMEN",
   "PROXYCHECK",
+  "REGISTRATION_INVITE",
 ];
 
 // G5-03: 周期刷新定时器——多实例部署下每个实例每 ~10s 重载一次 DB 配置，
@@ -833,6 +850,9 @@ export class RuntimeConfigService {
     }
     if (!loadedKeys.has("PROXYCHECK")) {
       runtimeConfigCache.proxycheck = cloneRuntimeConfigDefaults(defaults).proxycheck;
+    }
+    if (!loadedKeys.has("REGISTRATION_INVITE")) {
+      runtimeConfigCache.registrationInvite = cloneRuntimeConfigDefaults(defaults).registrationInvite;
     }
     if (!loadedKeys.has("LUMEN")) {
       runtimeConfigCache.lumen = cloneRuntimeConfigDefaults(defaults).lumen;
@@ -1477,6 +1497,64 @@ export class RuntimeConfigService {
     runtimeConfigCache.proxycheck = cloneRuntimeConfigDefaults(runtimeConfigDefaults).proxycheck;
     loadedKeys.delete("PROXYCHECK");
     invalidateHotCache("PROXYCHECK");
+  }
+
+  // 注册邀请码闸门（REGISTRATION_INVITE）。只能在 env-manager 的「注册邀请码」分区改；
+  // 保存后 isRegistrationInviteRequired() 立即读到新缓存值，注册接口无需重启即生效。
+  static async getRegistrationInviteSetting(): Promise<{
+    setting: {
+      config: RegistrationInviteRuntimeConfig;
+      updatedAt?: string;
+    };
+  }> {
+    const doc = await readRuntimeConfigDoc("REGISTRATION_INVITE");
+    const config = doc
+      ? normalizeStoredRegistrationInviteConfig(doc.value)
+      : runtimeConfigDefaults.registrationInvite;
+    runtimeConfigCache.registrationInvite = config;
+
+    return {
+      setting: {
+        config: {
+          required: config.required,
+        },
+        updatedAt: doc?.updatedAt?.toISOString(),
+      },
+    };
+  }
+
+  static async setRegistrationInviteSetting(
+    input: Partial<RegistrationInviteRuntimeConfig> | Record<string, unknown>,
+  ): Promise<{ updatedAt: string }> {
+    const currentDoc = await readRuntimeConfigDoc("REGISTRATION_INVITE");
+    const current = currentDoc
+      ? normalizeStoredRegistrationInviteConfig(currentDoc.value)
+      : runtimeConfigCache.registrationInvite;
+    const raw = asObject(input);
+
+    const nextConfig: RegistrationInviteRuntimeConfig = {
+      required: hasOwnKey(raw, "required") ? normalizeBoolean(raw.required, current.required) : current.required,
+    };
+
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "REGISTRATION_INVITE",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
+
+    runtimeConfigCache.registrationInvite = nextConfig;
+    loadedKeys.add("REGISTRATION_INVITE");
+    invalidateHotCache("REGISTRATION_INVITE");
+    initialized = true;
+
+    return { updatedAt: persistedAt.toISOString() };
+  }
+
+  static async deleteRegistrationInviteSetting(): Promise<void> {
+    await RuntimeConfigModel.deleteOne({ key: "REGISTRATION_INVITE" }).exec();
+    runtimeConfigCache.registrationInvite = cloneRuntimeConfigDefaults(runtimeConfigDefaults).registrationInvite;
+    loadedKeys.delete("REGISTRATION_INVITE");
+    invalidateHotCache("REGISTRATION_INVITE");
   }
 
   static async getCdictSigningSetting(): Promise<{

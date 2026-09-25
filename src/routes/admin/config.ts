@@ -367,6 +367,23 @@ router.delete(
   auditLog({ module: "config", action: "config.proxycheck.delete" }),
   adminController.deleteProxycheckSetting,
 );
+// 注册邀请码闸门（REGISTRATION_INVITE_REQUIRED）。只在 env-manager 的「注册邀请码」分区暴露，
+// 保存后立即生效；重置回退到部署环境变量 REGISTRATION_INVITE_REQUIRED（未设置则关闭）。
+router.get("/registration-invite/setting", adminController.getRegistrationInviteSetting);
+router.post(
+  "/registration-invite/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.registration-invite.set", captureBody: false }),
+  adminController.setRegistrationInviteSetting,
+);
+router.delete(
+  "/registration-invite/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.registration-invite.delete" }),
+  adminController.deleteRegistrationInviteSetting,
+);
 router.get("/cdict-signing/setting", adminController.getCdictSigningSetting);
 router.post(
   "/cdict-signing/setting",

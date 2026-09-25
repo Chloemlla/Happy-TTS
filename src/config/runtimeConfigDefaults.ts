@@ -209,6 +209,15 @@ export interface LumenRuntimeConfig {
   outemailBaseUrl: string;
 }
 
+/**
+ * 注册邀请码闸门。**仅由 env-manager 的「注册邀请码」分区维护**；REGISTRATION_INVITE_REQUIRED
+ * 环境变量只作启动默认值（见 src/config/config.ts），运行期一律以本运行时配置为准。
+ */
+export interface RegistrationInviteRuntimeConfig {
+  /** true = 本地账号注册必须提供有效邀请码；false = 邀请码可选（填了仍然校验）。 */
+  required: boolean;
+}
+
 export interface RuntimeConfigDefaults {
   ipqs: IpqsRuntimeConfig;
   linuxdo: LinuxDoRuntimeConfig;
@@ -225,6 +234,7 @@ export interface RuntimeConfigDefaults {
   cdictSigning: CdictSigningRuntimeConfig;
   qqGuardSigning: QqGuardSigningRuntimeConfig;
   proxycheck: ProxycheckRuntimeConfig;
+  registrationInvite: RegistrationInviteRuntimeConfig;
   lumen: LumenRuntimeConfig;
 }
 
@@ -393,6 +403,10 @@ export function buildRuntimeConfigDefaults(options: {
       failOpen: true,
       usePublicKeyForClient: true,
     },
+    // 默认关闭：存量部署未显式配置时不得凭空收紧注册入口（env 由 config.ts 覆盖）。
+    registrationInvite: {
+      required: false,
+    },
     lumen: {
       enabled: false,
       adminUsername: "admin",
@@ -493,6 +507,9 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
     },
     proxycheck: {
       ...config.proxycheck,
+    },
+    registrationInvite: {
+      ...config.registrationInvite,
     },
     lumen: {
       ...config.lumen,
