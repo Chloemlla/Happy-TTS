@@ -22,6 +22,7 @@ import { recordRecentFeature } from './utils/recentFeature';
 import { fetchWithTimeout } from './utils/fetchWithTimeout';
 import ArticleCommandPalette from './components/ArticleCommandPalette';
 import { isAdminRole } from './utils/rbac';
+import { studioModalOverlayClassName } from './components/studioTheme';
 
 
 // 动态导入 clarity 以减少主 bundle 体积，避免与 FirstVisitVerification 的动态导入冲突
@@ -1596,7 +1597,7 @@ const App: React.FC = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-[10050] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm"
+                  className={studioModalOverlayClassName}
                   onClick={closeTOTPManager}
                 >
                   <m.div

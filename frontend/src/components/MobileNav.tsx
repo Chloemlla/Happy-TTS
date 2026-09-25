@@ -25,6 +25,7 @@ import {
 import type { TOTPStatus, User } from '../types/auth';
 import { isNavLink } from '../layout/url-utils';
 import type { NavItem as ConfigNavItem } from '../layout/types';
+import { studioEyebrowClassName } from './studioTheme';
 
 interface MobileNavProps {
   user: User | null;
@@ -482,7 +483,7 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
                         className="space-y-2 overflow-hidden border-b border-slate-200/70 pb-4"
                       >
                         <div className="flex items-center justify-between px-1 py-1">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">已保存的账号</p>
+                          <p className={studioEyebrowClassName}>已保存的账号</p>
                         </div>
 
                         {accountsForDisplay.map((account) => {
@@ -628,7 +629,7 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
                         return (
                         <section key={group.id} className="space-y-2 border-t border-slate-200/70 pt-4" aria-labelledby={`mobile-nav-group-${group.id}`}>
                           <div className="flex items-baseline justify-between gap-2 px-1">
-                            <p id={`mobile-nav-group-${group.id}`} className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                            <p id={`mobile-nav-group-${group.id}`} className={studioEyebrowClassName}>
                               {group.title}
                             </p>
                             <span className="text-[10px] font-medium text-slate-400">更多见总览</span>

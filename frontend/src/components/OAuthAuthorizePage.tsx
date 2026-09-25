@@ -18,6 +18,7 @@ import {
   studioAccentBlobBlueClassName,
   studioAccentBlobSkyClassName,
   studioDisplayFont,
+  studioEyebrowClassName,
   studioEyebrowPillClassName,
   studioGhostButtonClassName,
   studioHeroCardClassName,
@@ -342,7 +343,7 @@ const OAuthAuthorizePage: React.FC = () => {
             <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 sm:p-5">
               <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  <div className={studioEyebrowClassName}>
                     Permission Review
                   </div>
                   <h2 className="mt-2 text-xl font-semibold text-slate-900">

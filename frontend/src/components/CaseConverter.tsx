@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import { useNotification } from './Notification';
+import { studioEyebrowClassName, studioEyebrowPillClassName } from './studioTheme';
 import {
   FaFont,
   FaCopy,
@@ -1150,7 +1151,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
           {/* 标题区 */}
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+              <div className={studioEyebrowPillClassName}>
                 <FaFont className="text-[10px]" /> CASE CONVERTER
               </div>
               <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">
@@ -1211,7 +1212,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
 
             <div className="mt-4 space-y-4">
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                <label className={studioEyebrowClassName}>
                   {t.inputPlaceholder}
                 </label>
                 <textarea

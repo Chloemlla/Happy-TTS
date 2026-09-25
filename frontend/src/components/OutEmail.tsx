@@ -7,6 +7,7 @@ import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
 import { isAdminRole, isSuperAdmin } from '../utils/rbac';
+import { studioEyebrowClassName, studioEyebrowPillClassName } from './studioTheme';
 
 const OutEmail: React.FC = () => {
   const { user } = useAuth();
@@ -301,7 +302,7 @@ const OutEmail: React.FC = () => {
         <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(14,165,233,0.16),_transparent_70%)]" />
 
         <div className="relative">
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+          <div className={studioEyebrowPillClassName}>
             <FaEnvelope className="text-[10px]" /> Outbound Email
           </div>
           <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">
@@ -314,7 +315,7 @@ const OutEmail: React.FC = () => {
           <div className="mt-6 flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 px-5 py-4 text-sm leading-7 text-slate-600">
             <FaInfoCircle className="mt-1 flex-shrink-0 text-slate-500" />
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">功能说明</p>
+              <p className={studioEyebrowClassName}>功能说明</p>
               <ul className="mt-2 list-disc space-y-1 pl-5">
                 <li>支持自定义发件人邮箱和显示名</li>
                 <li>可选择不同的发件人域名</li>

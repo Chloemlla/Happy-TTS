@@ -18,6 +18,7 @@ import {
 } from '../api/deeplx';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from './Notification';
+import { studioEyebrowClassName, studioEyebrowPillClassName } from './studioTheme';
 
 interface TranslatorHistoryItem {
   id: string;
@@ -360,7 +361,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
           <div className="pointer-events-none absolute -right-16 top-0 h-48 w-48 rounded-full bg-[radial-gradient(circle,_rgba(244,63,94,0.18),_transparent_68%)]" />
           <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(14,165,233,0.12),_transparent_70%)]" />
           <div className="relative">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+            <div className={studioEyebrowPillClassName}>
               <FaLanguage className="text-[10px]" /> TRANSLATION ACCESS
             </div>
             <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">
@@ -389,7 +390,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
         <div className="relative">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+              <div className={studioEyebrowPillClassName}>
                 <FaLanguage className="text-[10px]" /> TRANSLATE
               </div>
               <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">
@@ -464,7 +465,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
                     </select>
                   </div>
 
-                  <label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">原文</label>
+                  <label className={studioEyebrowClassName}>原文</label>
                   <textarea
                     value={sourceText}
                     onChange={(event) => setSourceText(event.target.value)}
@@ -539,7 +540,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
                     </select>
                   </div>
 
-                  <label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">译文</label>
+                  <label className={studioEyebrowClassName}>译文</label>
                   <div className="mt-2 min-h-[220px] rounded-2xl border border-slate-200 bg-white/80 p-4 sm:min-h-[280px]">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-[11px] font-medium text-slate-500 sm:text-xs">
                       <span>检测语言：{sourceLanguageLabel}</span>

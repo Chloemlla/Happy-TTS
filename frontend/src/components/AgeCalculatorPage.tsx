@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useActionState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { studioEyebrowPillClassName } from './studioTheme';
 import {
   FaCalculator,
   FaBirthdayCake,
@@ -155,7 +156,7 @@ const AgeCalculatorPage: React.FC = () => {
         <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(14,165,233,0.16),_transparent_70%)]" />
 
         <div className="relative">
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+          <div className={studioEyebrowPillClassName}>
             <FaCalculator className="text-[10px]" /> Age Calculator
           </div>
           <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">

@@ -1,12 +1,7 @@
 import React from 'react';
 import type { IconType } from 'react-icons';
 import { cn } from '../utils/cn';
-import {
-  studioHeroCardClassName,
-  studioPrimaryButtonClassName,
-  studioSurfaceClassName,
-  studioTileClassName,
-} from './studioTheme';
+import { studioEyebrowPillClassName, studioHeroCardClassName, studioPrimaryButtonClassName, studioSurfaceClassName, studioTileClassName } from './studioTheme';
 
 export type InfoTone = 'teal' | 'amber' | 'rose' | 'slate' | 'emerald' | 'sky' | 'violet';
 
@@ -95,7 +90,7 @@ export const InfoQueryHero: React.FC<{
       <div className={`pointer-events-none absolute inset-x-0 top-0 h-1 ${classes.accent}`} />
       <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+          <div className={studioEyebrowPillClassName}>
             <Icon className={`text-[10px] ${classes.text}`} />
             {eyebrow}
           </div>

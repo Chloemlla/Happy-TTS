@@ -4,6 +4,7 @@ import { FaLink, FaCopy, FaDice, FaArrowLeft } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { useNotification } from './Notification';
 import getApiBaseUrl from '../api';
+import { studioEyebrowClassName } from './studioTheme';
 
 const PublicShortLinkCreator: React.FC = () => {
   const [target, setTarget] = useState('');
@@ -99,7 +100,7 @@ const PublicShortLinkCreator: React.FC = () => {
 
           <div className="mt-8 space-y-5">
             <div>
-              <label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+              <label className={studioEyebrowClassName}>
                 目标地址
               </label>
               <input
@@ -113,7 +114,7 @@ const PublicShortLinkCreator: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+              <label className={studioEyebrowClassName}>
                 自定义短码{' '}
                 <span className="ml-1 normal-case tracking-normal text-slate-400">(可选)</span>
               </label>
@@ -134,7 +135,7 @@ const PublicShortLinkCreator: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+              <label className={studioEyebrowClassName}>
                 服务密码
               </label>
               <input

@@ -8,6 +8,7 @@ import { imageDataApi } from '../api/imageData';
 import { openDB, deleteDB, type IDBPDatabase } from 'idb';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
+import { studioEyebrowPillClassName } from './studioTheme';
 import {
   FaImage,
   FaUpload,
@@ -1140,7 +1141,7 @@ const ImageUploadPage: React.FC = () => {
         <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(14,165,233,0.16),_transparent_70%)]" />
 
         <div className="relative">
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+          <div className={studioEyebrowPillClassName}>
             <FaImage className="text-[10px]" /> IMAGE UPLOAD
           </div>
           <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">图片上传</h1>

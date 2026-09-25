@@ -8,6 +8,7 @@ import { useAuth } from '../hooks/useAuth';
 import { isAdminRole, isSuperAdmin } from '../utils/rbac';
 import { useLocation } from 'react-router-dom';
 import CryptoJS from 'crypto-js';
+import { studioEyebrowClassName, studioEyebrowPillClassName } from './studioTheme';
 import {
   FaClipboard,
   FaUpload,
@@ -791,7 +792,7 @@ const LogShare: React.FC = React.memo(() => {
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
               transition={{ duration: 0.25 }}
             >
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+              <div className={studioEyebrowPillClassName}>
                 <FaLock className="text-[10px]" /> AUTH
               </div>
               <h3 className="mt-4 text-lg font-semibold text-slate-900">请输入管理员密码</h3>
@@ -839,7 +840,7 @@ const LogShare: React.FC = React.memo(() => {
             <div className="pointer-events-none absolute -right-16 top-0 h-48 w-48 rounded-full bg-[radial-gradient(circle,_rgba(59,130,246,0.22),_transparent_68%)]" />
             <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(14,165,233,0.16),_transparent_70%)]" />
             <div className="relative">
-              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+              <div className={studioEyebrowPillClassName}>
                 <FaClipboard className="text-[10px]" /> LOG SHARE
               </div>
               <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">日志/文件剪贴板上传 &amp; 查询</h1>
@@ -1093,7 +1094,7 @@ const LogShare: React.FC = React.memo(() => {
                         全选（已选 {selectedIds.length}）
                       </label>
                     )}
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                    <span className={studioEyebrowClassName}>
                       第 {logsStartIndex + 1}-{logsStartIndex + pagedLogs.length} 条 / 共 {allLogs.length} 条
                     </span>
                   </div>
@@ -1259,7 +1260,7 @@ const LogShare: React.FC = React.memo(() => {
                     </div>
                     {isTextExt(queryResult.ext) ? (
                       <div className="space-y-3">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">文本文件预览</div>
+                        <div className={studioEyebrowClassName}>文本文件预览</div>
                         <pre
                           id="logshare-content-preview"
                           className="max-h-64 overflow-auto rounded-2xl border border-slate-200 bg-slate-900 p-4 font-mono text-xs leading-6 text-slate-100 whitespace-pre-wrap"
@@ -1707,7 +1708,7 @@ const LogShare: React.FC = React.memo(() => {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                      <div className={studioEyebrowPillClassName}>
                         <FaArchive className="text-[10px]" /> ARCHIVE
                       </div>
                       <h3 className="mt-3 text-xl font-semibold text-slate-900">创建日志归档</h3>
@@ -1821,7 +1822,7 @@ const LogShare: React.FC = React.memo(() => {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                      <div className={studioEyebrowPillClassName}>
                         <FaEdit className="text-[10px]" /> EDIT
                       </div>
                       <h3 className="mt-3 text-xl font-semibold text-slate-900">编辑日志元数据</h3>

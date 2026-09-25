@@ -7,6 +7,7 @@ import { getFingerprint, getAccessToken } from '../utils/fingerprint';
 import { isFirstVisitVerificationEnabled } from '../utils/firstVisitVerificationConfig';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
+import { studioEyebrowPillClassName } from './studioTheme';
 
 // 动画配置
 const ENTER_INITIAL = { opacity: 0, y: 20 };
@@ -428,7 +429,7 @@ const GitHubBillingDashboard: React.FC = () => {
           <div className="pointer-events-none absolute -right-16 top-0 h-48 w-48 rounded-full bg-[radial-gradient(circle,_rgba(59,130,246,0.22),_transparent_68%)]" />
           <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(14,165,233,0.16),_transparent_70%)]" />
           <div className="relative">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+            <div className={studioEyebrowPillClassName}>
               <FaGithub className="text-[10px]" /> GITHUB BILLING
             </div>
             <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">GitHub 账单</h1>
