@@ -14,6 +14,7 @@ import express, { type Request, type RequestHandler } from "express";
 import { createMediaToolRouter } from "./http/mediaToolHttp";
 import { createJsonMediaJobStore } from "./jobs/mediaJobStore";
 import { MediaJobRunner } from "./jobs/mediaJobRunner";
+import { createJsonTranscriptStore } from "./jobs/transcriptStore";
 import { ensureDir, resolveRootDir } from "./runtime";
 import { createJsonMediaSettingsStore } from "./settingsStore";
 
@@ -29,9 +30,10 @@ const corsOrigins = (process.env.MEDIA_TOOL_CORS || "")
 ensureDir(dataDir);
 
 const jobStore = createJsonMediaJobStore(path.join(dataDir, "jobs.json"));
+const transcriptStore = createJsonTranscriptStore(path.join(dataDir, "transcripts.json"));
 const settingsStore = createJsonMediaSettingsStore(path.join(dataDir, "settings.json"));
 const runner = new MediaJobRunner(
-  { store: jobStore, getSettings: () => settingsStore.get(), mode: "standalone" },
+  { store: jobStore, transcripts: transcriptStore, getSettings: () => settingsStore.get(), mode: "standalone" },
   2,
 );
 
@@ -76,6 +78,7 @@ app.get("/", (_req: Request, res) => {
 const mediaRouter = createMediaToolRouter({
   mode: "standalone",
   store: jobStore,
+  transcripts: transcriptStore,
   settingsStore,
   runner,
   requireAdmin: pass,

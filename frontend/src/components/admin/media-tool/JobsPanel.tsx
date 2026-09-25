@@ -105,6 +105,7 @@ export const JobsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => {
   }, [expandedId, detail, jobs, loadDetail]);
 
   const act = async (action: 'cancel' | 'retry' | 'delete', job: MediaJobRecord) => {
+    if (action === 'delete' && !window.confirm('删除该任务?转写正文入库记录与产物文件会一并删除(下载的媒体也会删,上传的入参音频保留)。此操作不可恢复。')) return;
     setPendingAction(`${action}:${job.id}`);
     setError(null);
     setFlash(null);
@@ -259,7 +260,7 @@ export const JobsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => {
                       onClick={() => void act('delete', job)}
                       disabled={pendingAction !== null || isActive}
                       className={cx(btnTiny, 'border border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-600', isActive && 'cursor-not-allowed opacity-40')}
-                      title={isActive ? '运行中的任务需先取消' : '删除记录(需超级管理员)'}
+                      title={isActive ? '运行中的任务需先取消' : '删除任务并清理正文与产物文件(需超级管理员)'}
                     >
                       {pendingAction === `delete:${job.id}` ? <SimpleLoadingSpinner size={0.6} /> : <FaTrash className="text-[10px]" />}
                       删除

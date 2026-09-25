@@ -149,7 +149,7 @@ export interface MediaJobFileItem {
   error?: string;
 }
 
-/** 任务详情里的单个转写结果(分段来自产物 .json)。 */
+/** 任务详情里的单个转写结果(分段优先来自数据库,磁盘产物只作回退)。 */
 export interface TranscriptSegment {
   bg: number;
   ed: number;
@@ -165,6 +165,10 @@ export interface AdminTranscriptItem {
   durationSec: number;
   segmentCount: number;
   segments: TranscriptSegment[];
+  /** 正文来源:db=数据库 / disk=磁盘回退 / missing=该有却没有 / none=本来就不是转写项 */
+  source: 'db' | 'disk' | 'missing' | 'none';
+  /** 转写成功但数据库与磁盘都取不到正文(区别于"识别结果为空") */
+  contentMissing: boolean;
   files: { txt: string | null; timed: string | null; srt: string | null; json: string | null };
 }
 

@@ -85,3 +85,23 @@
 | C-03 | UI 文案、README、`.env.example`、新增注释去原理化，已提交 |
 | 上传收不到文件 | axios 默认头把 FormData 序列成 JSON → 显式 `multipart/form-data`（用户页 + 管理端），已提交 |
 | 前端 4 处 type-check 失败 | 重复标识符 / 默认设置缺字段 / NumInput 无 hint prop，已提交 |
+
+## 追加批次：正文入库 + 删除清理（2026-09-25）
+
+**问题（审计结论）**：`media_tool_jobs` 只存产物文件指针，转写正文只在磁盘上。于是 workDir 被清空/换盘/迁移后，任务仍显示「已完成 + N 段」，详情接口却返回空分段——`readSegments` 失败返回 `null`，静默无提示。删除任务也只删 Mongo 文档，产物与 sidecar 永久留盘（schema 无 TTL、无清理路径）。
+
+**设计（用户选定 B）**
+
+- **T-11 新集合 `media_tool_transcripts`**（`src/models/mediaToolModels.ts` + `src/mediaTool/jobs/transcriptStore.ts`）：一行 = 一个任务内的一个文件，唯一键 `(jobId,index)`；存 `plainText` + `segments` + 时长/段数/`scope`/`ownerId`。`/jobs` 列表接口不读它，列表体积不受影响。
+- **T-12 写入时机**（`mediaJobRunner.saveTranscript`）：每个文件转写成功后**先入库再写任务指针**；入库失败只记日志，不把已成功的转写判成失败。
+- **T-13 读取优先级**：两个详情接口（`transcribeUserHttp` / `mediaToolHttp` 的 `GET /jobs/:id`）优先读库，磁盘 JSON 仅作回退；来源以 `source` 回传（`db` / `disk` / `missing` / `none`）。
+- **C-04 不再静默**：该带正文却两边都取不到 → `contentMissing: true`，前端红框直说；产物下载把「文件已不在磁盘」与「未选该格式」分开报错。
+- **C-05 删除即清理**（`src/mediaTool/jobs/artifactCleanup.ts`）：删任务时清 `result.files` 中非入参项 + 续传 sidecar，路径必须解析回落进 `workRoot`（用户态再叠加限制在用户目录）且只能是普通文件；同时清该任务的正文记录。**入参音频保留**（用户可复跑）。
+- **TTL 未启用**：正文是用户数据的最终副本，过期删除会重演「文件被清后静默无正文」。需要保留期时在 `transcriptSchema` 加 `expires`，并在设置页给出明确提示后再开。
+- standalone 态用 `transcripts.json`（同 `jobs.json` 的本地 JSON 存储），保证两种运行环境的接口行为一致。
+
+**判据**：workDir 清空后详情仍能出正文（`source=db`）；两边都没有 → `contentMissing=true` 且段落数为 0（不再回填旧的段数）；删任务后 workRoot 内该任务的产物与 sidecar 消失、入参音频仍在；`/jobs` 列表出参不变。
+
+**未覆盖**：`docs/privacy-data-map.json` 未收录 `media_tool_*`（`media_tool_jobs` 本来也不在其中），新集合同样未登记——若要纳入隐私数据地图，属于另一批工作。
+
+**相交文件提醒**：与另一路并行会话（studioTheme / 前端收敛）在同一条 main 上交错，本次只显式 `git add` 下列文件。

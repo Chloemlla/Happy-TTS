@@ -3,8 +3,9 @@
 import path from "node:path";
 import { downloadBatch } from "../biliYtDlp";
 import { CancelledError, isAudioFile, relInside, resolveRootDir, statOrNull } from "../runtime";
-import { transcribeAudioFile } from "../vivoLasr";
+import { transcribeAudioFile, type LasrOutcome } from "../vivoLasr";
 import type { MediaJobStore } from "./mediaJobStore";
+import type { TranscriptStore } from "./transcriptStore";
 import type {
   MediaJobFileItem,
   MediaJobRecord,
@@ -19,6 +20,7 @@ const AUDIO_ONLY_RE = /\.(m4a|mp3|wav|aac|amr|flac|ogg|opus|m4b|3gp|wma|mka|ape|
 
 export interface JobRunnerDeps {
   store: MediaJobStore;
+  transcripts: TranscriptStore;
   getSettings(): Promise<MediaToolSettings>;
   mode: string;
 }
@@ -86,6 +88,35 @@ export class MediaJobRunner {
       finishedAt: Date.now(),
       stage: status === "cancelled" ? record.stage : "finalize",
     });
+  }
+
+  /**
+   * 转写正文入库:调用点都在写任务指针之前,顺序上先有正文再有指针。
+   * 入库失败只记日志——磁盘产物已经写好,不能反过来把成功的转写判成失败。
+   */
+  private async saveTranscript(
+    job: MediaJobRecord,
+    index: number,
+    label: string,
+    out: LasrOutcome,
+    log: (text: string) => void,
+  ): Promise<void> {
+    try {
+      await this.deps.transcripts.save({
+        jobId: job.id,
+        index,
+        scope: job.scope ?? "admin",
+        ownerId: job.ownerId,
+        label,
+        durationSec: out.durationSec,
+        segmentCount: out.segments.length,
+        plainText: out.plainText,
+        segments: out.segments,
+        createdAt: Date.now(),
+      });
+    } catch (e) {
+      log(`正文入库失败(产物文件已落盘,不影响任务结果): ${(e as Error).message}`);
+    }
   }
 
   private async runJob(id: string): Promise<void> {
@@ -214,6 +245,7 @@ export class MediaJobRunner {
               });
               const txtRel = relInside(root, out.txtPath ?? out.jsonPath) ?? undefined;
               if (txtRel) filesSet.add(txtRel);
+              const itemIndex = items.length;
               items.push({
                 ok: true,
                 label: `转写: ${relAudio}`,
@@ -224,6 +256,7 @@ export class MediaJobRunner {
                 segments: out.segments.length,
                 durationSec: out.durationSec,
               });
+              await this.saveTranscript(doc, itemIndex, `转写: ${relAudio}`, out, log);
             }
           }
         }
@@ -277,6 +310,7 @@ export class MediaJobRunner {
               segments: out.segments.length,
               durationSec: out.durationSec,
             };
+            await this.saveTranscript(doc, i, rel, out, log);
           } catch (e) {
             if (e instanceof CancelledError) throw e;
             slot[i] = { ok: false, label: rel, file: rel, error: (e as Error).message };

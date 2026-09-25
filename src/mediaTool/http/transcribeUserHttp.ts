@@ -22,8 +22,10 @@ import {
   statOrNull,
   userScopedDirName,
 } from "../runtime";
+import { purgeJobArtifacts } from "../jobs/artifactCleanup";
 import type { MediaJobRunner } from "../jobs/mediaJobRunner";
 import type { MediaJobStore } from "../jobs/mediaJobStore";
+import type { TranscriptStore } from "../jobs/transcriptStore";
 import type { MediaSettingsStore } from "../settingsStore";
 import type { MediaJobRecord, TranscribeOutput } from "../types";
 import { TRANSCRIBE_OUTPUTS, normalizeTranscribeOutputs } from "../types";
@@ -31,6 +33,7 @@ import { readSegments } from "../vivoLasr";
 
 export interface TranscribeUserRouterDeps {
   store: MediaJobStore;
+  transcripts: TranscriptStore;
   settingsStore: MediaSettingsStore;
   runner: MediaJobRunner;
   /** 挂载层已保证登录;返回 null 视为未登录(防御直挂场景)。 */
@@ -42,7 +45,7 @@ function genJobId(): string {
 }
 
 export function createTranscribeUserRouter(deps: TranscribeUserRouterDeps): express.Router {
-  const { store, settingsStore, runner } = deps;
+  const { store, transcripts, settingsStore, runner } = deps;
   const router = express.Router();
 
   interface Ctx {
@@ -344,17 +347,26 @@ export function createTranscribeUserRouter(deps: TranscribeUserRouterDeps): expr
         const abs = path.resolve(workRoot, String(rel));
         return relInside(userRoot, abs) === null ? null : abs;
       };
-      const transcripts = items.map((item, index) => {
+      // 正文优先读库(磁盘被清/换盘后仍可读),磁盘只作回退;两边都没有就明确标出来
+      const stored = await transcripts.listByJob(job.id);
+      const storedByIndex = new Map(stored.map((row) => [row.index, row]));
+      const transcriptsPayload = items.map((item, index) => {
+        const row = storedByIndex.get(index);
         const jsonAbs = userAbs(item.jsonFile);
-        const segments = jsonAbs ? readSegments(jsonAbs) : null;
+        const diskSegments = jsonAbs ? readSegments(jsonAbs) : null;
+        const segments = row?.segments ?? diskSegments;
+        // 只有"应该带正文的转写项"才会有 missing 一说:纯下载项本来就没有正文
+        const isTranscript = Boolean(item.jsonFile);
         return {
           index,
           label: item.label,
           ok: item.ok,
           error: item.error,
           durationSec: item.durationSec ?? 0,
-          segmentCount: segments?.length ?? item.segments ?? 0,
+          segmentCount: segments?.length ?? 0,
           segments: segments ?? [],
+          source: row ? "db" : segments ? "disk" : isTranscript ? "missing" : "none",
+          contentMissing: isTranscript && Boolean(item.ok) && !segments,
           files: {
             audio: userRel(item.file),
             txt: userRel(item.txtFile),
@@ -364,7 +376,7 @@ export function createTranscribeUserRouter(deps: TranscribeUserRouterDeps): expr
           },
         };
       });
-      res.json({ ok: true, job, transcripts });
+      res.json({ ok: true, job, transcripts: transcriptsPayload });
     } catch (e) {
       res.status(500).json({ ok: false, error: (e as Error).message });
     }
@@ -425,8 +437,11 @@ export function createTranscribeUserRouter(deps: TranscribeUserRouterDeps): expr
         res.status(409).json({ ok: false, error: "任务运行中,请先取消再删除" });
         return;
       }
+      // 正文与产物一起清:留着正文却删了任务只会变成孤儿数据
+      const removedFiles = purgeJobArtifacts(found.job, found.workRoot, found.userRoot);
+      await transcripts.removeByJob(found.job.id);
       await store.remove(found.job.id);
-      res.json({ ok: true });
+      res.json({ ok: true, removedFiles });
     } catch (e) {
       res.status(500).json({ ok: false, error: (e as Error).message });
     }
@@ -451,8 +466,13 @@ export function createTranscribeUserRouter(deps: TranscribeUserRouterDeps): expr
         return;
       }
       const abs = path.resolve(workRoot, String(rel));
-      if (relInside(userRoot, abs) === null || !statOrNull(abs)) {
+      if (relInside(userRoot, abs) === null) {
         res.status(404).json({ ok: false, error: "产物不存在" });
+        return;
+      }
+      if (!statOrNull(abs)) {
+        // 文件被清/换盘后仍然可读正文:分开报,不让用户以为"没选这个格式"
+        res.status(404).json({ ok: false, error: "产物文件已不在服务器磁盘;转写正文仍可在任务详情中查看。" });
         return;
       }
       res.download(abs, path.basename(abs));

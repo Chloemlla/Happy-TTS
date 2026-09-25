@@ -5,9 +5,11 @@
 // 表现为同一个音频被重复上传、重复转写(两个 runner 互不知晓对方的 in-flight 集合)。
 import { createMongoMediaJobStore, type MediaJobStore } from "./jobs/mediaJobStore";
 import { MediaJobRunner } from "./jobs/mediaJobRunner";
+import { createMongoTranscriptStore, type TranscriptStore } from "./jobs/transcriptStore";
 import { createMongoMediaSettingsStore, type MediaSettingsStore } from "./settingsStore";
 
 let jobStore: MediaJobStore | null = null;
+let transcriptStore: TranscriptStore | null = null;
 let settingsStore: MediaSettingsStore | null = null;
 let runner: MediaJobRunner | null = null;
 let recovered = false;
@@ -15,6 +17,12 @@ let recovered = false;
 export function getServerMediaJobStore(): MediaJobStore {
   if (!jobStore) jobStore = createMongoMediaJobStore();
   return jobStore;
+}
+
+/** 转写正文表(详情接口优先读它,磁盘只作回退与下载源)。 */
+export function getServerTranscriptStore(): TranscriptStore {
+  if (!transcriptStore) transcriptStore = createMongoTranscriptStore();
+  return transcriptStore;
 }
 
 export function getServerMediaSettingsStore(): MediaSettingsStore {
@@ -26,7 +34,12 @@ export function getServerMediaSettingsStore(): MediaSettingsStore {
 export function getMediaToolRunner(): MediaJobRunner {
   if (!runner) {
     runner = new MediaJobRunner(
-      { store: getServerMediaJobStore(), getSettings: () => getServerMediaSettingsStore().get(), mode: "server" },
+      {
+        store: getServerMediaJobStore(),
+        transcripts: getServerTranscriptStore(),
+        getSettings: () => getServerMediaSettingsStore().get(),
+        mode: "server",
+      },
       2,
     );
   }

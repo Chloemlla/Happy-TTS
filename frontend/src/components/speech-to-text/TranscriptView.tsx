@@ -46,10 +46,18 @@ export const TranscriptView: React.FC<{
     }
   };
 
+  if (item.contentMissing) {
+    return (
+      <div className={cn(studioSubPanelClassName, 'border-rose-100 bg-rose-50 text-xs text-rose-700')}>
+        转写正文不可读:服务端已没有该任务的正文记录,产物文件也已不在磁盘上。请联系管理员核查。
+      </div>
+    );
+  }
+
   if (item.segments.length === 0) {
     return (
       <div className={cn(studioSubPanelClassName, 'text-xs text-slate-500')}>
-        {item.ok ? '没有可显示的分段(服务端未返回结果,或分段文件已被清理)。' : `转写失败:${item.error || '未知错误'}`}
+        {item.ok ? '没有可显示的分段(识别结果为空,或本次音频里没有可转写的人声)。' : `转写失败:${item.error || '未知错误'}`}
       </div>
     );
   }

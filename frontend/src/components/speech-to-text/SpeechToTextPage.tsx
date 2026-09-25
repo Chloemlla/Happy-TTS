@@ -194,6 +194,7 @@ export const SpeechToTextPage: React.FC = () => {
           return next;
         });
       } else {
+        if (!window.confirm('删除该任务?转写正文与产物文件(txt / 时间线 / srt / json)会一并删除,已上传的音频保留。此操作不可恢复。')) return;
         await transcribeApi.deleteJob(id);
         setJobs((prev) => prev.filter((j) => j.id !== id));
         if (expandedId === id) setExpandedId(null);

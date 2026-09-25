@@ -5,6 +5,7 @@ import express, { type Request, type RequestHandler, type Response } from "expre
 import fs from "node:fs";
 import multer from "multer";
 import path from "node:path";
+import { purgeJobArtifacts } from "../jobs/artifactCleanup";
 import { MediaJobRunner } from "../jobs/mediaJobRunner";
 import { MEDIA_EXTS, ensureDir, isAudioFile, relInsideRoot, resolveRootDir, resolveYtDlpBin, runTool, sanitizeFileName, statOrNull } from "../runtime";
 import { maskedView, type MediaSettingsPatch, type MediaSettingsStore } from "../settingsStore";
@@ -12,6 +13,7 @@ import { normalizeTranscribeOutputs } from "../types";
 import { readSegments } from "../vivoLasr";
 import type { MediaJobRecord, MediaJobStatus } from "../types";
 import type { MediaJobStore } from "../jobs/mediaJobStore";
+import type { TranscriptStore } from "../jobs/transcriptStore";
 
 const TEXT_EXTS = new Set([".txt", ".srt", ".json", ".vtt"]);
 const JOB_KINDS = ["bili-download", "transcribe"] as const;
@@ -20,6 +22,7 @@ const TERMINAL: MediaJobStatus[] = ["succeeded", "failed", "cancelled"];
 export interface MediaToolRouterDeps {
   mode: string;
   store: MediaJobStore;
+  transcripts: TranscriptStore;
   settingsStore: MediaSettingsStore;
   runner: MediaJobRunner;
   /** 守卫(内部态 = authenticateAdmin;standalone 态 = 直通)。每个请求会被调用。 */
@@ -34,7 +37,7 @@ function genId(): string {
 }
 
 export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router {
-  const { store, settingsStore, runner, requireAdmin, requireSuper, identity } = deps;
+  const { store, transcripts, settingsStore, runner, requireAdmin, requireSuper, identity } = deps;
   const router = express.Router();
 
   // 所有端点先过 admin 守卫
@@ -346,20 +349,29 @@ export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router
       // 管理端详情同样带分段:有时间线/纯文本两种视图直接靠它渲染
       const settings = await settingsStore.get();
       const root = resolveRootDir(settings.workDir);
-      const transcripts = (job.result?.items ?? []).map((item, index) => {
-        const segments = item.jsonFile ? readSegments(path.resolve(root, String(item.jsonFile))) : null;
+      // 正文优先读库(磁盘被清/换盘后仍可读),磁盘只作回退;两边都没有就明确标出来
+      const stored = await transcripts.listByJob(job.id);
+      const storedByIndex = new Map(stored.map((row) => [row.index, row]));
+      const transcriptsPayload = (job.result?.items ?? []).map((item, index) => {
+        const row = storedByIndex.get(index);
+        const diskSegments = item.jsonFile ? readSegments(path.resolve(root, String(item.jsonFile))) : null;
+        const segments = row?.segments ?? diskSegments;
+        // 只有"应该带正文的转写项"才会有 missing 一说:纯下载项本来就没有正文
+        const isTranscript = Boolean(item.jsonFile);
         return {
           index,
           label: item.label,
           ok: item.ok,
           error: item.error,
           durationSec: item.durationSec ?? 0,
-          segmentCount: segments?.length ?? item.segments ?? 0,
+          segmentCount: segments?.length ?? 0,
           segments: segments ?? [],
+          source: row ? "db" : segments ? "disk" : isTranscript ? "missing" : "none",
+          contentMissing: isTranscript && Boolean(item.ok) && !segments,
           files: { txt: item.txtFile ?? null, timed: item.timedFile ?? null, srt: item.srtFile ?? null, json: item.jsonFile ?? null },
         };
       });
-      res.json({ ok: true, job, transcripts });
+      res.json({ ok: true, job, transcripts: transcriptsPayload });
     } catch (e) {
       res.status(500).json({ ok: false, error: (e as Error).message });
     }
@@ -426,8 +438,12 @@ export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router
         res.status(409).json({ ok: false, error: "任务运行中,请先取消再删除" });
         return;
       }
+      // 正文与产物一起清:留着正文却删了任务只会变成孤儿数据
+      const settings = await settingsStore.get();
+      const removedFiles = purgeJobArtifacts(job, resolveRootDir(settings.workDir));
+      await transcripts.removeByJob(job.id);
       await store.remove(job.id);
-      res.json({ ok: true });
+      res.json({ ok: true, removedFiles });
     } catch (e) {
       res.status(500).json({ ok: false, error: (e as Error).message });
     }

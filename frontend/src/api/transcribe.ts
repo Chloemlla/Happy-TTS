@@ -54,6 +54,10 @@ export interface TranscriptItem {
   durationSec: number;
   segmentCount: number;
   segments: TranscriptSegment[];
+  /** 正文来源:db=数据库 / disk=磁盘回退 / missing=该有却没有 / none=本来就不是转写项 */
+  source: 'db' | 'disk' | 'missing' | 'none';
+  /** 转写成功但数据库与磁盘都取不到正文(区别于"识别结果为空") */
+  contentMissing: boolean;
   files: {
     audio?: string | null;
     txt: string | null;

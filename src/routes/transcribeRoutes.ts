@@ -9,10 +9,12 @@ import {
   getMediaToolRunner,
   getServerMediaJobStore,
   getServerMediaSettingsStore,
+  getServerTranscriptStore,
 } from "../mediaTool/serverRuntime";
 
 const router = createTranscribeUserRouter({
   store: getServerMediaJobStore(),
+  transcripts: getServerTranscriptStore(),
   settingsStore: getServerMediaSettingsStore(),
   runner: getMediaToolRunner(),
   resolveUser: (req: Request) => {
