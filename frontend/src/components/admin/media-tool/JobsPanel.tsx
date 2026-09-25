@@ -240,11 +240,11 @@ export const JobsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => {
                     {isActive ? (
                       <button
                         onClick={() => void act('cancel', job)}
-                        disabled={pendingAction !== null || job.cancelRequested}
+                        disabled={pendingAction !== null}
                         className={cx(btnTiny, 'border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100')}
                       >
                         {pendingAction === `cancel:${job.id}` ? <SimpleLoadingSpinner size={0.6} /> : <FaTimes className="text-[10px]" />}
-                        {job.cancelRequested ? '取消中…' : '取消'}
+                        {job.cancelRequested ? '再次取消' : '取消'}
                       </button>
                     ) : showRetry ? (
                       <button

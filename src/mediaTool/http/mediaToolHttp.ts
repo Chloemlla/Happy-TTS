@@ -389,7 +389,9 @@ export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router
         return;
       }
       await runner.cancel(job.id);
-      if (job.status === "queued") {
+      // 队列里的任务会由 runJob 自己落成 cancelled;本进程已没有执行体的(如历史遗留的
+      // "运行中"僵尸)没人会再写它的状态,这里直接落终态,否则永远取消不掉。
+      if (!runner.isActive(job.id)) {
         await store.patch(job.id, { status: "cancelled", finishedAt: Date.now() });
       }
       res.json({ ok: true, job: (await readJob(job.id)) ?? job });

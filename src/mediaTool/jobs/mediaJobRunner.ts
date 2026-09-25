@@ -30,6 +30,8 @@ export class MediaJobRunner {
   private queue: string[] = [];
   private active = 0;
   private aborts = new Set<string>();
+  /** 正在 execute 内(含刚出队)的任务:cancel 用它判断"还有没有执行体会自己写终态"。 */
+  private activeIds = new Set<string>();
 
   constructor(
     private deps: JobRunnerDeps,
@@ -52,6 +54,14 @@ export class MediaJobRunner {
     return this.queue.length + this.active;
   }
 
+  /**
+   * 该任务此刻是否真的在排队或执行中(本进程视角)。
+   * 为 false 表示没有任何执行体会再写终态,调用方可以自己把记录落成 cancelled。
+   */
+  isActive(id: string): boolean {
+    return this.queue.includes(id) || this.activeIds.has(id);
+  }
+
   private pump(): void {
     while (this.active < this.maxActive && this.queue.length > 0) {
       const id = this.queue.shift() as string;
@@ -66,6 +76,7 @@ export class MediaJobRunner {
   }
 
   private async execute(id: string): Promise<void> {
+    this.activeIds.add(id);
     try {
       await this.runJob(id);
     } catch (e) {
@@ -75,6 +86,7 @@ export class MediaJobRunner {
         // 已尽力
       }
     } finally {
+      this.activeIds.delete(id);
       this.aborts.delete(id);
     }
   }
@@ -143,22 +155,30 @@ export class MediaJobRunner {
     doc.error = undefined;
     doc.result = undefined;
     let timer: NodeJS.Timeout | null = null;
-    const persist = async () => {
-      const snapshot = JSON.parse(JSON.stringify(doc)) as MediaJobRecord;
-      try {
-        await this.deps.store.patch(id, {
-          status: snapshot.status,
-          stage: snapshot.stage,
-          progress: snapshot.progress,
-          logs: snapshot.logs,
-          error: snapshot.error,
-          result: snapshot.result,
-          startedAt: snapshot.startedAt,
-          finishedAt: snapshot.finishedAt,
-        });
-      } catch {
-        // 持久化失败不阻断运行
-      }
+    // 写盘串成一条链:节流写与终态写必须按发起顺序落库。不串的话,先发出的 "running"
+    // 快照可能后到达,把刚写好的终态盖回 running,任务就永久卡在运行中(取消/删除全被挡住)。
+    let writeChain: Promise<void> = Promise.resolve();
+    const persist = (): Promise<void> => {
+      writeChain = writeChain.then(async () => {
+        // 整段包住:链上任何一环 reject,后续 .then 都会被跳过,终态就永远写不出去
+        try {
+          // 快照在真正写的时候取:链上后发的写一定带更新的状态,终态写必然是最后落库的那笔
+          const snapshot = JSON.parse(JSON.stringify(doc)) as MediaJobRecord;
+          await this.deps.store.patch(id, {
+            status: snapshot.status,
+            stage: snapshot.stage,
+            progress: snapshot.progress,
+            logs: snapshot.logs,
+            error: snapshot.error,
+            result: snapshot.result,
+            startedAt: snapshot.startedAt,
+            finishedAt: snapshot.finishedAt,
+          });
+        } catch {
+          // 持久化失败不阻断运行
+        }
+      });
+      return writeChain;
     };
     const schedulePersist = () => {
       if (timer) return;
@@ -347,35 +367,26 @@ export class MediaJobRunner {
         throw new CancelledError();
       }
       const allFail = failItems.length > 0 && okCount === 0;
-      await this.deps.store.patch(id, {
-        status: allFail ? "failed" : "succeeded",
-        stage: "finalize",
-        progress: 100,
-        result,
-        logs: doc.logs,
-        finishedAt: Date.now(),
-        error: allFail ? failItems.map((f) => f.error).filter(Boolean).join("; ") : undefined,
-      });
+      // 终态只写进内存副本,由 finally 的 persistNow() 统一落库:
+      // 之前这里先 patch 终态、finally 又拿旧的内存副本补一刀,那一刀会把 status 盖回 running,
+      // 任务于是永久停在"运行中"(取消、删除、每用户并发配额全被它挡住)。
+      doc.status = allFail ? "failed" : "succeeded";
+      doc.finishedAt = Date.now();
+      doc.error = allFail ? failItems.map((f) => f.error).filter(Boolean).join("; ") : undefined;
     } catch (e) {
       if (e instanceof CancelledError) {
         log("任务已取消");
-        await this.deps.store.patch(id, {
-          status: "cancelled",
-          stage: doc.stage,
-          progress: doc.progress,
-          logs: doc.logs,
-          result: items.length ? { summary: "已取消", files: Array.from(filesSet), items } : undefined,
-          finishedAt: Date.now(),
-        });
-        return;
+        doc.status = "cancelled";
+        doc.finishedAt = Date.now();
+        if (items.length) {
+          doc.result = { summary: "已取消", files: Array.from(filesSet), items };
+        }
+      } else {
+        log(`失败: ${(e as Error).message}`);
+        doc.status = "failed";
+        doc.error = (e as Error).message;
+        doc.finishedAt = Date.now();
       }
-      log(`失败: ${(e as Error).message}`);
-      await this.deps.store.patch(id, {
-        status: "failed",
-        error: (e as Error).message,
-        logs: doc.logs,
-        finishedAt: Date.now(),
-      });
     } finally {
       await persistNow();
     }
