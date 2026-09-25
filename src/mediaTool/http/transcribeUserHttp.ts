@@ -125,6 +125,10 @@ export function createTranscribeUserRouter(deps: TranscribeUserRouterDeps): expr
   // ---- 上传到用户目录 inbox ----
   // codeql[js/missing-rate-limiting] 同上:挂载层 transcribeLimiter 已覆盖整棵子树
   router.post("/upload", async (req: Request, res: Response) => {
+    if (!/multipart\/form-data/i.test(String(req.headers["content-type"] || ""))) {
+      res.status(415).json({ ok: false, error: "未收到文件:请求需以 multipart/form-data 提交(field 名 file)，当前 Content-Type=" + (req.headers["content-type"] || "缺失") });
+      return;
+    }
     let inbox: string;
     let limitBytes: number;
     let toApiRel: (abs: string) => string | null;
@@ -171,7 +175,7 @@ export function createTranscribeUserRouter(deps: TranscribeUserRouterDeps): expr
     }
     const file = (req as Request & { file?: Express.Multer.File }).file;
     if (!file) {
-      res.status(400).json({ ok: false, error: "未收到文件(field 名应为 file)" });
+      res.status(400).json({ ok: false, error: "未收到文件:multipart 里没有名为 file 的部分(Content-Type=" + (req.headers["content-type"] || "缺失") + ")" });
       return;
     }
     const st = statOrNull(file.path);

@@ -184,6 +184,10 @@ export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router
   // 上传落点 = workDir/inbox,每个请求按当前设置构造 multer
   // codeql[js/missing-rate-limiting] media-tool admin subtree rate-limited at mount (/api/admin/media-tool adminLimiter via postTamperModules); in-router copy would split quota
   router.post("/upload", async (req: Request, res: Response) => {
+    if (!/multipart\/form-data/i.test(String(req.headers["content-type"] || ""))) {
+      res.status(415).json({ ok: false, error: "未收到文件:请求需以 multipart/form-data 提交(field 名 file)，当前 Content-Type=" + (req.headers["content-type"] || "缺失") });
+      return;
+    }
     let inbox: string;
     try {
       const settings = await settingsStore.get();
@@ -223,7 +227,7 @@ export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router
     }
     const file = (req as Request & { file?: Express.Multer.File }).file;
     if (!file) {
-      res.status(400).json({ ok: false, error: "未收到文件(field 名应为 file)" });
+      res.status(400).json({ ok: false, error: "未收到文件:multipart 里没有名为 file 的部分(Content-Type=" + (req.headers["content-type"] || "缺失") + ")" });
       return;
     }
     const rel = `inbox/${path.basename(file.path)}`;

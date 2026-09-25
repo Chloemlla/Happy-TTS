@@ -95,7 +95,11 @@ export const transcribeApi = {
   upload: async (file: File, onProgress?: (percent: number) => void): Promise<TranscribeUpload> => {
     const form = new FormData();
     form.append('file', file);
+    // 必须显式声明 multipart:api 实例的默认头是 application/json,而 axios 的 transformRequest
+    // 对 FormData + JSON content-type 会直接 JSON.stringify(formData)(File 被序列成空对象),
+    // 后端 multer 拿不到 part 只会报「未收到文件」。写成 multipart 后浏览器会自己补 boundary。
     const res = await api.post(`${BASE}/upload`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 0,
       onUploadProgress: (e) => {
         if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100));

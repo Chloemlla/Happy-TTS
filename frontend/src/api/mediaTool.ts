@@ -308,9 +308,15 @@ export const mediaToolApi = {
   ): Promise<{ rel: string; size: number; name: string }> => {
     const form = new FormData();
     form.append('file', file);
-    // 不手动设 Content-Type:axios 浏览器适配器对 FormData 会自行附加 multipart boundary
+    // 同 transcribe 用户页：api 实例默认 Content-Type 是 application/json，axios 会把 FormData 直接 JSON 化
+    // （文件体变成空对象），multer 看不到文件；必须显式声明 multipart，boundary 交给浏览器自己填。
+    const cfg = cfgFor(target);
     const res = await api.post(`${BASE}/upload`, form, {
-      ...cfgFor(target),
+      ...cfg,
+      headers: {
+        ...((cfg.headers as Record<string, string> | undefined) ?? {}),
+        'Content-Type': 'multipart/form-data',
+      },
       timeout: 0,
       onUploadProgress: (e) => {
         if (onProgress && e.total) {

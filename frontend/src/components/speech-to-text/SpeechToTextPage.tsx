@@ -35,6 +35,19 @@ import TranscriptView from './TranscriptView';
 
 const OUTPUT_ORDER: TranscribeOutput[] = ['plain', 'timed', 'srt'];
 
+/**
+ * 上传失败时把后端原文抽出来。axios 默认头会把 FormData 序列成 JSON，
+ * 后端 multer 拿不到 part 时会回「未收到文件」，原文里带着这个区分度。
+ */
+function describeUploadError(err: unknown): string | null {
+  const data = (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data;
+  const message = data?.error || data?.message || '';
+  if (/未收到文件/.test(message)) {
+    return '上传没到达后端文件解析环节（请求被当成 JSON 发出去了）。请硬刷新页面重试；若仍失败，说明前端构建产物不是最新版。';
+  }
+  return message || null;
+}
+
 const STAGE_LABEL: Record<string, string> = {
   queued: '排队',
   prepare: '准备',
@@ -145,7 +158,7 @@ export const SpeechToTextPage: React.FC = () => {
       setNotice(`已上传 ${files.length} 个音频,点「开始转写」提交任务。`);
     } catch (err) {
       console.error('上传音频失败:', err);
-      setError('上传失败:请确认是受支持的音频格式且未超过大小上限。');
+      setError(describeUploadError(err) || '上传失败:请确认文件为受支持音频且未超过大小上限。');
     } finally {
       setUploading(null);
     }
