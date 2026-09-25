@@ -502,6 +502,29 @@ export class IpVerificationService {
       };
     }
 
+    // 先认已经过了闸门的会话：令牌在 TTL 内、且指纹与 IP 都对得上就直接复用，不再走风险判定。
+    //
+    // 这一步必须排在风险判定之前。闸门真正执行的 verifyRequestToken 认这张令牌，这里却重新
+    // 挑战一次的话，两条路径自相矛盾：访客刚过完人机验证，刷新一次又被打回挑战页。proxycheck
+    // 的 IP 级结论（vpn/hosting）默认缓存 24 小时，比 40 分钟的令牌活得久，于是"验证通过后
+    // 刷新即失效"会稳定复现。
+    const reusableToken = await IpVerificationService.getReusableToken(fingerprint, ipAddress);
+    if (reusableToken) {
+      return {
+        success: true,
+        verified: true,
+        requiresVerification: false,
+        fingerprint,
+        ipAddress,
+        token: reusableToken.token,
+        expiresAt: reusableToken.expiresAt.toISOString(),
+        issuedBy: reusableToken.issuedBy,
+        fraudScore: reusableToken.fraudScore,
+        riskFlags: reusableToken.riskFlags || [],
+        tokenTtlMinutes: config.ipqs.tokenTtlMinutes,
+      };
+    }
+
     // proxycheck.io 是独立于 IPQS 的辅助风险信号，只做「加严」：命中即挑战，未命中或上游
     // 不可用时完全交回下方原有的 IPQS 判定（failOpen 语义见 ipRiskService.evaluateIpRisk）。
     if (config.proxycheck.enabled) {
@@ -534,23 +557,6 @@ export class IpVerificationService {
         fingerprint,
         ipAddress,
         issuedBy: "auto",
-        tokenTtlMinutes: config.ipqs.tokenTtlMinutes,
-      };
-    }
-
-    const reusableToken = await IpVerificationService.getReusableToken(fingerprint, ipAddress);
-    if (reusableToken) {
-      return {
-        success: true,
-        verified: true,
-        requiresVerification: false,
-        fingerprint,
-        ipAddress,
-        token: reusableToken.token,
-        expiresAt: reusableToken.expiresAt.toISOString(),
-        issuedBy: reusableToken.issuedBy,
-        fraudScore: reusableToken.fraudScore,
-        riskFlags: reusableToken.riskFlags || [],
         tokenTtlMinutes: config.ipqs.tokenTtlMinutes,
       };
     }

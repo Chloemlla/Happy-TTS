@@ -171,7 +171,10 @@ async function maybeHandleBlockedResponse(response: Response, url: URL): Promise
 
   if (!isIpVerificationErrorPayload(payload)) return;
 
-  clearIpVerificationToken();
+  // 这里刻意不抹掉本地令牌：一个 403 只说明"这一次请求没带上有效令牌"，不等于已存的令牌失效
+  // ——请求可能在令牌落盘前就发出，也可能走了不注入验证头的路径。真正的判据是
+  // initializeIpVerificationSession：只有服务端明确回 requiresVerification 时才清（见下方
+  // normalize 分支）。在这里清的话，一次偶发 403 就能把 40 分钟的会话直接毁掉，刷新必然重开门禁。
   emitIpVerificationRequired({
     ...payload,
     url: url.toString(),

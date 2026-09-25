@@ -1,5 +1,17 @@
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
+import {
+  FaArrowRight,
+  FaBan,
+  FaCheck,
+  FaCircleNotch,
+  FaClock,
+  FaFingerprint,
+  FaGlobe,
+  FaLock,
+  FaRedo,
+  FaShieldAlt,
+} from 'react-icons/fa';
 import { CaptchaType } from '../utils/captchaSelection';
 import { completeIpVerification } from '../utils/ipVerification';
 import { useSecureCaptchaSelection } from '../hooks/useSecureCaptchaSelection';
@@ -30,129 +42,85 @@ interface BanState {
   expiresAt?: Date;
 }
 
-/**
- * 验证圆环的单一几何来源：静态轨道与旋转弧共用同一个 <circle>
- * （同圆心、同半径、同线宽），弧只用 strokeDasharray 截出来。
- *
- * 旧实现是「border 圆环 + border-top 弧」两层 DOM：弧的两端走 45° 斜接、
- * 内外半径不等，元素越大越明显偏离轨道圆 —— 这就是宽屏（sm:h-11）下
- * 「圆圈和绕动的环不是一样的」的根因。改成 SVG 后任何断点都同心等粗。
- */
-const RING_VIEWBOX = 44;
-const RING_CENTER = RING_VIEWBOX / 2;
-/** 留出描边空间，弧不会被容器裁切（22 + 20 + 1.25 < 44）。 */
-const RING_RADIUS = RING_CENTER - 2;
-const RING_TRACK_COLOR = '#f7d2b4';
-const RING_ARC_COLOR = '#f48120';
-const RING_ARC_FRACTION = 0.28;
-
-/** 徽标圆与圆环共用同一组尺寸常量，避免两者在大屏上直径打架。 */
-const ACCENT_BADGE_SHELL_CLASS =
-  'flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#ffd6c2] bg-[#fff4ef] text-sm font-semibold text-[#f48120]';
-const RING_SHELL_CLASS = 'pointer-events-none relative h-11 w-11 shrink-0';
-
-const VerificationRing: React.FC<{
-  className?: string;
-  reducedMotion: boolean;
-  trackColor?: string;
-  arcColor?: string;
-  strokeWidth?: number;
-  label?: string;
-}> = ({
-  className = RING_SHELL_CLASS,
+/** 图标旋转一律交给 framer-motion，尺寸随字号走，不再手写 SVG 几何。 */
+const Spinner: React.FC<{ className?: string; reducedMotion: boolean }> = ({
+  className = 'h-4 w-4',
   reducedMotion,
-  trackColor = RING_TRACK_COLOR,
-  arcColor = RING_ARC_COLOR,
-  strokeWidth = 2.5,
-  label,
-}) => {
-  const circumference = 2 * Math.PI * RING_RADIUS;
-  const arcLength = circumference * RING_ARC_FRACTION;
-
-  return (
-    <div
-      className={className}
-      aria-hidden={label ? undefined : true}
-      role={label ? 'status' : undefined}
-      aria-label={label}
-      aria-busy={label ? true : undefined}
-    >
-      <motion.div
-        className="absolute inset-0"
-        animate={reducedMotion ? undefined : { rotate: 360 }}
-        transition={{
-          duration: 1.4,
-          ease: 'linear',
-          repeat: reducedMotion ? 0 : Number.POSITIVE_INFINITY,
-        }}
-      >
-        <svg
-          viewBox={`0 0 ${RING_VIEWBOX} ${RING_VIEWBOX}`}
-          className="h-full w-full"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <circle
-            cx={RING_CENTER}
-            cy={RING_CENTER}
-            r={RING_RADIUS}
-            fill="none"
-            stroke={trackColor}
-            strokeWidth={strokeWidth}
-          />
-          <circle
-            cx={RING_CENTER}
-            cy={RING_CENTER}
-            r={RING_RADIUS}
-            fill="none"
-            stroke={arcColor}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeDasharray={`${arcLength} ${circumference - arcLength}`}
-          />
-        </svg>
-      </motion.div>
-    </div>
-  );
-};
+}) => (
+  <m.span
+    className={`inline-flex shrink-0 items-center justify-center ${className}`}
+    aria-hidden="true"
+    animate={reducedMotion ? undefined : { rotate: 360 }}
+    transition={{ duration: 1.1, ease: 'linear', repeat: reducedMotion ? 0 : Number.POSITIVE_INFINITY }}
+  >
+    <FaCircleNotch className="h-full w-full" aria-hidden="true" />
+  </m.span>
+);
 
 const REVIEW_STEPS = [
-  { id: 'scan', label: 'Network scan' },
-  { id: 'challenge', label: 'Human check' },
-  { id: 'token', label: 'Session token' },
+  { id: 'scan', label: 'Network scan', Icon: FaGlobe },
+  { id: 'challenge', label: 'Human check', Icon: FaShieldAlt },
+  { id: 'token', label: 'Session token', Icon: FaLock },
 ] as const;
 
 const ReviewSteps: React.FC<{ activeIndex: number }> = ({ activeIndex }) => (
-  <ol className="mt-5 flex flex-wrap items-center gap-2">
+  <ol className="mt-6 space-y-0">
     {REVIEW_STEPS.map((step, index) => {
       const done = index < activeIndex;
       const current = index === activeIndex;
+      const Icon = step.Icon;
+      const isLast = index === REVIEW_STEPS.length - 1;
 
       return (
-        <li key={step.id} className="flex items-center gap-2">
-          {index > 0 && <span aria-hidden="true" className="h-px w-4 bg-[#e2e8f0]" />}
-          <span
-            aria-current={current ? 'step' : undefined}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
-              done
-                ? 'border-[#cbe8d6] bg-[#f4fbf7] text-[#2f7a4b]'
-                : current
-                  ? 'border-[#ffd9c8] bg-[#fff4ef] text-[#f48120]'
-                  : 'border-[#eaeef5] bg-white text-[#94a1b0]'
-            }`}
-          >
+        <li key={step.id} className="relative flex gap-3 pb-4 last:pb-0">
+          {!isLast && (
             <span
               aria-hidden="true"
-              className={`h-1.5 w-1.5 rounded-full ${
-                done ? 'bg-[#3f9d63]' : current ? 'animate-pulse bg-[#f48120]' : 'bg-[#d3dbe5]'
+              className={`absolute left-[13px] top-7 h-[calc(100%-1.25rem)] w-px ${
+                done ? 'bg-[#8fce9f]' : 'bg-[#e2e8f0]'
               }`}
             />
-            {done ? 'Passed' : step.label}
+          )}
+          <span
+            aria-hidden="true"
+            className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[11px] transition-colors ${
+              done
+                ? 'border-[#bfe3cd] bg-[#eef9f1] text-[#2f7a4b]'
+                : current
+                  ? 'border-[#ffd0b4] bg-[#fff4ef] text-[#f48120]'
+                  : 'border-[#e6ebf2] bg-white text-[#a7b2c0]'
+            }`}
+          >
+            {done ? <FaCheck /> : <Icon />}
+          </span>
+          <span
+            aria-current={current ? 'step' : undefined}
+            className={`pt-1 text-xs font-semibold tracking-[0.02em] ${
+              done ? 'text-[#2f7a4b]' : current ? 'text-[#1d2735]' : 'text-[#9aa5b1]'
+            }`}
+          >
+            {step.label}
+            {current && <span className="ml-2 font-medium text-[#f48120]">in progress</span>}
+            {done && <span className="ml-2 font-medium text-[#2f7a4b]">passed</span>}
           </span>
         </li>
       );
     })}
   </ol>
+);
+
+const MetaRow: React.FC<{ Icon: React.ComponentType<{ className?: string }>; label: string; children: React.ReactNode }> = ({
+  Icon,
+  label,
+  children,
+}) => (
+  <div className="rounded-2xl border border-[#eaeef5] bg-white px-4 py-3">
+    <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8b97a6]">
+      <Icon className="h-3 w-3" />
+      {label}
+    </p>
+    <div className="mt-1.5">{children}</div>
+  </div>
 );
 
 export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
@@ -333,268 +301,301 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
     return `${fingerprint.slice(0, 10)}...${fingerprint.slice(-6)}`;
   }, [fingerprint]);
 
-  if (banState.isBanned) {
-    return (
-      <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-[#f6f8fb]">
-        <div className="pointer-events-none fixed inset-x-0 top-0 h-52 bg-[radial-gradient(circle_at_top,rgba(244,129,32,0.18),transparent_58%)]" />
-        <div className="relative flex min-h-full items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
-          <div className="relative w-full max-w-xl rounded-2xl border border-[#dde3ec] bg-white/95 px-6 py-8 shadow-[0_28px_70px_rgba(15,23,42,0.08)] backdrop-blur sm:px-9 sm:py-10">
-            <div className="mb-8 flex items-center gap-3">
-              <div className={ACCENT_BADGE_SHELL_CLASS}>
-                !
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#f48120]">Security Check</p>
-                <h1 className="text-xl sm:text-2xl font-semibold text-[#1d2735]">Access temporarily restricted</h1>
-              </div>
-            </div>
+  const shell = (children: React.ReactNode) => (
+    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-[#f4f6fa]">
+      {/* 均匀网格铺满整屏：不再用圆形遮罩，避免出现一圈巨大的"圆盘" */}
+      <div
+        className="pointer-events-none fixed inset-0 opacity-60"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(15,23,42,0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.028) 1px, transparent 1px)',
+          backgroundSize: '34px 34px',
+        }}
+      />
+      <div
+        className="pointer-events-none fixed inset-x-0 top-0 h-40 bg-[linear-gradient(180deg,rgba(244,129,32,0.09),transparent)]"
+        aria-hidden="true"
+      />
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(244,129,32,0.55),transparent)]" />
+      <div className="relative flex min-h-full items-center justify-center px-4 py-10 sm:px-6 sm:py-14">
+        {children}
+      </div>
+    </div>
+  );
 
-            <div className="space-y-4 text-sm leading-6 text-[#526071]">
-              <p>{banState.reason || 'This IP is currently restricted because of repeated abnormal traffic.'}</p>
-              {banState.expiresAt && (
-                <p className="rounded-2xl border border-[#e7ecf3] bg-[#f8fafc] px-4 py-3 text-[#2c3948]">
-                  Retry after: {banState.expiresAt.toLocaleString()}
-                </p>
-              )}
-              {clientIP && clientIP !== 'unknown' && (
-                <p className="font-mono text-xs text-[#7b8796]">IP {clientIP}</p>
-              )}
-              <PenaltyAppealActions
-                kind="ip_ban"
-                reason={banState.reason}
-                remainingText={banState.expiresAt ? banState.expiresAt.toLocaleString() : undefined}
-                details={clientIP && clientIP !== 'unknown' ? `IP: ${clientIP}` : undefined}
-              />
-            </div>
+  if (banState.isBanned) {
+    return shell(
+      <m.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.32, ease: 'easeOut' }}
+        className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-[#e3e9f2] bg-white shadow-[0_30px_70px_-30px_rgba(15,23,42,0.25)]"
+      >
+        <div className="flex items-center gap-3 border-b border-[#eef2f7] bg-[#fff8f4] px-6 py-6 sm:px-8">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#ffd6c2] bg-white text-lg text-[#e0562b]">
+            <FaBan />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#e0562b]">
+              Security check
+            </p>
+            <h1 className="text-xl font-semibold tracking-[-0.02em] text-[#1d2735] sm:text-2xl">
+              Access temporarily restricted
+            </h1>
           </div>
         </div>
-      </div>
+
+        <div className="space-y-4 px-6 py-6 text-sm leading-6 text-[#526071] sm:px-8 sm:py-7">
+          <p>{banState.reason || 'This IP is currently restricted because of repeated abnormal traffic.'}</p>
+          {banState.expiresAt && (
+            <div className="flex items-center gap-2.5 rounded-2xl border border-[#e7ecf3] bg-[#f8fafc] px-4 py-3 text-[#2c3948]">
+              <FaClock className="h-3.5 w-3.5 text-[#8b97a6]" />
+              <span>Retry after {banState.expiresAt.toLocaleString()}</span>
+            </div>
+          )}
+          {clientIP && clientIP !== 'unknown' && (
+            <MetaRow Icon={FaGlobe} label="IP address">
+              <p className="font-mono text-xs text-[#334155]">{clientIP}</p>
+            </MetaRow>
+          )}
+          <PenaltyAppealActions
+            kind="ip_ban"
+            reason={banState.reason}
+            remainingText={banState.expiresAt ? banState.expiresAt.toLocaleString() : undefined}
+            details={clientIP && clientIP !== 'unknown' ? `IP: ${clientIP}` : undefined}
+          />
+        </div>
+      </m.div>,
     );
   }
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-[#f6f8fb]">
-      <div
-        className="pointer-events-none fixed inset-0 opacity-70"
-        style={{
-          backgroundImage:
-            'linear-gradient(rgba(15,23,42,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.035) 1px, transparent 1px)',
-          backgroundSize: '36px 36px',
-          maskImage: 'radial-gradient(circle at 50% 28%, #000 0%, rgba(0,0,0,0.35) 55%, transparent 78%)',
-          WebkitMaskImage:
-            'radial-gradient(circle at 50% 28%, #000 0%, rgba(0,0,0,0.35) 55%, transparent 78%)',
-        }}
-      />
-      <div className="pointer-events-none fixed inset-x-0 top-0 h-60 bg-[radial-gradient(circle_at_top,rgba(244,129,32,0.18),transparent_58%)]" />
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 h-40 bg-[linear-gradient(180deg,transparent,rgba(226,232,240,0.55))]" />
+  const statusPill = isVerified
+    ? { className: 'border-[#bfe3cd] bg-[#eef9f1] text-[#2f7a4b]', label: 'Challenge passed' }
+    : { className: 'border-[#ffd9c8] bg-[#fff4ef] text-[#f48120]', label: 'Required' };
 
-      <div className="relative flex min-h-full items-center justify-center px-4 py-8 sm:px-6 sm:py-12 xl:py-16">
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: 'easeOut' }}
-          className="relative w-full max-w-[860px] xl:max-w-[980px] rounded-2xl border border-[#dde3ec] bg-white/95 shadow-[0_28px_70px_rgba(15,23,42,0.08)] backdrop-blur"
-        >
-          <div className="grid gap-0 md:grid-cols-[1.18fr_0.82fr]">
-            <div className="border-b border-[#edf1f5] px-4 py-6 md:border-b-0 md:border-r md:px-10 md:py-10 xl:px-12 xl:py-12">
-              <div className="mb-7 flex items-center gap-3">
-                <div className={ACCENT_BADGE_SHELL_CLASS}>
-                  CF
-                </div>
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#f48120]">Traffic Review</p>
-                  <h1 className="text-2xl sm:text-[28px] font-semibold tracking-[-0.03em] text-[#1d2735]">Checking your browser</h1>
-                </div>
-              </div>
-
-              <div className="mb-7 flex items-start gap-4 rounded-2xl border border-[#eceff4] bg-[#fbfcfe] px-5 py-4">
-                <VerificationRing reducedMotion={reducedMotion} label="Security review in progress" />
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[#253140]">Review in progress</p>
-                  <p className="mt-1 text-sm leading-6 text-[#637082]">
-                    The server requested a one-time human verification before your session token can be
-                    renewed.
-                  </p>
-                  <ReviewSteps activeIndex={reviewStepIndex} />
-                </div>
-              </div>
-
-              <div className="mb-8 space-y-4 text-sm leading-6 text-[#526071]">
-                <p>
-                  This step is triggered by the backend risk policy when the current IP or network profile looks unusual.
-                  Once you pass, the access token remains valid for 40 minutes.
-                </p>
-                <p>
-                  Verification provider: <span className="font-medium text-[#253140]">{verificationMode ? serviceLabel : 'Loading...'}</span>
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-[#eceff4] bg-[#fbfcfe] px-5 py-5">
-                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-[#253140]">Complete the security challenge</p>
-                  <span
-                    className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
-                      isVerified
-                        ? 'border-[#cbe8d6] bg-[#f4fbf7] text-[#2f7a4b]'
-                        : 'border-[#ffd9c8] bg-[#fff4ef] text-[#f48120]'
-                    }`}
-                  >
-                    {isVerified ? 'Challenge passed' : 'Required'}
-                  </span>
-                </div>
-
-                {secureSelectionLoading ? (
-                  <div className="rounded-2xl border border-[#eceff4] bg-white px-5 py-6 text-sm text-[#637082]">
-                    Loading verification provider...
-                  </div>
-                ) : configError ? (
-                  <div className="space-y-4">
-                    <div className="rounded-2xl border border-[#f4d2c7] bg-[#fff5f1] px-4 py-4 text-sm text-[#a34516]">
-                      {configError}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => window.location.reload()}
-                      className="rounded-2xl border border-[#1d2735] px-4 py-3 text-sm font-semibold text-[#1d2735] transition hover:bg-[#1d2735] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
-                    >
-                      Reload page
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div
-                      className={`flex min-h-[86px] items-center justify-center rounded-2xl border border-dashed px-4 py-4 transition-colors ${
-                        isVerified ? 'border-[#bfe3cd] bg-[#f5fbf7]' : 'border-[#dfe5ee] bg-white'
-                      }`}
-                    >
-                      <Suspense fallback={<div className="h-[78px] w-full animate-pulse rounded-2xl bg-[#f3f6fa]" />}>
-                        {verificationMode === 'turnstile' ? (
-                          <TurnstileWidget
-                            key={turnstileKey}
-                            siteKey={secureSiteKey}
-                            onVerify={handleTurnstileVerify}
-                            onExpire={handleTurnstileExpire}
-                            onError={handleTurnstileError}
-                          />
-                        ) : (
-                          <HCaptchaWidget
-                            key={hcaptchaKey}
-                            siteKey={secureSiteKey}
-                            onVerify={handleHCaptchaVerify}
-                            onExpire={handleHCaptchaExpire}
-                            onError={handleHCaptchaError}
-                            size="normal"
-                          />
-                        )}
-                      </Suspense>
-                    </div>
-
-                    <AnimatePresence>
-                      {error && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -8 }}
-                          className="mt-4 rounded-2xl border border-[#f4d2c7] bg-[#fff5f1] px-4 py-3 text-sm text-[#a34516]"
-                          role="alert"
-                        >
-                          {error}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-
-                    <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                      <button
-                        type="button"
-                        onClick={handleVerify}
-                        disabled={!isVerified || verifying}
-                        className={`flex flex-1 items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f48120]/45 focus-visible:ring-offset-2 ${
-                          !isVerified || verifying
-                            ? 'cursor-not-allowed bg-[#e9edf3] text-[#9aa5b1]'
-                            : 'bg-[#f48120] text-white shadow-[0_18px_30px_rgba(244,129,32,0.24)] hover:bg-[#de6f12]'
-                        }`}
-                        aria-busy={verifying}
-                      >
-                        {verifying && (
-                          <VerificationRing
-                            className="pointer-events-none h-4 w-4 shrink-0"
-                            reducedMotion={reducedMotion}
-                            trackColor="rgba(255,255,255,0.35)"
-                            arcColor="#ffffff"
-                            strokeWidth={5}
-                          />
-                        )}
-                        {verifying ? 'Finalizing check...' : 'Continue to site'}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setError('');
-                          resetChallenge();
-                        }}
-                        disabled={verifying}
-                        className="rounded-2xl border border-[#d7dde6] px-5 py-3.5 text-sm font-semibold text-[#253140] transition hover:border-[#bcc6d3] hover:bg-[#f6f8fb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        Reload challenge
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div className="px-4 py-6 md:px-9 md:py-10 xl:px-11 xl:py-12">
-              <div className="rounded-2xl border border-[#eceff4] bg-[#fbfcfe] px-5 py-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#7f8a98]">Session Context</p>
-
-                <div className="mt-5 space-y-5">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-[0.14em] text-[#8b97a6]">Fingerprint</p>
-                    <p className="mt-2 truncate rounded-xl border border-[#eaeef5] bg-white px-3 py-2 font-mono text-xs text-[#334155]">
-                      {fingerprintPreview}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-[0.14em] text-[#8b97a6]">IP Address</p>
-                    <p className="mt-2 truncate rounded-xl border border-[#eaeef5] bg-white px-3 py-2 font-mono text-xs text-[#334155]">
-                      {clientIP || 'Detecting...'}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-[0.14em] text-[#8b97a6]">Token Policy</p>
-                    <p className="mt-2 text-sm leading-6 text-[#526071]">
-                      The backend accepts this session for 40 minutes after verification and expects every frontend request
-                      to carry both the fingerprint and verification token headers.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 rounded-2xl border border-[#eceff4] bg-white px-5 py-5">
-                <p className="text-sm font-semibold text-[#253140]">Why this page appears</p>
-                <ul className="mt-4 space-y-3 text-sm leading-6 text-[#637082]">
-                  {[
-                    'Backend fraud scoring marked the current network as risky enough to step up verification.',
-                    'The challenge is one-time and bound to the current IP plus browser fingerprint.',
-                    'Refreshing the site without a valid token will trigger the check again.',
-                  ].map((item) => (
-                    <li key={item} className="flex gap-2.5">
-                      <span
-                        aria-hidden="true"
-                        className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#f4c7aa]"
-                      />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+  return shell(
+    <m.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.34, ease: 'easeOut' }}
+      className="relative w-full max-w-[880px] overflow-hidden rounded-3xl border border-[#e3e9f2] bg-white shadow-[0_30px_70px_-30px_rgba(15,23,42,0.25)] xl:max-w-[1000px]"
+    >
+      <div className="grid md:grid-cols-[1.15fr_0.85fr]">
+        <div className="px-5 py-7 sm:px-8 sm:py-9 md:px-10 md:py-11">
+          <div className="flex items-center gap-3.5">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#f48120] text-lg text-white shadow-[0_12px_24px_-10px_rgba(244,129,32,0.85)]">
+              <FaShieldAlt />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#f48120]">
+                Traffic review
+              </p>
+              <h1 className="text-[24px] font-semibold tracking-[-0.03em] text-[#1d2735] sm:text-[28px]">
+                Checking your browser
+              </h1>
             </div>
           </div>
-        </motion.div>
+
+          <p className="mt-5 text-sm leading-6 text-[#526071]">
+            The backend risk policy asked for a one-time human verification before your session token can be
+            renewed. Finish the challenge below and you are straight back to the site.
+          </p>
+
+          <div className="mt-6 rounded-2xl border border-[#eceff4] bg-[#fbfcfe] px-5 py-5">
+            <div className="flex items-center gap-3">
+              <Spinner className="h-5 w-5 text-[#f48120]" reducedMotion={reducedMotion} />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-[#253140]">
+                  {isVerified ? 'Challenge accepted' : 'Review in progress'}
+                </p>
+                <p className="text-xs text-[#7b8796]">
+                  One-time check · bound to this browser and network
+                </p>
+              </div>
+            </div>
+            <ReviewSteps activeIndex={reviewStepIndex} />
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-[#eceff4] bg-white px-5 py-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-[#253140]">Complete the security challenge</p>
+              <AnimatePresence mode="wait" initial={false}>
+                <m.span
+                  key={statusPill.label}
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 4 }}
+                  transition={{ duration: 0.18 }}
+                  className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${statusPill.className}`}
+                >
+                  {statusPill.label}
+                </m.span>
+              </AnimatePresence>
+            </div>
+
+            <div className="mt-4">
+              {secureSelectionLoading ? (
+                <div className="flex items-center gap-3 rounded-2xl border border-[#eceff4] bg-[#fbfcfe] px-5 py-6 text-sm text-[#637082]">
+                  <Spinner className="h-4 w-4 text-[#94a3b8]" reducedMotion={reducedMotion} />
+                  Loading verification provider...
+                </div>
+              ) : configError ? (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-[#f4d2c7] bg-[#fff5f1] px-4 py-4 text-sm text-[#a34516]">
+                    {configError}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-[#1d2735] px-4 py-3 text-sm font-semibold text-[#1d2735] transition hover:bg-[#1d2735] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
+                  >
+                    <FaRedo className="h-3.5 w-3.5" />
+                    Reload page
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <m.div
+                    animate={{
+                      borderColor: isVerified ? '#bfe3cd' : '#dfe5ee',
+                      backgroundColor: isVerified ? '#f5fbf7' : '#ffffff',
+                    }}
+                    transition={{ duration: 0.25 }}
+                    className="flex min-h-[86px] items-center justify-center rounded-2xl border border-dashed px-4 py-4"
+                  >
+                    <Suspense
+                      fallback={
+                        <div className="flex h-[78px] w-full items-center justify-center">
+                          <Spinner className="h-5 w-5 text-[#c3ccd8]" reducedMotion={reducedMotion} />
+                        </div>
+                      }
+                    >
+                      {verificationMode === 'turnstile' ? (
+                        <TurnstileWidget
+                          key={turnstileKey}
+                          siteKey={secureSiteKey}
+                          onVerify={handleTurnstileVerify}
+                          onExpire={handleTurnstileExpire}
+                          onError={handleTurnstileError}
+                        />
+                      ) : (
+                        <HCaptchaWidget
+                          key={hcaptchaKey}
+                          siteKey={secureSiteKey}
+                          onVerify={handleHCaptchaVerify}
+                          onExpire={handleHCaptchaExpire}
+                          onError={handleHCaptchaError}
+                          size="normal"
+                        />
+                      )}
+                    </Suspense>
+                  </m.div>
+
+                  <AnimatePresence initial={false}>
+                    {error && (
+                      <m.div
+                        initial={{ opacity: 0, y: 8, height: 0 }}
+                        animate={{ opacity: 1, y: 0, height: 'auto' }}
+                        exit={{ opacity: 0, y: -8, height: 0 }}
+                        className="overflow-hidden"
+                        role="alert"
+                      >
+                        <div className="mt-4 rounded-2xl border border-[#f4d2c7] bg-[#fff5f1] px-4 py-3 text-sm text-[#a34516]">
+                          {error}
+                        </div>
+                      </m.div>
+                    )}
+                  </AnimatePresence>
+
+                  <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                    <m.button
+                      type="button"
+                      onClick={handleVerify}
+                      disabled={!isVerified || verifying}
+                      whileTap={reducedMotion || !isVerified || verifying ? undefined : { scale: 0.985 }}
+                      className={`flex flex-1 items-center justify-center gap-2.5 rounded-2xl px-5 py-3.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f48120]/45 focus-visible:ring-offset-2 ${
+                        !isVerified || verifying
+                          ? 'cursor-not-allowed bg-[#e9edf3] text-[#9aa5b1]'
+                          : 'bg-[#f48120] text-white shadow-[0_18px_30px_-12px_rgba(244,129,32,0.75)] hover:bg-[#de6f12]'
+                      }`}
+                      aria-busy={verifying}
+                    >
+                      {verifying ? (
+                        <>
+                          <Spinner className="h-4 w-4 text-white" reducedMotion={reducedMotion} />
+                          Finalizing check...
+                        </>
+                      ) : (
+                        <>
+                          Continue to site
+                          <FaArrowRight className="h-3.5 w-3.5" />
+                        </>
+                      )}
+                    </m.button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError('');
+                        resetChallenge();
+                      }}
+                      disabled={verifying}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#d7dde6] px-5 py-3.5 text-sm font-semibold text-[#253140] transition hover:border-[#bcc6d3] hover:bg-[#f6f8fb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <FaRedo className="h-3.5 w-3.5" />
+                      Reload challenge
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <p className="mt-5 text-xs text-[#8b97a6]">
+            Powered by {verificationMode ? serviceLabel : 'the site verification provider'} · tokens are never
+            stored in logs or URLs.
+          </p>
+        </div>
+
+        <div className="border-t border-[#eef2f7] bg-[#fafbfe] px-5 py-7 sm:px-8 sm:py-9 md:border-l md:border-t-0 md:px-9 md:py-11">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#7f8a98]">
+            Session context
+          </p>
+
+          <div className="mt-4 space-y-3">
+            <MetaRow Icon={FaFingerprint} label="Fingerprint">
+              <p className="truncate font-mono text-xs text-[#334155]">{fingerprintPreview}</p>
+            </MetaRow>
+
+            <MetaRow Icon={FaGlobe} label="IP address">
+              <p className="truncate font-mono text-xs text-[#334155]">{clientIP || 'Detecting...'}</p>
+            </MetaRow>
+
+            <MetaRow Icon={FaClock} label="Token policy">
+              <p className="text-xs leading-5 text-[#526071]">
+                The session is accepted for 40 minutes after verification. Every API request carries the
+                fingerprint and the verification token, so the check does not come back on reload.
+              </p>
+            </MetaRow>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-[#eceff4] bg-white px-5 py-5">
+            <p className="text-sm font-semibold text-[#253140]">Why this page appears</p>
+            <ul className="mt-3.5 space-y-3 text-xs leading-5 text-[#637082]">
+              {[
+                'Backend fraud scoring marked the current network as risky enough to step up verification.',
+                'The challenge is one-time and bound to the current IP plus browser fingerprint.',
+                'A passed challenge lasts 40 minutes; refreshing inside that window keeps your session.',
+              ].map((item) => (
+                <li key={item} className="flex gap-2.5">
+                  <FaCheck className="mt-0.5 h-3 w-3 shrink-0 text-[#c9a48f]" aria-hidden="true" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       </div>
-    </div>
+    </m.div>,
   );
 };
