@@ -16,6 +16,9 @@ jest.mock("../config/config", () => ({
       tokenTtlMinutes: 40,
       failOpen: true,
     },
+    proxycheck: {
+      enabled: false,
+    },
   },
 }));
 

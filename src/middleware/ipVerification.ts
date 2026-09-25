@@ -6,7 +6,9 @@ import IpVerificationService from "../services/ipVerificationService";
 
 function shouldSkipVerificationEnforcement(req: Request): boolean {
   if (config.enableFirstVisitVerification === false) return true;
-  if (!config.ipqs.enabled) return true;
+  // IPQS 与 proxycheck 任一开启即要求令牌，两者都关才豁免 —— 与
+  // ipVerificationService.initializeSession / verifyRequestToken 保持同一判据。
+  if (!config.ipqs.enabled && !config.proxycheck.enabled) return true;
   if (req.method === "OPTIONS") return true;
 
   const originalUrl = req.originalUrl || req.url || "";

@@ -8,6 +8,9 @@ jest.mock("../config/config", () => ({
     ipqs: {
       enabled: true,
     },
+    proxycheck: {
+      enabled: false,
+    },
   },
   // logger 初始化依赖 compileTimeConfig.logsDir
   compileTimeConfig: {

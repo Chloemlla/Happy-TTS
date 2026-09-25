@@ -22,7 +22,11 @@ function pickLogHeaders(headers: IncomingHttpHeaders): Record<string, string> {
 
 export class DiagnosticsController {
   static getFrontendConfig(_req: Request, res: Response): void {
-    const enableIpVerification = config.enableFirstVisitVerification && config.ipqs.enabled;
+    // 闸门是否生效 = 首访验证开着，且至少有一个风险源（IPQS 或 proxycheck）开着。
+    // 只认 IPQS 会让 proxycheck-only 部署被前端当成"首访验证已关闭"：前端据此不发
+    // /api/ip-verification/session，后端 evaluateIpRisk 永远不会被调用。
+    const enableIpVerification =
+      config.enableFirstVisitVerification && (config.ipqs.enabled || config.proxycheck.enabled);
 
     res.json({
       enableFirstVisitVerification: enableIpVerification,

@@ -521,7 +521,12 @@ export class IpVerificationService {
       }
     }
 
-    if (!config.ipqs.enabled) {
+    // 两侧风险源都关闭：既没有可签发的令牌，也没有要执行的判定，直接视为已验证放行
+    // （ipVerification 中间件与 verifyRequestToken 用同一判据豁免）。
+    // 注意不能只判 ipqs：只关 IPQS 而开着 proxycheck 时必须往下走，否则中间件要求令牌、
+    // 这里却从不签发，干净 IP 也会被自己的门禁 403。下面 lookupIpqs 会直接跳过 IPQS 判定，
+    // 由末尾的 issueToken 签出 "auto" 令牌。
+    if (!config.ipqs.enabled && !config.proxycheck.enabled) {
       return {
         success: true,
         verified: true,
@@ -642,7 +647,11 @@ export class IpVerificationService {
     fingerprintInput: string,
     ipAddressInput: string,
   ): Promise<boolean> {
-    if (config.enableFirstVisitVerification === false || !config.ipqs.enabled) {
+    // 同 ipVerification 中间件：闸门关闭或两侧风险源都关才豁免，否则一律校验令牌。
+    if (
+      config.enableFirstVisitVerification === false ||
+      (!config.ipqs.enabled && !config.proxycheck.enabled)
+    ) {
       return true;
     }
 
