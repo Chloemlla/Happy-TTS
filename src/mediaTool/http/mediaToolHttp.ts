@@ -6,7 +6,7 @@ import fs from "node:fs";
 import multer from "multer";
 import path from "node:path";
 import { MediaJobRunner } from "../jobs/mediaJobRunner";
-import { MEDIA_EXTS, ensureDir, isAudioFile, relInsideRoot, resolveRootDir, runTool, sanitizeFileName, statOrNull } from "../runtime";
+import { MEDIA_EXTS, ensureDir, isAudioFile, relInsideRoot, resolveRootDir, resolveYtDlpBin, runTool, sanitizeFileName, statOrNull } from "../runtime";
 import { maskedView, type MediaSettingsPatch, type MediaSettingsStore } from "../settingsStore";
 import { normalizeTranscribeOutputs } from "../types";
 import { readSegments } from "../vivoLasr";
@@ -51,7 +51,7 @@ export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router
       } catch {
         /* 下面 writable 探测会给结论 */
       }
-      const ytRes = runTool(settings.bili.ytDlpPath, ["--version"], { maxBuffer: 1024 * 1024 });
+      const ytRes = runTool(resolveYtDlpBin(settings.bili.ytDlpPath), ["--version"], { maxBuffer: 1024 * 1024 });
       const ffRes = runTool("ffprobe", ["-version"], { maxBuffer: 1024 * 1024 });
       res.json({
         ok: true,

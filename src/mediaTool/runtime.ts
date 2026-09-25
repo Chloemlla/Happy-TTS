@@ -99,6 +99,22 @@ export function runToolChecked(bin: string, args: string[], opts: { cwd?: string
   return r.stdout.trim();
 }
 
+/**
+ * yt-dlp 可执行路径:未配置时回退到裸命令名 "yt-dlp",由 spawn 自行走 PATH 解析。
+ *
+ * 设置页与 .env.example 都承诺「留空自动探测 PATH」,但配置有三层(启动默认 / Mongo 快照 /
+ * 显式环境变量),任何一层给出空串都会原样落到 spawn 上——所以统一在使用点归一,
+ * 而不是只改其中一层的默认值。
+ */
+export function resolveYtDlpBin(configured: string): string {
+  return (configured || "").trim() || "yt-dlp";
+}
+
+/** 是否为裸命令名(不含路径分隔符)。裸命令名交给 PATH 解析,不能用 existsSync 判存在。 */
+export function isBareCommand(bin: string): boolean {
+  return !bin.includes("/") && !bin.includes("\\");
+}
+
 export function ensureDir(dir: string): void {
   if (!dir) return;
   fs.mkdirSync(dir, { recursive: true });

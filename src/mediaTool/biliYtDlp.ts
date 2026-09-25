@@ -7,7 +7,9 @@ import path from "node:path";
 import {
   CancelledError,
   ensureDir,
+  isBareCommand,
   makeConsoleDecoder,
+  resolveYtDlpBin,
   runTool,
   runToolChecked,
 } from "./runtime";
@@ -76,7 +78,7 @@ function cookiesArgs(opts: BiliOptions): string[] {
 /** 合集/多分P 链接 → 逐集 { index, url }。flat-playlist 只抓页面不下载,快。失败返回空,由调用方整条处理。 */
 export function expandPlaylist(opts: BiliOptions, url: string): Array<{ index: number; url: string }> {
   try {
-    const out = runToolChecked(opts.ytDlpPath, [
+    const out = runToolChecked(resolveYtDlpBin(opts.ytDlpPath), [
       ...cookiesArgs(opts),
       "--flat-playlist",
       "--no-warnings",
@@ -247,11 +249,12 @@ async function downloadItem(
   const label = item.playlistIndex !== null ? `${item.url}(第${item.playlistIndex}集)` : item.url;
   return new Promise<BiliBatchItemOutcome>((resolve) => {
     const args = buildArgs(opts, item, videoMode);
+    const bin = resolveYtDlpBin(opts.ytDlpPath);
     cb.log?.(`下载 > ${label}`);
-    cb.log?.(`CMD> ${opts.ytDlpPath} ${args.join(" ")}`);
+    cb.log?.(`CMD> ${bin} ${args.join(" ")}`);
     let proc;
     try {
-      proc = spawn(opts.ytDlpPath, args, { stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+      proc = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
     } catch (e) {
       resolve({ ok: false, label, error: `无法启动 yt-dlp: ${(e as Error).message}` });
       return;
@@ -346,8 +349,11 @@ export async function downloadBatch(
   ensureDir(opts.downloadDir);
   const log = (m: string) => cb.log?.(m);
   log(`模式: ${videoMode ? "视频(合并 mp4)" : `音频(仅${opts.audioFormat || "mp3"})`} | 并发: ${opts.concurrency}`);
-  if (!fs.existsSync(opts.ytDlpPath)) {
-    throw new Error(`yt-dlp 不存在: ${opts.ytDlpPath}(设置页可改路径)`);
+  const bin = resolveYtDlpBin(opts.ytDlpPath);
+  // 裸命令名(留空回退的 "yt-dlp")由 spawn 走 PATH 解析,此处无法用 existsSync 判存在;
+  // 显式给了路径才做存在性预检,好在任务开始前就给出可读错误。
+  if (!isBareCommand(bin) && !fs.existsSync(bin)) {
+    throw new Error(`yt-dlp 不存在: ${bin}(设置页可改路径)`);
   }
   const raw = (rawInputs || []).filter((x) => String(x).trim());
   if (raw.length === 0) throw new Error("没有输入任何下载项");
@@ -413,7 +419,7 @@ export async function downloadBatch(
 
 /** yt-dlp 是否可用:返回版本号(不可用抛错)。用于健康检查。 */
 export function probeYtDlp(opts: BiliOptions): { version: string } {
-  const out = runTool(opts.ytDlpPath, ["--version"], { maxBuffer: 1024 * 1024 });
+  const out = runTool(resolveYtDlpBin(opts.ytDlpPath), ["--version"], { maxBuffer: 1024 * 1024 });
   if (out.status !== 0) {
     throw new Error(`yt-dlp 不可用: ${out.stderr || out.stdout || "无法启动"}`);
   }

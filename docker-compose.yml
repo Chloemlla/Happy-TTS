@@ -16,6 +16,11 @@ services:
       - MONGO_DB=${MONGO_DB:-tts}
       - MONGO_PROXY_URL=${MONGO_PROXY_URL}
     volumes:
+      # 容器内以 uid/gid 100(nodejs) 运行。bind mount 会用宿主机目录的属主覆盖镜像里的
+      # chown；若 ./data 不存在而由 docker 自动创建，属主是 root，媒体工具的工作根
+      # (/app/data/media-tool) 与其他落盘目录就会不可写。首次部署先执行：
+      #   mkdir -p ./data && chown -R 100:100 ./data
+      # 或改用命名卷（`- media-data:/app/data`），首次挂载会继承镜像中的属主。
       - ./data:/app/data
     restart: unless-stopped
     mem_limit: 2g

@@ -92,6 +92,13 @@ RUN apk upgrade --no-cache && \
     echo "Asia/Shanghai" > /etc/timezone && \
     apk del tzdata
 
+# media-tool 的外部依赖：B 站下载走 yt-dlp，默认音频模式（--extract-audio --audio-format）
+# 与视频模式（--merge-output-format mp4）都要 ffmpeg，ffprobe 亦由 ffmpeg 包提供。
+# 不装的话该功能在镜像里 100% 不可用（yt-dlp 不存在 + 探针永远报缺失）；
+# 用户侧「语音转文本」走 LASR HTTP 接口，不依赖这两个二进制。
+# 代价：yt-dlp 是 Python 包会拉入 python3，ffmpeg 体积亦大；这是刻意接受的取舍。
+RUN apk add --no-cache yt-dlp ffmpeg
+
 ENV TZ=Asia/Shanghai \
     NODE_ENV=production \
     NODE_OPTIONS="--max-old-space-size=2048" \
@@ -135,7 +142,13 @@ COPY --from=backend-builder /app/scripts/migrations/backfill-lumen-ttl.js ./scri
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # 非 root 用户运行
+# /app/data 是 media-tool 工作根（resolveRootDir 兜底 <cwd>/data/media-tool）、
+# tamper/modlist/userGeneration 等落盘目录的共同根。它必须在 chown -R 之前建出来，
+# 否则命名卷首次挂载时拿不到 nodejs 属主，非 root 进程写不进去。
+# 注意：docker-compose 用的是 bind mount（./data:/app/data），宿主机目录的属主会覆盖
+# 镜像里的设置，需要宿主自行 `chown 100:100 ./data`（或改用命名卷）。
 RUN addgroup -S nodejs && adduser -S nodejs -G nodejs && \
+    mkdir -p /app/data && \
     chown -R nodejs:nodejs /app
 
 USER nodejs
