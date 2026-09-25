@@ -10,6 +10,8 @@ import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import { useNotification } from './Notification';
+import { cn } from '../utils/cn';
+import { studioPanelClassName } from './studioTheme';
 
 
 interface GenerateCDKModalProps {
@@ -24,8 +26,6 @@ function ImportCDKModal({ isOpen, onClose, onSuccess }: ImportCDKModalProps) {
   const [error, setError] = useState('');
   const [result, setResult] = useState<null | {
     importedCount: number;
-import { studioPanelClassName } from './studioTheme';
-import { cn } from '../utils/cn';
     skippedCount: number;
     errorCount: number;
     errors: string[];
