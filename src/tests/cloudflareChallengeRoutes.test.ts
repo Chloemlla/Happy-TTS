@@ -35,4 +35,24 @@ describe("cloudflareChallengeRoutes", () => {
       .send({ secondaryToken: "secondary-token", sitekey: "0x4AAAAAAAw2OBEX19jKyn5c" })
       .expect(404);
   });
+
+  it("stubs the challenge platform API variant seen in production logs", async () => {
+    await request(createApp())
+      .post("/cdn-cgi/challenge-platform/h/b/c/a4087a62eff8685a")
+      .send({ sitekey: "0x4AAAAAAAw2OBEX19jKyn5c" })
+      .expect(200)
+      .expect("Content-Type", /text\/plain/)
+      .expect("Cache-Control", /no-store/)
+      .expect("OK");
+
+    await request(createApp())
+      .options("/cdn-cgi/challenge-platform/h/b/c/a4087a62eff8685a")
+      .expect(204)
+      .expect("Cache-Control", /no-store/);
+  });
+
+  it("rejects malformed ids on every stubbed challenge path", async () => {
+    await request(createApp()).post("/cdn-cgi/challenge-platform/h/b/c/short").send({}).expect(404);
+    await request(createApp()).post("/cdn-cgi/challenge-platform/h/b/c/abcdefg!").send({}).expect(404);
+  });
 });
