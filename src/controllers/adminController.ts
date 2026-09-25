@@ -1848,8 +1848,8 @@ export const adminController = {
     }
   },
 
-  // proxycheck.io IP 风险查询 + 客户端出口探测配置；apiKey / publicApiKey / hmacSecret 一律脱敏回显，
-  // hmacSecret 是服务端主密钥，保存后立即对新请求生效（无需重启进程）。
+  // proxycheck.io IP 风险查询 + 客户端出口探测配置；apiKey / publicApiKey / payloadVerificationKey /
+  // hmacSecret 一律脱敏回显，后两者是服务端专用密钥，保存后立即对新请求生效（无需重启进程）。
   async getProxycheckSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });

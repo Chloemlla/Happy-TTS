@@ -14,7 +14,7 @@ const REFRESH_BUTTON_CLASS =
 
 const SECTION_KEY = 'proxycheck';
 
-export type ProxycheckSecretKey = 'apiKey' | 'publicApiKey' | 'hmacSecret';
+export type ProxycheckSecretKey = 'apiKey' | 'publicApiKey' | 'payloadVerificationKey' | 'hmacSecret';
 export type ProxycheckNumericKey = 'cacheTtlHours' | 'timeoutMs' | 'dailyQuotaPerKey' | 'challengeRiskScore';
 type ProxycheckSwitchKey = 'failOpen' | 'usePublicKeyForClient';
 
@@ -23,6 +23,7 @@ export interface ProxycheckInputs {
   enabled: boolean;
   apiKey: string;
   publicApiKey: string;
+  payloadVerificationKey: string;
   hmacSecret: string;
   cacheTtlHours: string;
   timeoutMs: string;
@@ -37,6 +38,7 @@ export const DEFAULT_PROXYCHECK_INPUTS: ProxycheckInputs = {
   enabled: false,
   apiKey: '',
   publicApiKey: '',
+  payloadVerificationKey: '',
   hmacSecret: '',
   cacheTtlHours: '24',
   timeoutMs: '8000',
@@ -110,7 +112,15 @@ export function clampProxycheckNumber(field: ProxycheckNumericField, raw: string
 /** 区块只消费总开关与密钥字段：后端只回掩码串 + hasXxx 布尔。 */
 export type ProxycheckSectionState = Pick<
   ProxycheckConfigSetting,
-  'enabled' | 'apiKey' | 'publicApiKey' | 'hmacSecret' | 'hasApiKey' | 'hasPublicApiKey' | 'hasHmacSecret'
+  | 'enabled'
+  | 'apiKey'
+  | 'publicApiKey'
+  | 'payloadVerificationKey'
+  | 'hmacSecret'
+  | 'hasApiKey'
+  | 'hasPublicApiKey'
+  | 'hasPayloadVerificationKey'
+  | 'hasHmacSecret'
 >;
 
 function proxycheckSecretsFromConfig(
@@ -119,6 +129,11 @@ function proxycheckSecretsFromConfig(
   return [
     { key: 'apiKey', has: !!config?.hasApiKey, masked: config?.apiKey || '' },
     { key: 'publicApiKey', has: !!config?.hasPublicApiKey, masked: config?.publicApiKey || '' },
+    {
+      key: 'payloadVerificationKey',
+      has: !!config?.hasPayloadVerificationKey,
+      masked: config?.payloadVerificationKey || '',
+    },
     { key: 'hmacSecret', has: !!config?.hasHmacSecret, masked: config?.hmacSecret || '' },
   ];
 }
@@ -144,10 +159,17 @@ const SECRET_FIELDS: Array<{
     placeholder: '请输入新的公开 API Key（不回显明文，留空保存表示保留原值）',
   },
   {
+    key: 'payloadVerificationKey',
+    label: 'API Payload Verification Key（响应验签）',
+    description:
+      'proxycheck.io 官方 Dashboard 生成的响应验签密钥（64 字符）。上游在 HTTPS 响应头 http_x_signature 里回签响应体，本服务按 HMAC-SHA256(原始响应体, 该密钥) 逐字节比对；不通过就当上游失败，绝不采信未验签的结论。换 API Key 后该密钥会重新生成，需要同步更新。',
+    placeholder: '请输入 64 字符的 API Payload Verification Key（不回显明文，留空保存表示保留原值）',
+  },
+  {
     key: 'hmacSecret',
     label: '自建 HMAC 验签主密钥',
     description:
-      '本服务自建的 payload 验签主密钥，不是 proxycheck.io 的字段。服务端用它派生每会话密钥，校验浏览器上报的出口探测结果；主密钥只留在服务端。',
+      '本服务自建的主密钥，方向与上一项相反：服务端用它派生每会话密钥，校验浏览器上报的出口/IPv6/WebSocket 泄露探测结果。proxycheck.io 不参与，主密钥只留在服务端。',
     placeholder: '请输入新的 HMAC 主密钥（不回显明文，留空保存表示保留原值）',
   },
 ];
@@ -219,7 +241,7 @@ export default function ProxycheckConfigSection({
   return (
     <CollapsibleSection
       title="proxycheck.io IP 风险检测"
-      description="配置 proxycheck.io 的服务端 key、浏览器公开 key、自建 HMAC 验签主密钥，以及同 IP 去重缓存、超时、每日配额与风险分阈值（运行时配置键 PROXYCHECK）。保存后立即生效，无需重启服务。"
+      description="配置 proxycheck.io 的服务端 key、浏览器公开 key、官方响应验签密钥、自建 HMAC 主密钥，以及同 IP 去重缓存、超时、每日配额与风险分阈值（运行时配置键 PROXYCHECK）。保存后立即生效，无需重启服务。"
       sectionKey={SECTION_KEY}
       isOpen={isOpen}
       onToggle={onToggle}
@@ -258,11 +280,18 @@ export default function ProxycheckConfigSection({
 
       <InfoBox icon={<FaLock />}>
         <p>
-          <strong>关于 HMAC 验签密钥</strong>：它是本服务自建的 payload 验签主密钥，不是 proxycheck.io 的字段，proxycheck.io 本身不提供任何签名机制。
-          服务端用它派生每会话密钥，校验浏览器上报的出口/IPv6/WebSocket 泄露探测结果，主密钥绝不返回给浏览器。
+          <strong>两个方向的 HMAC，别混</strong>：「API Payload Verification Key」是 proxycheck.io
+          官方 Dashboard 的字段（64 字符），验证的是<strong>上游响应</strong>确实来自 proxycheck 且中途未被篡改，
+          本服务逐字节比对响应头 http_x_signature，不一致就按上游失败处理。
+          「自建 HMAC 验签主密钥」方向相反，是本服务自己签发并校验<strong>浏览器上报</strong>的出口/IPv6/WebSocket
+          泄露探测结果，proxycheck.io 不参与。四把密钥都只留在服务端，绝不返回给浏览器。
         </p>
         <p className="mt-1">
-          未配置该密钥时，探测会话端点返回 501、上报端点直接拒绝（403），不会静默跳过验签。
+          未配置自建主密钥时，探测会话端点返回 501、上报端点直接拒绝（403），不会静默跳过验签。
+          未配置响应验签密钥时，不校验上游响应签名，只依赖 TLS。
+        </p>
+        <p className="mt-1">
+          响应验签密钥必须是 64 字符（官方约定）。长度不符会在外呼前直接判为配置错误，不会拿一把永远验不过的密钥去发请求。
         </p>
       </InfoBox>
 

@@ -1,9 +1,17 @@
 import { isIP } from "node:net";
 import { isRecord, toStringField } from "./proxycheckParsing";
+import {
+  isValidHmacKeyShape,
+  PROXYCHECK_SIGNATURE_HEADER,
+  verifyPayloadSignature,
+} from "./proxycheckSignature";
 
 /**
- * proxycheck.io 的 HTTP 层：只负责构造请求、发请求、判定顶层 status。
- * 鉴权只有 `key` 查询参数一种（proxycheck 没有 HMAC / 签名机制）。
+ * proxycheck.io 的 HTTP 层：只负责构造请求、发请求、验签、判定顶层 status。
+ *
+ * 鉴权是 `key` 参数；另外 Dashboard 可为账号生成 API Payload Verification Key，
+ * 上游在 HTTPS 响应的 `http_x_signature` 头里回签响应体，本层逐字节验签后才解析
+ * （见 proxycheckSignature.ts）。未配置该 key 时不做验签，只依赖 TLS。
  */
 
 // 上游地址硬编码：绝不从配置接受任意 URL（防 SSRF）。
@@ -21,11 +29,48 @@ export interface ProxycheckPayload {
   [key: string]: unknown;
 }
 
+/** 一次上游查询的全部可调参数；`verificationKey` 为空串表示不验签。 */
+export interface ProxycheckRequestOptions {
+  apiKey: string;
+  verificationKey: string;
+  timeoutMs: number;
+  days: number;
+}
+
 /** status 非 ok/warning 一律当失败；只回状态名，不回上游 message（可能回显含 key 的 URL）。 */
 function assertUpstreamOk(payload: ProxycheckPayload): void {
   const status = toStringField(payload.status);
   if (status === "ok" || status === "warning") return;
   throw new Error(`proxycheck_status_${status || "unknown"}`);
+}
+
+/**
+ * 先验签、再解析：验签不通过一律当上游失败抛出，绝不把未验签的响应当风险数据用
+ * （放行还是拦截由调用方的 failOpen 策略决定，本层不替它决定）。
+ *
+ * 只读一次响应体：HMAC 要对原始字节算，JSON.parse 要用同一份字节解码，二次读取拿不到。
+ */
+async function readVerifiedPayload(response: Response, verificationKey: string): Promise<ProxycheckPayload> {
+  const rawBody = Buffer.from(await response.arrayBuffer());
+
+  if (verificationKey) {
+    const verdict = verifyPayloadSignature(rawBody, verificationKey, response.headers.get(PROXYCHECK_SIGNATURE_HEADER));
+    if (verdict !== "verified") throw new Error(`proxycheck_signature_${verdict}`);
+  }
+
+  try {
+    return JSON.parse(rawBody.toString("utf8")) as ProxycheckPayload;
+  } catch {
+    // 不把 JSON.parse 的原始报错透出去：V8 会在消息里回显响应片段，可能是含 key 的 URL。
+    throw new Error("proxycheck_response_not_json");
+  }
+}
+
+/** 空的 verificationKey = 未配置；非空但长度不对属于配置错误，先拦下以免每次都验签失败。 */
+function assertVerificationKeyUsable(verificationKey: string): void {
+  if (verificationKey && !isValidHmacKeyShape(verificationKey)) {
+    throw new Error("proxycheck_hmac_key_malformed");
+  }
 }
 
 export function extractIpResult(payload: ProxycheckPayload, ip: string): Record<string, unknown> | null {
@@ -40,71 +85,54 @@ export function extractIpResult(payload: ProxycheckPayload, ip: string): Record<
   return null;
 }
 
-function buildSingleLookupUrl(ip: string, apiKey: string, days: number): URL {
-  // 主机名硬编码；ip 已由 isIP 校验过，只能是 IP 字面量，不会引入分隔符或主机名。
-  const url = new URL(`${PROXYCHECK_BASE_URL}/v3/${ip}`);
-  url.searchParams.set("key", apiKey);
-  url.searchParams.set("vpn", "1");
-  url.searchParams.set("asn", "1");
-  url.searchParams.set("risk", "1");
-  url.searchParams.set("node", "1");
-  url.searchParams.set("p", "1");
-  url.searchParams.set("days", String(days));
-  return url;
-}
-
+/**
+ * 单地址查询也走批量那条 `POST /v3/`，不用 `GET /v3/{ip}`：官方唯一的参考实现
+ * （proxycheck-php 的 check()）查几个地址都用这条路径，是唯一能确认会回
+ * `http_x_signature` 的路径。GET 是否带签名无任何佐证，而"缺签名也放行"会让验签形同虚设
+ * （能剥掉响应头的中间人同样能改写响应体），所以不能赌。
+ */
 export async function requestSingleLookup(
   ip: string,
-  apiKey: string,
-  timeoutMs: number,
-  days: number,
+  options: ProxycheckRequestOptions,
 ): Promise<Record<string, unknown> | null> {
-  const response = await fetch(buildSingleLookupUrl(ip, apiKey, days), {
-    method: "GET",
-    headers: { Accept: "application/json" },
-    // 不跟随重定向：避免被上游 3xx 带到任意主机（对齐 IPQS 通道的 maxRedirects: 0）。
-    redirect: "error",
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-
-  if (!response.ok) {
-    throw new Error(`proxycheck_http_${response.status}`);
-  }
-
-  const payload = (await response.json()) as ProxycheckPayload;
-  assertUpstreamOk(payload);
+  const payload = await requestBatchLookup([ip], options);
   return extractIpResult(payload, ip);
 }
 
 export async function requestBatchLookup(
   ips: string[],
-  apiKey: string,
-  timeoutMs: number,
-  days: number,
+  options: ProxycheckRequestOptions,
 ): Promise<ProxycheckPayload> {
+  assertVerificationKeyUsable(options.verificationKey);
+
   const body = new URLSearchParams();
-  body.set("key", apiKey);
+  body.set("key", options.apiKey);
   body.set("ips", ips.join(","));
   body.set("vpn", "1");
   body.set("asn", "1");
   body.set("risk", "1");
   body.set("node", "1");
   body.set("p", "1");
-  body.set("days", String(days));
+  body.set("days", String(options.days));
 
   const response = await fetch(`${PROXYCHECK_BASE_URL}/v3/`, {
     method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      // 不协商压缩：验签哈希的是收到的字节，官方库用 libcurl 也没请求压缩。
+      "Accept-Encoding": "identity",
+    },
     body: body.toString(),
     redirect: "error",
-    signal: AbortSignal.timeout(timeoutMs),
+    signal: AbortSignal.timeout(options.timeoutMs),
   });
 
   if (!response.ok) {
     throw new Error(`proxycheck_http_${response.status}`);
   }
 
-  const payload = (await response.json()) as ProxycheckPayload;
+  const payload = await readVerifiedPayload(response, options.verificationKey);
   assertUpstreamOk(payload);
   return payload;
 }

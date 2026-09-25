@@ -196,6 +196,15 @@ async function isQuotaExhausted(dayKey: string, dailyQuotaPerKey: number): Promi
   return (toNullableNumber(doc?.count) ?? 0) >= dailyQuotaPerKey;
 }
 
+/**
+ * proxycheck 官方的响应验签密钥（API Payload Verification Key）。空串 = 未配置、不验签；
+ * 非空但长度不是 64 由 HTTP 层在发请求前拦下（否则每一次验签都必然失败）。
+ */
+function proxycheckVerificationKey(): string {
+  const value = config.proxycheck.payloadVerificationKey;
+  return typeof value === "string" ? value.trim() : "";
+}
+
 /** 真正发起上游的那一次调用。走到这里说明缓存与 in-flight 都没拦住。 */
 async function performLookup(ip: string): Promise<IpRiskResult> {
   const startedAt = Date.now();
@@ -243,7 +252,12 @@ async function performLookup(ip: string): Promise<IpRiskResult> {
   const queriedAt = new Date();
   let parsed: ParsedRisk;
   try {
-    const raw = await requestSingleLookup(ip, apiKey, timeoutMs, daysWindowFromTtl(cacheTtlHours));
+    const raw = await requestSingleLookup(ip, {
+      apiKey,
+      verificationKey: proxycheckVerificationKey(),
+      timeoutMs,
+      days: daysWindowFromTtl(cacheTtlHours),
+    });
     if (!raw) throw new Error("proxycheck_response_missing_ip_result");
     parsed = parseV3Result(ip, raw, queriedAt);
   } catch (error) {
@@ -366,7 +380,12 @@ async function resolveBatchFromUpstream(ips: string[], resolved: Map<string, IpR
     }
 
     const startedAt = Date.now();
-    const payload = await requestBatchLookup(chunk, apiKey, timeoutMs, days);
+    const payload = await requestBatchLookup(chunk, {
+      apiKey,
+      verificationKey: proxycheckVerificationKey(),
+      timeoutMs,
+      days,
+    });
     const queriedAt = new Date();
     // 配额按上游 HTTP 请求计（一次批量算一次），不是按 IP 数计。
     await incrementQuota(dayKey, apiKey, dailyQuotaPerKey);

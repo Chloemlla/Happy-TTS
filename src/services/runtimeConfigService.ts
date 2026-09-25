@@ -639,6 +639,11 @@ function normalizeStoredProxycheckConfig(
     enabled: normalizeBoolean(raw.enabled, defaults.enabled),
     apiKey: normalizeOptionalString(raw.apiKey, defaults.apiKey, 1024),
     publicApiKey: normalizeOptionalString(raw.publicApiKey, defaults.publicApiKey, 1024),
+    payloadVerificationKey: normalizeOptionalString(
+      raw.payloadVerificationKey,
+      defaults.payloadVerificationKey,
+      1024,
+    ),
     hmacSecret: normalizeOptionalString(raw.hmacSecret, defaults.hmacSecret, 1024),
     cacheTtlHours: normalizeInteger(raw.cacheTtlHours, defaults.cacheTtlHours, 1, 168),
     timeoutMs: normalizeInteger(raw.timeoutMs, defaults.timeoutMs, 1000, 15000),
@@ -1354,8 +1359,9 @@ export class RuntimeConfigService {
   }
 
   /**
-   * proxycheck.io IP 风险查询配置。apiKey / publicApiKey / hmacSecret 一律脱敏回显，
-   * hmacSecret 是服务端主密钥，绝不下发到浏览器（前端探测走 probeKey 派生密钥）。
+   * proxycheck.io IP 风险查询配置。四把密钥一律脱敏回显。其中
+   * payloadVerificationKey（验上游响应）与 hmacSecret（验浏览器上报）都是服务端专用，
+   * 绝不下发到浏览器（前端探测走 probeKey 派生密钥）。
    */
   static async getProxycheckSetting(): Promise<{
     setting: {
@@ -1365,6 +1371,8 @@ export class RuntimeConfigService {
         hasApiKey: boolean;
         publicApiKey: string;
         hasPublicApiKey: boolean;
+        payloadVerificationKey: string;
+        hasPayloadVerificationKey: boolean;
         hmacSecret: string;
         hasHmacSecret: boolean;
         cacheTtlHours: number;
@@ -1389,6 +1397,8 @@ export class RuntimeConfigService {
           hasApiKey: config.apiKey.length > 0,
           publicApiKey: maskSecret(config.publicApiKey),
           hasPublicApiKey: config.publicApiKey.length > 0,
+          payloadVerificationKey: maskSecret(config.payloadVerificationKey),
+          hasPayloadVerificationKey: config.payloadVerificationKey.length > 0,
           hmacSecret: maskSecret(config.hmacSecret),
           hasHmacSecret: config.hmacSecret.length > 0,
           cacheTtlHours: config.cacheTtlHours,
@@ -1410,8 +1420,11 @@ export class RuntimeConfigService {
     const current = currentDoc ? normalizeStoredProxycheckConfig(currentDoc.value) : runtimeConfigCache.proxycheck;
     const obj = asObject(input);
 
-    // 三把 key 均遵循「留空 = 保留已存值」，与 Env Manager 其它密钥段的约定一致。
-    const updateSecret = (key: "apiKey" | "publicApiKey" | "hmacSecret", currentValue: string): string => {
+    // 四把 key 均遵循「留空 = 保留已存值」，与 Env Manager 其它密钥段的约定一致。
+    const updateSecret = (
+      key: "apiKey" | "publicApiKey" | "payloadVerificationKey" | "hmacSecret",
+      currentValue: string,
+    ): string => {
       if (!hasOwnKey(obj, key)) return currentValue;
       if (typeof obj[key] !== "string") throw new Error(`${key} 必须是字符串`);
       const value = obj[key].trim();
@@ -1423,6 +1436,7 @@ export class RuntimeConfigService {
       enabled: hasOwnKey(obj, "enabled") ? normalizeBoolean(obj.enabled, current.enabled) : current.enabled,
       apiKey: updateSecret("apiKey", current.apiKey),
       publicApiKey: updateSecret("publicApiKey", current.publicApiKey),
+      payloadVerificationKey: updateSecret("payloadVerificationKey", current.payloadVerificationKey),
       hmacSecret: updateSecret("hmacSecret", current.hmacSecret),
       cacheTtlHours: hasOwnKey(obj, "cacheTtlHours")
         ? normalizeInteger(obj.cacheTtlHours, current.cacheTtlHours, 1, 168)

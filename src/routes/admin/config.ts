@@ -339,7 +339,8 @@ router.delete(
   auditLog({ module: "config", action: "config.qq-guard-signing.delete" }),
   adminController.deleteQqGuardSigningSetting,
 );
-// proxycheck.io IP 风险查询 + 客户端出口探测 (PROXYCHECK / PROXYCHECK_API_KEY / PROXYCHECK_PUBLIC_API_KEY / PROXYCHECK_HMAC_SECRET)
+// proxycheck.io IP 风险查询 + 客户端出口探测 (PROXYCHECK / PROXYCHECK_API_KEY / PROXYCHECK_PUBLIC_API_KEY /
+// PROXYCHECK_PAYLOAD_VERIFICATION_KEY / PROXYCHECK_HMAC_SECRET)
 router.get("/proxycheck/setting", adminController.getProxycheckSetting);
 router.post(
   "/proxycheck/setting",

@@ -141,8 +141,11 @@ export interface QqGuardSigningRuntimeConfig {
 
 /**
  * proxycheck.io IP 风险查询 + 客户端出口探测（HMAC 验签）配置。
- * `apiKey` / `publicApiKey` 是 proxycheck.io 的两把 key；`hmacSecret` 是自建的
- * payload 验签主密钥，只用于校验客户端上报遥测，不下发也不进 proxycheck 请求。
+ * 注意本配置里有**两把用途相反**的 HMAC 密钥，别混：
+ * - `payloadVerificationKey`：proxycheck 官方 Dashboard 的 API Payload Verification Key
+ *   （64 字符），用来校验**上游响应**的 `http_x_signature` 头，只进上游请求的验签环节。
+ * - `hmacSecret`：本服务自建的主密钥，用来签发/校验**浏览器上报**的出口探测遥测。
+ * 两者都只在服务端使用，绝不下发。
  * Mirror of the PROXYCHECK_* env vars; a stored PROXYCHECK doc overrides the
  * env-seeded defaults at runtime (see src/services/ipRiskService.ts).
  */
@@ -153,7 +156,9 @@ export interface ProxycheckRuntimeConfig {
   apiKey: string;
   /** 浏览器/CORS key（public-######-######-######）。 */
   publicApiKey: string;
-  /** 自建 API payload 验签主密钥（服务端专用，绝不下发）。 */
+  /** proxycheck 官方的响应验签密钥（64 字符）；空串 = 不验签，只依赖 TLS。 */
+  payloadVerificationKey: string;
+  /** 自建 API payload 验签主密钥（校验浏览器上报，服务端专用，绝不下发）。 */
   hmacSecret: string;
   /** 同 IP 去重 TTL 小时数。 */
   cacheTtlHours: number;
@@ -369,6 +374,7 @@ export function buildRuntimeConfigDefaults(options: {
       enabled: false,
       apiKey: "api",
       publicApiKey: "",
+      payloadVerificationKey: "",
       hmacSecret: "",
       cacheTtlHours: 24,
       timeoutMs: 8000,

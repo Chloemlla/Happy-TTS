@@ -129,9 +129,11 @@ export interface ProxycheckConfigSetting {
   enabled: boolean;
   apiKey: string;
   publicApiKey: string;
+  payloadVerificationKey: string;
   hmacSecret: string;
   hasApiKey: boolean;
   hasPublicApiKey: boolean;
+  hasPayloadVerificationKey: boolean;
   hasHmacSecret: boolean;
   cacheTtlHours: number;
   timeoutMs: number;

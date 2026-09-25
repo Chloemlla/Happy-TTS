@@ -19,7 +19,7 @@ interface SelfContainedProxycheckConfigSectionProps {
   prefersReducedMotion?: boolean | null;
 }
 
-const SECRET_KEYS: ProxycheckSecretKey[] = ['apiKey', 'publicApiKey', 'hmacSecret'];
+const SECRET_KEYS: ProxycheckSecretKey[] = ['apiKey', 'publicApiKey', 'payloadVerificationKey', 'hmacSecret'];
 
 function pickNumericInput(cfg: Record<string, unknown>, key: ProxycheckNumericKey): string {
   const field = PROXYCHECK_NUMERIC_FIELDS.find((item) => item.key === key);
@@ -38,7 +38,7 @@ function pickString(cfg: Record<string, unknown>, key: string): string {
 }
 
 /**
- * proxycheck.io IP 风险检测（PROXYCHECK）。三把密钥均为「留空 = 保留原值」，
+ * proxycheck.io IP 风险检测（PROXYCHECK）。四把密钥均为「留空 = 保留原值」，
  * 后端只回掩码 + hasXxx 布尔，明文永不回显。
  */
 export default function SelfContainedProxycheckConfigSection({
@@ -84,6 +84,7 @@ export default function SelfContainedProxycheckConfigSection({
         // 密钥输入框始终清空：留空保存即保留原值。
         apiKey: '',
         publicApiKey: '',
+        payloadVerificationKey: '',
         hmacSecret: '',
         cacheTtlHours: pickNumericInput(cfg, 'cacheTtlHours'),
         timeoutMs: pickNumericInput(cfg, 'timeoutMs'),
@@ -96,9 +97,11 @@ export default function SelfContainedProxycheckConfigSection({
         enabled: pickBoolean(cfg, 'enabled'),
         apiKey: pickString(cfg, 'apiKey'),
         publicApiKey: pickString(cfg, 'publicApiKey'),
+        payloadVerificationKey: pickString(cfg, 'payloadVerificationKey'),
         hmacSecret: pickString(cfg, 'hmacSecret'),
         hasApiKey: !!cfg.hasApiKey,
         hasPublicApiKey: !!cfg.hasPublicApiKey,
+        hasPayloadVerificationKey: !!cfg.hasPayloadVerificationKey,
         hasHmacSecret: !!cfg.hasHmacSecret,
       });
       setUpdatedAt(data?.setting?.updatedAt);
@@ -177,7 +180,7 @@ export default function SelfContainedProxycheckConfigSection({
     if (deleting) return;
     if (
       !window.confirm(
-        '确定重置 proxycheck.io IP 风险检测配置？重置后会回退到部署环境变量（PROXYCHECK_API_KEY / PROXYCHECK_PUBLIC_API_KEY / PROXYCHECK_HMAC_SECRET），未设置则回到默认值（未启用）。',
+        '确定重置 proxycheck.io IP 风险检测配置？重置后会回退到部署环境变量（PROXYCHECK_API_KEY / PROXYCHECK_PUBLIC_API_KEY / PROXYCHECK_PAYLOAD_VERIFICATION_KEY / PROXYCHECK_HMAC_SECRET），未设置则回到默认值（未启用）。',
       )
     ) {
       return;

@@ -147,7 +147,7 @@ router.post("/ip-risk/report", ipProbeLimiter, IpRiskController.reportProbe);
  *     summary: 前端探测组件的运行时开关
  *     description: |
  *       返回探测总开关、是否启用 HMAC、各端点路径，以及（仅 usePublicKeyForClient=true 时）
- *       浏览器专用 publicApiKey 与直连查询 URL。服务端 apiKey / hmacSecret 绝不下发。
+ *       浏览器专用 publicApiKey 与直连查询 URL。服务端 apiKey / payloadVerificationKey / hmacSecret 绝不下发。
  *     responses:
  *       200:
  *         description: 获取成功

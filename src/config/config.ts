@@ -395,12 +395,13 @@ runtimeDefaults.qqGuardSigning = {
   token: process.env.QQ_GUARD_BOT_TOKEN || process.env.QQ_GUARD_SHARED_SECRET || "",
 };
 
-// proxycheck.io 的两把 key 与自建 HMAC 主密钥默认来自 env；已存 PROXYCHECK 文档覆盖之。
-// 同 qqGuardSigning：用 process.env（非 parsedEnv schema），这三项尚未进入 env 校验白名单。
+// proxycheck.io 的两把 key、官方响应验签密钥与自建 HMAC 主密钥默认来自 env；已存 PROXYCHECK 文档覆盖之。
+// 同 qqGuardSigning：用 process.env（非 parsedEnv schema），这几项尚未进入 env 校验白名单。
 runtimeDefaults.proxycheck = {
   ...runtimeDefaults.proxycheck,
   apiKey: process.env.PROXYCHECK_API_KEY || runtimeDefaults.proxycheck.apiKey,
   publicApiKey: process.env.PROXYCHECK_PUBLIC_API_KEY || "",
+  payloadVerificationKey: process.env.PROXYCHECK_PAYLOAD_VERIFICATION_KEY || "",
   hmacSecret: process.env.PROXYCHECK_HMAC_SECRET || "",
 };
 
