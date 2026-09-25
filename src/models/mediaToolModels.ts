@@ -5,6 +5,10 @@ export interface MediaToolJobDoc {
   id: string;
   kind: "bili-download" | "transcribe";
   mode: string;
+  /** 任务归属:缺省=管理端(历史文档无此字段) */
+  scope?: "admin" | "user";
+  /** scope=user 的用户 id */
+  ownerId?: string;
   createdBy: string;
   createdAt: number;
   startedAt?: number;
@@ -33,6 +37,8 @@ const jobSchema = new mongoose.Schema<MediaToolJobDoc>(
     id: { type: String, required: true, unique: true },
     kind: { type: String, enum: ["bili-download", "transcribe"], required: true },
     mode: { type: String, required: true, default: "server" },
+    scope: { type: String, enum: ["admin", "user"], default: "admin" },
+    ownerId: { type: String },
     createdBy: { type: String, required: true },
     createdAt: { type: Number, required: true },
     startedAt: { type: Number },
@@ -57,6 +63,8 @@ const jobSchema = new mongoose.Schema<MediaToolJobDoc>(
 jobSchema.index({ createdAt: -1 });
 jobSchema.index({ kind: 1, createdAt: -1 });
 jobSchema.index({ status: 1, createdAt: -1 });
+// 用户页「我的任务」与每用户活跃任务计数都走这条
+jobSchema.index({ scope: 1, ownerId: 1, createdAt: -1 });
 
 /** media_tool_settings 集合:单文档(key='media-tool')存完整 MediaToolSettings 快照。 */
 export interface MediaToolSettingsDoc {

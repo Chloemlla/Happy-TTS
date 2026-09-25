@@ -4,19 +4,23 @@
 //   POST /lasr/create → data.audio_id;  POST /lasr/upload(multipart, 5MB 分片) → data.slices
 //   POST /lasr/run → data.task_id;      POST /lasr/progress(轮询) → data.progress
 //   POST /lasr/result → data.result[] { onebest, bg, ed, speaker, lid }
-// 鉴权:新 X-AI-GATEWAY-* 头,签名 = Base64(HMAC-SHA256(appKey, 6 行原串))。
-import crypto from "node:crypto";
+// 鉴权:X-AI-GATEWAY-* 头,签名 = Base64(HMAC-SHA256(appKey, 6 行原串))——见 lasrTransport.ts。
+// 断点续传 / 分片并发 / 单片重试——见 lasrSession.ts。
 import fs from "node:fs";
-import http from "node:http";
-import https from "node:https";
 import path from "node:path";
 import {
-  CancelledError,
-  audioDurationSec,
-  ensureDir,
-  fmtSrt,
-} from "./runtime";
-import type { LasrOptions, MediaJobStage } from "./types";
+  clearSession,
+  createSession,
+  readSession,
+  sessionMatches,
+  uploadAllSlices,
+  writeSession,
+  type LasrSessionState,
+} from "./lasrSession";
+import { buildQuery, doPost, parseResp } from "./lasrTransport";
+import { CancelledError, audioDurationSec, ensureDir, fmtClock, fmtSrt } from "./runtime";
+import type { LasrOptions, MediaJobStage, TranscribeOutput } from "./types";
+import { normalizeTranscribeOutputs } from "./types";
 
 export interface LasrSegment {
   bg: number;
@@ -28,11 +32,17 @@ export interface LasrSegment {
 export interface LasrOutcome {
   filePath: string;
   segments: LasrSegment[];
+  /** 无时间线纯文本(段落直接相接) */
   plainText: string;
-  /** 实际写出的 .txt 绝对路径 */
-  txtPath: string;
-  /** 实际写出的 .srt 绝对路径(未启用 saveSrt 时为 null) */
+  /** 带时间线文本(每行 [mm:ss] / [hh:mm:ss] 前缀) */
+  timedText: string;
+  /** 实际写出的产物路径,未选中的格式为 null */
+  txtPath: string | null;
+  timedPath: string | null;
   srtPath: string | null;
+  /** 分段 JSON:始终写出,segments 出参与续读都靠它 */
+  jsonPath: string;
+  outputs: TranscribeOutput[];
   durationSec: number;
 }
 
@@ -49,296 +59,138 @@ function throwIfCancelled(cb: LasrCallbacks): void {
 }
 
 // ---------------------------------------------------------------------------
-// 与 Java 完全一致的编码 / 排序 / 过滤(照抄 transcribe.js)
+// 产物落盘
 // ---------------------------------------------------------------------------
-function javaUrlEncode(s: string | null | undefined): string {
-  if (s == null) return "";
-  s = String(s).replace(/ /g, "");
-  if (s === "") return "";
-  let out = "";
-  for (const ch of s) {
-    if (/[A-Za-z0-9._*-]/.test(ch)) {
-      out += ch;
-    } else {
-      for (const b of Buffer.from(ch, "utf8")) {
-        out += "%" + b.toString(16).toUpperCase().padStart(2, "0");
-      }
-    }
-  }
-  return out;
+
+/** 时间线文本:一行一段,前缀 [时间] 或 [起 -> 止],可选说话人标记。 */
+export function buildTimedText(segments: LasrSegment[], range = true): string {
+  return segments
+    .map((s) => {
+      const speaker = s.speaker ? `（说话人${s.speaker}）` : "";
+      const stamp = range ? `[${fmtClock(s.bg)} -> ${fmtClock(s.ed)}]` : `[${fmtClock(s.bg)}]`;
+      return `${stamp}${speaker}${s.onebest || ""}`;
+    })
+    .join("\n");
 }
 
-function filterSpecialCharacters(str: string): string {
-  return str
-    .replace(/\+/g, "%20")
-    .replace(/%21/g, "!")
-    .replace(/%27/g, "'")
-    .replace(/%28/g, "(")
-    .replace(/%29/g, ")")
-    .replace(/%7E/g, "~")
-    .replace(/%2A/g, "*")
-    .replace(/%2D/g, "-")
-    .replace(/%2E/g, ".")
-    .replace(/%5F/g, "_");
+export function buildSrt(segments: LasrSegment[]): string {
+  return segments
+    .map((s, i) => {
+      const speaker = s.speaker ? `（说话人${s.speaker}）` : "";
+      return `${i + 1}\n${fmtSrt(s.bg)} --> ${fmtSrt(s.ed)}\n${speaker}${s.onebest || ""}\n`;
+    })
+    .join("\n");
 }
 
-function compareToIgnoreCase(a: string, b: string): number {
-  const n = Math.min(a.length, b.length);
-  for (let i = 0; i < n; i++) {
-    const c1 = a.charCodeAt(i);
-    const c2 = b.charCodeAt(i);
-    if (c1 !== c2) {
-      const u1 = a[i].toUpperCase();
-      const u2 = b[i].toUpperCase();
-      if (u1 !== u2) {
-        const l1 = a[i].toLowerCase();
-        const l2 = b[i].toLowerCase();
-        if (l1 !== l2) return l1 < l2 ? -1 : 1;
-      }
-    }
-  }
-  return a.length - b.length;
-}
+/** 写所选产物;`.json`(分段)恒写,API 的 segments 出参与后续复读都依赖它。 */
+export function writeOutputs(
+  filePath: string,
+  segments: LasrSegment[],
+  outputs: TranscribeOutput[],
+  durationSec: number,
+): { txtPath: string | null; timedPath: string | null; srtPath: string | null; jsonPath: string; plainText: string; timedText: string } {
+  const base = filePath.replace(/\.[^./\\]+$/, "");
+  const plainText = segments.map((s) => s.onebest || "").join("");
+  const timedText = buildTimedText(segments);
+  const want = new Set(outputs);
 
-function nonce(n: number): string {
-  const cs = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  let out = "";
-  for (let i = 0; i < n; i++) out += cs[crypto.randomInt(cs.length)];
-  return out;
-}
+  const txtPath = want.has("plain") ? base + ".txt" : null;
+  const timedPath = want.has("timed") ? base + ".timed.txt" : null;
+  const srtPath = want.has("srt") ? base + ".srt" : null;
+  const jsonPath = base + ".json";
 
-interface QueryExtra {
-  audioId?: string;
-  sliceIndex?: number;
-  sliceNum?: number;
-  xSessionId?: string;
-}
-
-function buildQuery(opts: LasrOptions, timestamp: string, userId: string, extra?: QueryExtra): string {
-  const enc = javaUrlEncode;
-  const params: string[] = [];
-  params.push("android_version=" + enc(opts.androidVersion));
-  if (extra && extra.audioId != null) params.push("audio_id=" + enc(extra.audioId));
-  if (opts.brand) params.push("brand=" + enc(opts.brand));
-  params.push("client_version=" + enc(opts.clientVersion));
-  params.push("engineid=" + enc(opts.engineType));
-  params.push("model=" + enc(opts.model));
-  params.push("net_type=" + enc(opts.netType));
-  params.push("package=" + enc(opts.packageName));
-  params.push("product=" + enc(opts.product));
-  params.push("rom=" + enc(opts.rom));
-  params.push("sdk_version=" + enc(opts.sdkVersion));
-  if (extra && extra.sliceIndex != null) params.push("slice_index=" + extra.sliceIndex);
-  if (extra && extra.sliceNum != null) params.push("slice_num=" + extra.sliceNum);
-  params.push("system_time=" + enc(timestamp));
-  params.push("system_version=" + enc(opts.systemVersion));
-  params.push("user_id=" + enc(userId));
-  if (extra && extra.xSessionId != null) params.push("x-sessionId=" + enc(extra.xSessionId));
-  params.sort((a, b) => compareToIgnoreCase(a, b));
-  return filterSpecialCharacters(params.join("&"));
-}
-
-function sign(opts: LasrOptions, reqPath: string, query: string, timestamp: string, nonceStr: string): string {
-  const canonical = [
-    "POST",
-    reqPath,
-    query,
-    opts.appId,
-    timestamp,
-    `x-ai-gateway-app-id:${opts.appId}\nx-ai-gateway-timestamp:${timestamp}\nx-ai-gateway-nonce:${nonceStr}`,
-  ].join("\n");
-  return crypto.createHmac("sha256", opts.appKey).update(canonical, "utf8").digest("base64");
-}
-
-interface RawResp {
-  status: number;
-  body: string;
-}
-
-async function doPost(opts: LasrOptions, reqPath: string, query: string, body: Buffer | string, contentType: string): Promise<RawResp> {
-  const timestamp = String(Math.floor(Date.now() / 1000));
-  const nonceStr = nonce(8);
-  const url = (opts.serverUrl || "").replace(/\/+$/, "") + reqPath + "?" + query;
-  const bodyBuf = typeof body === "string" ? Buffer.from(body, "utf8") : body;
-  const headers: Record<string, string> = {
-    "Content-Type": contentType,
-    "User-Agent": "okhttp/4.9.1",
-    "X-AI-GATEWAY-APP-ID": opts.appId,
-    "X-AI-GATEWAY-TIMESTAMP": timestamp,
-    "X-AI-GATEWAY-NONCE": nonceStr,
-    "X-AI-GATEWAY-SIGNED-HEADERS": "x-ai-gateway-app-id;x-ai-gateway-timestamp;x-ai-gateway-nonce",
-    "X-AI-GATEWAY-SIGNATURE": sign(opts, reqPath, query, timestamp, nonceStr),
-    appid: opts.appId,
-  };
-  if (opts.did) headers.imei = opts.did;
-  if (opts.vaid) headers.vaid = opts.vaid;
-  if (opts.token) headers.token = opts.token;
-  if (opts.openid) headers.openid = opts.openid;
-
-  return new Promise<RawResp>((resolve, reject) => {
-    const parsed = new URL(url);
-    const lib = parsed.protocol === "http:" ? http : https;
-    const req = lib.request(
-      {
-        method: "POST",
-        hostname: parsed.hostname,
-        port: parsed.port,
-        path: parsed.pathname + parsed.search,
-        headers: { ...headers, "Content-Length": bodyBuf.length },
-        timeout: 60000,
-      },
-      (res) => {
-        const chunks: Buffer[] = [];
-        res.on("data", (c) => chunks.push(c as Buffer));
-        res.on("end", () => {
-          const text = Buffer.concat(chunks).toString("utf8");
-          resolve({ status: res.statusCode ?? 0, body: text });
-        });
-      },
-    );
-    req.on("error", reject);
-    req.on("timeout", () => req.destroy(new Error("timeout")));
-    req.write(bodyBuf);
-    req.end();
-  });
-}
-
-function parseResp(resp: RawResp): { code: number; desc?: string; data: { [k: string]: unknown } } {
-  let json: { code: number; desc?: string; data: { [k: string]: unknown } };
-  try {
-    json = JSON.parse(resp.body);
-  } catch {
-    throw new Error("非 JSON 响应: " + resp.body.slice(0, 300));
-  }
-  if (json.code !== 0) {
-    throw new Error(`服务端错误 code=${json.code} desc=${json.desc} (HTTP ${resp.status})`);
-  }
-  return json;
-}
-
-function multipartBody(boundary: string, filename: string, contentType: string, data: Buffer): Buffer {
-  const head = Buffer.from(
-    `--${boundary}\r\n` +
-      `Content-Disposition: form-data; name="file"; filename="${filename}"\r\n` +
-      `Content-Type: ${contentType}\r\n` +
-      `\r\n`,
+  if (txtPath) fs.writeFileSync(txtPath, plainText, "utf8");
+  if (timedPath) fs.writeFileSync(timedPath, timedText, "utf8");
+  if (srtPath) fs.writeFileSync(srtPath, buildSrt(segments), "utf8");
+  fs.writeFileSync(
+    jsonPath,
+    JSON.stringify({ version: 1, durationSec, segments, createdAt: Date.now() }, null, 2),
     "utf8",
   );
-  const tail = Buffer.from(`\r\n--${boundary}--\r\n`, "utf8");
-  return Buffer.concat([head, data, tail]);
+  return { txtPath, timedPath, srtPath, jsonPath, plainText, timedText };
 }
 
-interface SessionState {
-  userId: string;
-  xSessionId: string;
-  audioId: string | null;
-  uploadedSlices: number;
-  duration: number;
-  fileSize: number;
-  sliceNum: number;
-}
-
-function saveResult(filePath: string, result: LasrSegment[], saveSrt: boolean): { txtPath: string; srtPath: string | null; plain: string } {
-  const base = filePath.replace(/\.[^./\\]+$/, "");
-  const plain = result.map((s) => s.onebest || "").join("");
-  const txtPath = base + ".txt";
-  fs.writeFileSync(txtPath, plain, "utf8");
-  let srtPath: string | null = null;
-  if (saveSrt) {
-    srtPath = base + ".srt";
-    const srt = result
-      .map((s, i) => {
-        const speaker = s.speaker ? `（说话人${s.speaker}）` : "";
-        return `${i + 1}\n${fmtSrt(s.bg)} --> ${fmtSrt(s.ed)}\n${speaker}${s.onebest || ""}\n`;
-      })
-      .join("\n");
-    fs.writeFileSync(srtPath, srt, "utf8");
+/** 读回分段(供 API 出参);文件缺失/损坏返回 null。 */
+export function readSegments(jsonPath: string): LasrSegment[] | null {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(jsonPath, "utf8")) as { segments?: unknown };
+    if (!Array.isArray(parsed.segments)) return null;
+    return parsed.segments.filter(
+      (s): s is LasrSegment => Boolean(s) && typeof (s as LasrSegment).onebest === "string",
+    );
+  } catch {
+    return null;
   }
-  return { txtPath, srtPath, plain };
 }
 
 // ---------------------------------------------------------------------------
 // 单文件主流程
 // ---------------------------------------------------------------------------
-async function processFile(opts: LasrOptions, filePath: string, cb: LasrCallbacks): Promise<LasrOutcome> {
-  const log = (m: string) => cb.log?.(m);
+interface FileMeta {
+  fileSize: number;
+  fileMtimeMs: number;
+  sliceNum: number;
+  fileName: string;
+}
+
+function statMeta(opts: LasrOptions, filePath: string): FileMeta {
   const stat = fs.statSync(filePath);
   if (stat.size === 0 || stat.size > opts.maxFileSizeBytes) {
     throw new Error(`文件大小非法: ${stat.size} 字节(需 >0 且 <=${opts.maxFileSizeBytes})`);
   }
-  const fileSize = stat.size;
-  const sliceNum = Math.ceil(fileSize / opts.blockSizeBytes);
-  const fileName = path.basename(filePath);
+  return {
+    fileSize: stat.size,
+    fileMtimeMs: Math.floor(stat.mtimeMs),
+    sliceNum: Math.ceil(stat.size / opts.blockSizeBytes),
+    fileName: path.basename(filePath),
+  };
+}
 
+async function processFile(
+  opts: LasrOptions,
+  filePath: string,
+  meta: FileMeta,
+  resumed: LasrSessionState | null,
+  cb: LasrCallbacks,
+): Promise<LasrOutcome> {
+  const log = (m: string) => cb.log?.(m);
   throwIfCancelled(cb);
 
-  const session: SessionState = {
-    userId: crypto.randomUUID().replace(/-/g, ""),
-    xSessionId: crypto.randomUUID(),
-    audioId: null,
-    uploadedSlices: 0,
-    duration: audioDurationSec(filePath),
-    fileSize,
-    sliceNum,
-  };
-  log(`文件: ${fileName}`);
-  log(`大小: ${fileSize} 字节, 分片数: ${sliceNum}, 时长: ${session.duration}s`);
+  let session = resumed;
+  if (!session) {
+    session = createSession(filePath, meta);
+    log(`文件: ${meta.fileName}`);
+    log(`大小: ${meta.fileSize} 字节, 分片数: ${meta.sliceNum}, 时长: ${session.duration}s`);
 
-  // 1) create
-  log("[1/5] /lasr/create");
-  cb.progress?.("create", 3);
-  const createQuery = buildQuery(opts, String(Math.floor(Date.now() / 1000)), session.userId);
-  const createBody = JSON.stringify({
-    "x-sessionId": session.xSessionId,
-    slice_num: sliceNum,
-    audio_type: "auto",
-    scene: opts.scene,
-  });
-  const created = parseResp(
-    await doPost(opts, "/lasr/create", createQuery, createBody, "application/json; charset=utf-8"),
-  );
-  session.audioId = typeof created.data.audio_id === "string" ? created.data.audio_id : null;
-  if (!session.audioId) throw new Error("create 未返回 audio_id");
-  log(`  audio_id = ${session.audioId}`);
-
-  // 2) upload(5MB 分片,每片后刷新进度;期间可取消)
-  log("[2/5] /lasr/upload(分片上传)");
-  cb.progress?.("upload", 8);
-  const boundary = "----vivo" + crypto.randomBytes(16).toString("hex");
-  const encName = javaUrlEncode(fileName);
-  const fd = fs.openSync(filePath, "r");
-  try {
-    for (let sliceIndex = session.uploadedSlices; sliceIndex < sliceNum; sliceIndex++) {
-      throwIfCancelled(cb);
-      const offset = sliceIndex * opts.blockSizeBytes;
-      const length = Math.min(opts.blockSizeBytes, fileSize - offset);
-      const buf = Buffer.alloc(length);
-      let read = 0;
-      while (read < length) {
-        const r = fs.readSync(fd, buf, read, length - read, offset + read);
-        if (r <= 0) break;
-        read += r;
-      }
-      const upQuery = buildQuery(opts, String(Math.floor(Date.now() / 1000)), session.userId, {
-        audioId: session.audioId,
-        sliceIndex,
-        sliceNum,
-        xSessionId: session.xSessionId,
-      });
-      const mBody = multipartBody(boundary, encName, "application/octet-stream", buf);
-      const upResp = await doPost(opts, "/lasr/upload", upQuery, mBody, `multipart/form-data; boundary=${boundary}`);
-      const upJson = JSON.parse(upResp.body);
-      if (upJson.code !== 0 && upJson.code !== 20005) {
-        throw new Error(`上传分片 ${sliceIndex} 失败 code=${upJson.code} desc=${upJson.desc}`);
-      }
-      session.uploadedSlices = sliceIndex + 1;
-      cb.progress?.("upload", 8 + Math.round(((sliceIndex + 1) / sliceNum) * 32));
-      log(`  分片 ${sliceIndex + 1}/${sliceNum}(code=${upJson.code})`);
-    }
-    log("  上传完成");
-  } finally {
-    fs.closeSync(fd);
+    // 1) create
+    log("[1/5] /lasr/create");
+    cb.progress?.("create", 3);
+    const createQuery = buildQuery(opts, String(Math.floor(Date.now() / 1000)), session.userId);
+    const createBody = JSON.stringify({
+      "x-sessionId": session.xSessionId,
+      slice_num: meta.sliceNum,
+      audio_type: "auto",
+      scene: opts.scene,
+    });
+    const created = parseResp(await doPost(opts, "/lasr/create", createQuery, createBody, "application/json; charset=utf-8"));
+    session.audioId = typeof created.data.audio_id === "string" ? created.data.audio_id : null;
+    if (!session.audioId) throw new Error("create 未返回 audio_id");
+    log(`  audio_id = ${session.audioId}`);
+    if (opts.resumeEnabled) writeSession(filePath, session);
+  } else {
+    if (session.duration == null || session.duration === 0) session.duration = audioDurationSec(filePath);
+    log(`[续传] 复用 audio_id=${session.audioId},从分片 ${(session.uploadedSlices || 0) + 1}/${meta.sliceNum} 继续(时长: ${session.duration}s)`);
+    cb.progress?.("upload", 8);
   }
+
+  // 2) upload(分片并发 + 单片重试 + 每片落盘续传)
+  await uploadAllSlices(opts, filePath, session, {
+    log,
+    progress: (pct) => cb.progress?.("upload", 8 + Math.round(pct * 0.32)),
+    isCancelled: cb.isCancelled,
+  });
+
+  const audioId = session.audioId as string;
 
   // 3) run
   throwIfCancelled(cb);
@@ -346,7 +198,7 @@ async function processFile(opts: LasrOptions, filePath: string, cb: LasrCallback
   cb.progress?.("run", 42);
   const runQuery = buildQuery(opts, String(Math.floor(Date.now() / 1000)), session.userId);
   const runBody = JSON.stringify({
-    audio_id: session.audioId,
+    audio_id: audioId,
     "x-sessionId": session.xSessionId,
     audio_time: session.duration,
     language_code: opts.language,
@@ -385,35 +237,63 @@ async function processFile(opts: LasrOptions, filePath: string, cb: LasrCallback
   const finaled = parseResp(await doPost(opts, "/lasr/result", resQuery, progBody, "application/json; charset=utf-8"));
   const raw = Array.isArray(finaled.data.result) ? (finaled.data.result as LasrSegment[]) : [];
   const segments = raw.filter((s) => s && typeof s.onebest === "string");
+  const outputs = normalizeTranscribeOutputs(opts.outputs);
 
   ensureDir(path.dirname(filePath));
-  const saved = saveResult(filePath, segments, opts.saveSrt);
-  log(`已保存(${segments.length} 段)→ ${saved.txtPath}`);
+  const saved = writeOutputs(filePath, segments, outputs, session.duration);
+  log(`已保存(${segments.length} 段)→ ${saved.txtPath ?? saved.jsonPath}`);
+  if (saved.timedPath) log(`已保存(带时间线)→ ${saved.timedPath}`);
   if (saved.srtPath) log(`已保存(字幕)→ ${saved.srtPath}`);
   cb.progress?.("result", 100);
+
   return {
     filePath,
     segments,
-    plainText: saved.plain,
+    plainText: saved.plainText,
+    timedText: saved.timedText,
     txtPath: saved.txtPath,
+    timedPath: saved.timedPath,
     srtPath: saved.srtPath,
+    jsonPath: saved.jsonPath,
+    outputs,
     durationSec: session.duration,
   };
 }
 
-/** 转写单个音频文件,成功返回转写文本与落盘路径,取消抛 CancelledError。 */
+/**
+ * 转写单个音频文件。
+ * 续传开启时优先复用 sidecar 会话;续传失败即清缓存整链重跑(与 transcribe.js 一致)。
+ * 取消抛 CancelledError,不动 sidecar(下次接着传)。
+ */
 export async function transcribeAudioFile(
   opts: LasrOptions,
   filePath: string,
   cb: LasrCallbacks = {},
 ): Promise<LasrOutcome> {
   const resolved = path.resolve(filePath);
+  const meta = statMeta(opts, resolved);
+  let resumed = opts.resumeEnabled ? readSession(resolved) : null;
+  if (resumed && !sessionMatches(resumed, meta.fileSize, meta.fileMtimeMs, meta.sliceNum)) {
+    cb.log?.("续传缓存与文件不一致,作废重来");
+    clearSession(resolved);
+    resumed = null;
+  }
+
   try {
-    return await processFile(opts, resolved, cb);
+    const outcome = await processFile(opts, resolved, meta, resumed, cb);
+    clearSession(resolved);
+    return outcome;
   } catch (e) {
     if (e instanceof CancelledError) throw e;
+    if (resumed) {
+      cb.log?.(`续传失败(${(e as Error).message}),清除缓存完整重跑`);
+      clearSession(resolved);
+      const outcome = await processFile(opts, resolved, meta, null, cb);
+      clearSession(resolved);
+      return outcome;
+    }
     // 网络抖动常见:create 成功但中途断连,整链重跑一次(与脚本一致的健壮性)
-    if (cb.log) cb.log(`流程中断(${(e as Error).message}),整体重试一次`);
-    return await processFile(opts, resolved, cb);
+    cb.log?.(`流程中断(${(e as Error).message}),整体重试一次`);
+    return processFile(opts, resolved, meta, null, cb);
   }
 }

@@ -98,7 +98,8 @@ Synapse 是一个综合性 Web 应用平台，围绕文本转语音核心功能�
 ### 2. 文本转语音 (TTS)
 
 > [!NOTE]
-> TTS 功能依赖 OpenAI API，需要在 `.env` 中配置有效的 `OPENAI_API_KEY` 和 `OPENAI_BASE_URL`。支持自定义 API 代理地址。
+> 环境变量只保留「换机器就得改」的十项：`MEDIA_TOOL_DISABLED` / `MEDIA_TOOL_WORK_DIR` / `MEDIA_TOOL_LASR_URL` / `MEDIA_TOOL_APP_ID` / `MEDIA_TOOL_APP_KEY` / `MEDIA_TOOL_VIVO_TOKEN` / `MEDIA_TOOL_VIVO_OPENID` / `MEDIA_TOOL_YTDLP` / `MEDIA_TOOL_COOKIES` / `MEDIA_TOOL_DOWNLOAD_DIR`。
+> 其余参数（语种、场景、默认产物、文件/分片并发、单片重试、断点续传、上传上限、用户页限额）写死在 `src/mediaTool/types.ts`，默认值与 `transcribe.js` 的 CONFIG 逐一对齐（`CONCURRENCY=3`、`UPLOAD_CONCURRENCY=1`、`UPLOAD_RETRIES=4`、5MB 分片、500MB 上限）；要微调走「媒体工具 → 设置」存库。显式写了值的环境变量是最终权威，会盖掉库里的同名项。
 
 平台核心功能，基于 OpenAI TTS API 实现高质量语音合成。
 
@@ -113,6 +114,30 @@ Synapse 是一个综合性 Web 应用平台，围绕文本转语音核心功能�
 | 后端服务 | `ttsService.ts` |
 | 前端页面 | `TtsPage.tsx`（主页面）、`TTSForm.tsx`（表单）、`AudioPreview.tsx`（预览） |
 | 静态资源 | `/static/audio/` 音频文件服务 |
+
+#### 语音转文本（录音转写）
+
+> [!NOTE]
+> 转写走 vivo 录音机（`com.android.bbksoundrecorder`）的 LASR 大文件链路：5MB 分片上传、轮询进度、分段回传。
+> 环境变量只保留「换机器就得改」的十项（开关 / 目录 / 接口地址与密钥），其余参数写死在 `src/mediaTool/types.ts`，
+> 默认值与 `transcribe.js` 的 CONFIG 逐一对齐（`CONCURRENCY=3`、`UPLOAD_CONCURRENCY=1`、`UPLOAD_RETRIES=4`、5MB 分片、500MB 上限）；
+> 要微调走「媒体工具 → 设置」（存库）。显式写了值的环境变量是最终权威，会盖掉库里的同名项。
+
+核心功能之一：登录用户在 `/transcribe` 上传录音即可拿到文字；管理员另有 `/admin/media-tool`（含 B 站音频下载联动）。
+
+- **断点续传**：会话与已传分片记在音频同名 `.transcribe.json`，中断/重启/重试后从缺口继续，不重传已完成分片
+- **可靠性**：单片指数退避重试（默认 4 次，上限 15s），吞掉上游 10105 这类瞬时失败；分片可并发上传（默认串行）
+- **批量并发**：一个任务内多文件并发转写（默认 3），单文件失败不拖垮整批
+- **三种产物**：纯文本 `.txt` / 带时间线 `.timed.txt` / 字幕 `.srt`，都可选，默认纯文本
+- **分段回传**：`GET /api/transcribe/jobs/:id` 直接返回 `segments`（`bg`/`ed`/`speaker`），页面有「有时间线 / 无时间线」两种视图
+- **用户隔离**：用户态文件与任务锁在 `workDir/users/<uid>`，路径越界与跨用户访问一律 400/404
+
+| 模块 | 说明 |
+|------|------|
+| 后端引擎 | `src/mediaTool/vivoLasr.ts`（主流程）、`lasrTransport.ts`（签名/请求）、`lasrSession.ts`（续传/分片并发） |
+| 后端路由 | `transcribeRoutes.ts`（`/api/transcribe`，登录用户）、`mediaToolRoutes.ts`（`/api/admin/media-tool`） |
+| 任务队列 | `src/mediaTool/jobs/mediaJobRunner.ts` + `mediaJobStore.ts`（两类入口共用一个 runner） |
+| 前端页面 | `speech-to-text/SpeechToTextPage.tsx`（用户页）、`admin/media-tool/*`（管理端） |
 
 ### 3. 用户管理
 

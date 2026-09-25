@@ -6,8 +6,10 @@ import fs from "node:fs";
 import multer from "multer";
 import path from "node:path";
 import { MediaJobRunner } from "../jobs/mediaJobRunner";
-import { MEDIA_EXTS, ensureDir, isAudioFile, relInside, resolveRootDir, runTool, statOrNull } from "../runtime";
+import { MEDIA_EXTS, ensureDir, isAudioFile, relInsideRoot, resolveRootDir, runTool, sanitizeFileName, statOrNull } from "../runtime";
 import { maskedView, type MediaSettingsPatch, type MediaSettingsStore } from "../settingsStore";
+import { normalizeTranscribeOutputs } from "../types";
+import { readSegments } from "../vivoLasr";
 import type { MediaJobRecord, MediaJobStatus } from "../types";
 import type { MediaJobStore } from "../jobs/mediaJobStore";
 
@@ -27,20 +29,8 @@ export interface MediaToolRouterDeps {
   identity(req: Request): string;
 }
 
-function relInsideRoot(root: string, value: string): string | null {
-  const rel = path.posix.normalize((value || "").replace(/\\/g, "/")).replace(/^\/+/, "");
-  if (!rel || rel === "." || rel.startsWith("../")) return null;
-  const abs = path.resolve(root, rel);
-  return relInside(root, abs) === rel ? rel : null;
-}
-
 function genId(): string {
   return `mt-${Date.now().toString(36)}${crypto.randomBytes(3).toString("hex")}`;
-}
-
-function sanitizeName(name: string): string {
-  const cleaned = Buffer.from(name, "latin1").toString("utf8").replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").trim();
-  return (cleaned || "upload").slice(0, 180);
 }
 
 export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router {
@@ -208,7 +198,7 @@ export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router
       storage: multer.diskStorage({
         destination: (_r, _f, cb) => cb(null, inbox),
         filename: (_r, file, cb) => {
-          const orig = sanitizeName(file.originalname);
+          const orig = sanitizeFileName(file.originalname);
           cb(null, `${Date.now()}-${orig}`);
         },
       }),
@@ -259,6 +249,7 @@ export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router
         audioFormat?: string;
         transcribeAfter?: boolean;
         saveSrt?: boolean;
+        outputs?: string[];
       };
       const kind = body.kind;
       if (!JOB_KINDS.includes(kind as (typeof JOB_KINDS)[number])) {
@@ -291,6 +282,7 @@ export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router
           audioFormat: body.audioFormat,
           transcribeAfter: body.transcribeAfter,
           saveSrt: body.saveSrt,
+          outputs: normalizeTranscribeOutputs(body.outputs, settings.lasr.outputs),
           urls,
         };
       } else {
@@ -318,7 +310,7 @@ export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router
           checked.push(clean);
         }
         record.input = { type: "paths", values: checked };
-        record.params = { saveSrt: body.saveSrt };
+        record.params = { saveSrt: body.saveSrt, outputs: normalizeTranscribeOutputs(body.outputs, settings.lasr.outputs) };
       }
       await store.create(record);
       runner.enqueue(record.id);
@@ -347,7 +339,23 @@ export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router
         res.status(404).json({ ok: false, error: "任务不存在" });
         return;
       }
-      res.json({ ok: true, job });
+      // 管理端详情同样带分段:有时间线/纯文本两种视图直接靠它渲染
+      const settings = await settingsStore.get();
+      const root = resolveRootDir(settings.workDir);
+      const transcripts = (job.result?.items ?? []).map((item, index) => {
+        const segments = item.jsonFile ? readSegments(path.resolve(root, String(item.jsonFile))) : null;
+        return {
+          index,
+          label: item.label,
+          ok: item.ok,
+          error: item.error,
+          durationSec: item.durationSec ?? 0,
+          segmentCount: segments?.length ?? item.segments ?? 0,
+          segments: segments ?? [],
+          files: { txt: item.txtFile ?? null, timed: item.timedFile ?? null, srt: item.srtFile ?? null, json: item.jsonFile ?? null },
+        };
+      });
+      res.json({ ok: true, job, transcripts });
     } catch (e) {
       res.status(500).json({ ok: false, error: (e as Error).message });
     }

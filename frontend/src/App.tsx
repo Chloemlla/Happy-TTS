@@ -118,6 +118,7 @@ const GitHubBillingDashboard = React.lazy(() => import('./components/GitHubBilli
 
 // 公共短链创建页面懒加载
 const PublicShortLinkCreator = React.lazy(() => import('./components/PublicShortLinkCreator'));
+const SpeechToTextPage = React.lazy(() => import('./components/speech-to-text/SpeechToTextPage').then((module) => ({ default: module.SpeechToTextPage })));
 
 // hCaptcha 验证页面懒加载
 const HCaptchaVerificationPage = React.lazy(() => import('./components/HCaptchaVerificationPage'));
@@ -703,6 +704,8 @@ const App: React.FC = () => {
         <Route path="/verify-email" element={renderAnimatedRoute(<EmailVerifyPage />)} />
         <Route path="/" element={renderAnimatedRoute(<HomeHub />)} />
         <Route path="/tts" element={renderAnimatedRoute(<TtsPage />)} />
+        {/* 语音转文本:普通登录用户可用的核心功能(后端 /api/transcribe) */}
+        <Route path="/transcribe" element={renderProtectedRoute(<SpeechToTextPage />)} />
         <Route path="/lottery" element={renderAnimatedRoute(<LotteryPage />)} />
         <Route path="/anti-counterfeit" element={renderAnimatedRoute(<AntiCounterfeitPage />)} />
         {/* Static admin routes first (higher specificity than /admin/:module) */}
@@ -760,6 +763,7 @@ const App: React.FC = () => {
     titles: {
       '/': 'Synapse - 综合服务平台',
       '/tts': 'Synapse - 语音合成',
+      '/transcribe': 'Synapse - 语音转文本',
       '/welcome': 'Synapse - 欢迎页面',
       '/login': 'Synapse - 登录',
       '/register': 'Synapse - 注册',
@@ -813,6 +817,7 @@ const App: React.FC = () => {
     descriptions: {
       '/': 'Synapse综合服务平台，汇集语音合成、文本翻译、资源商店、效率工具与信息查询',
       '/tts': '使用Synapse进行高质量的文本转语音合成',
+      '/transcribe': '上传录音即可转写为文字,支持纯文本、带时间线文本与 SRT 字幕三种产物',
       '/translate': '使用 DeepLX 进行双栏文本翻译与候选译文对比',
       '/lottery': '参与Synapse抽奖活动，赢取丰厚奖励',
       '/word-count': '精确统计文本字数、字符数、段落数等信息',

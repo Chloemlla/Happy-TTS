@@ -35,6 +35,7 @@ import {
   ticketReadLimiter,
   ticketWriteLimiter,
   totpLimiter,
+  transcribeLimiter,
   ttsLimiter,
 } from "../../middleware/routeLimiters";
 
@@ -69,6 +70,7 @@ export const knownMountLimiters = new Map<RequestHandler, string>([
   [ticketReadLimiter, "ticketReadLimiter"],
   [ticketWriteLimiter, "ticketWriteLimiter"],
   [totpLimiter, "totpLimiter"],
+  [transcribeLimiter, "transcribeLimiter"],
   [ttsLimiter, "ttsLimiter"],
 ]);
 

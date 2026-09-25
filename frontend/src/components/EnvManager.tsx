@@ -36,6 +36,7 @@ import SelfContainedEcoEnchantsTokenSection from './env-manager/SelfContainedEco
 import SelfContainedEcoEnchantsWebhookSection from './env-manager/SelfContainedEcoEnchantsWebhookSection';
 import SelfContainedSecuritySecretSection from './env-manager/SelfContainedSecuritySecretSection';
 import SelfContainedProjectLumenConfigSection from './env-manager/SelfContainedProjectLumenConfigSection';
+import SelfContainedMediaToolConfigSection from './env-manager/SelfContainedMediaToolConfigSection';
 import SelfContainedLumenServerConfigSection from './env-manager/SelfContainedLumenServerConfigSection';
 import TtsProviderConfigSection from './env-manager/TtsProviderConfigSection';
 import RuntimeConfigSections from './RuntimeConfigSections';
@@ -58,8 +59,7 @@ import {
   FaCog, FaLock, FaList, FaSync, FaInfoCircle, FaCheckCircle, FaChevronDown, FaEdit, FaTrash, FaCheck, FaTimes,
 } from 'react-icons/fa';
 import { DURATION_06, DURATION_03, ENTER_ANIMATE, ENTER_INITIAL, NO_DURATION } from './env-manager/motion';
-import { studioFieldClassName, studioPrimaryButtonClassName, studioSecondaryButtonClassName, studioSurfaceClassName } from './studioTheme';
-import { InfoBadge, InfoPanel, InfoQueryHero } from './InfoQueryScaffold';
+import { InfoBadge, InfoPanel, InfoQueryHero, studioFieldClassName, studioPrimaryButtonClassName, studioSecondaryButtonClassName, studioSurfaceClassName } from './studioTheme';
 
 export { handleSourceClick, handleSourceModalClose };
 
@@ -529,6 +529,7 @@ const EnvManager: React.FC = () => {
         <SelfContainedEcoEnchantsTokenSection />
         <SelfContainedEcoEnchantsWebhookSection />
         <SelfContainedSecuritySecretSection />
+        <SelfContainedMediaToolConfigSection />
         <SelfContainedProjectLumenConfigSection />
         <SelfContainedLumenServerConfigSection prefersReducedMotion={prefersReducedMotion} />
         <SelfContainedLibreChatProvidersSection prefersReducedMotion={prefersReducedMotion} />

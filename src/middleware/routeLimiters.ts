@@ -11,6 +11,7 @@ type LimiterCategory =
   | "tts"
   | "tts-history"
   | "tts-jobs"
+  | "transcribe"
   | "admin"
   | "verification"
   | "command"
@@ -309,6 +310,14 @@ const LIMITER_DEFINITIONS = {
     profile: "ttsJobs",
     category: "tts-jobs",
     message: "请求过于频繁，请稍后再试",
+  },
+  // 语音转文本(用户态):上传/建任务是低频重操作,轮询进度是高频轻操作,两者共用一个
+  // per-user 桶;轮询频率由前端自控(3s),240/5min 足够跑完一批任务而不至于卡住。
+  transcribe: {
+    profile: "authRead",
+    category: "transcribe",
+    max: 240,
+    message: "语音转文本请求过于频繁，请稍后再试",
   },
   admin: {
     profile: "admin",
@@ -633,6 +642,7 @@ export const meEndpointLimiter = limiterFromDefinition("me");
 export const ttsLimiter = limiterFromDefinition("ttsGenerate");
 export const historyLimiter = limiterFromDefinition("ttsHistory");
 export const jobsLimiter = limiterFromDefinition("ttsJobs");
+export const transcribeLimiter = limiterFromDefinition("transcribe");
 export const adminLimiter = limiterFromDefinition("admin");
 export const frontendLimiter = limiterFromDefinition("frontend");
 export const totpLimiter = limiterFromDefinition("totp");

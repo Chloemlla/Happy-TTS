@@ -1,13 +1,19 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { FaCheck, FaExclamationTriangle, FaSave, FaSlidersH } from 'react-icons/fa';
+import { FaCheck, FaExclamationTriangle, FaMicrophone, FaSave, FaSlidersH } from 'react-icons/fa';
 import { mediaToolApi } from '../../../api/mediaTool';
-import type { MediaTarget, MediaToolSettings } from '../../../api/mediaTool';
+import type { MediaTarget, MediaToolSettings, TranscribeOutput } from '../../../api/mediaTool';
 import { studioSurfaceClassName } from '../../studioTheme';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
 import { btnIndigo, ErrLine, Field, OkLine, Toggle, inputCls, cx } from './ui';
 import { InfoSectionTitle } from '../../InfoQueryScaffold';
 
 const SECRET_MASK = '********';
+
+const OUTPUT_CHOICES: Array<{ value: TranscribeOutput; label: string; suffix: string }> = [
+  { value: 'plain', label: '纯文本', suffix: '.txt' },
+  { value: 'timed', label: '带时间线', suffix: '.timed.txt' },
+  { value: 'srt', label: 'SRT 字幕', suffix: '.srt' },
+];
 
 const clone = (s: MediaToolSettings): MediaToolSettings => JSON.parse(JSON.stringify(s)) as MediaToolSettings;
 
@@ -68,6 +74,17 @@ export const SettingsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => 
     setForm((f) => (f ? { ...f, lasr: { ...f.lasr, ...patch } } : f));
   const setB = (patch: Partial<MediaToolSettings['bili']>) =>
     setForm((f) => (f ? { ...f, bili: { ...f.bili, ...patch } } : f));
+  const setU = (patch: Partial<MediaToolSettings['user']>) =>
+    setForm((f) => (f ? { ...f, user: { ...f.user, ...patch } } : f));
+
+  const toggleDefaultOutput = (value: TranscribeOutput) =>
+    setForm((f) => {
+      if (!f) return f;
+      const next = f.lasr.outputs?.includes(value)
+        ? f.lasr.outputs.filter((o) => o !== value)
+        : [...(f.lasr.outputs ?? []), value];
+      return { ...f, lasr: { ...f.lasr, outputs: next.length ? next : ['plain'] } };
+    });
 
   const save = async () => {
     if (!form) return;
@@ -82,6 +99,7 @@ export const SettingsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => 
         maxJobLogLines: form.maxJobLogLines,
         lasr: { ...form.lasr },
         bili: { ...form.bili },
+        user: { ...form.user },
       });
       setForm(clone(next));
       setOk('设置已保存。密钥字段未改动时保持原值。');
@@ -154,12 +172,16 @@ export const SettingsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => 
       </div>
 
       <div className={cx(studioSurfaceClassName, 'space-y-4 p-5')}>
-        <div className="text-sm font-semibold text-slate-800">vivo 录音转写(LASR)</div>
+        <div className="text-sm font-semibold text-slate-800">vivo 录音转写（LASR）</div>
         {hasMaskedLasr ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            检测到密钥以占位符展示。若沿用当前密钥,请勿改动该输入框。
+            检测到密钥以占位符展示。若沿用当前密钥，请勿改动该输入框。
           </div>
         ) : null}
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-5 text-slate-500">
+          接口地址、AppId/AppKey、vivo 账号、目录类参数若同时在环境变量（「系统配置 → 语音转文本与媒体工具」）里写了值，
+          <strong>以环境变量为准</strong>；本节其余参数只走这里。
+        </div>
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="接口地址">
             <input className={inputCls} value={form.lasr.serverUrl} onChange={(e) => setL({ serverUrl: e.target.value })} />
@@ -203,15 +225,60 @@ export const SettingsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => 
             />
           </Field>
           <Field label="转写并发">
-            <NumInput min={1} value={form.lasr.concurrency} onChange={(v) => setL({ concurrency: v })} />
+            <NumInput min={1} max={8} value={form.lasr.concurrency} onChange={(v) => setL({ concurrency: v })} hint="一个任务里同时转写几个文件（脚本默认 3）" />
+          </Field>
+          <Field label="分片上传并发">
+            <NumInput min={1} max={8} value={form.lasr.uploadConcurrency ?? 1} onChange={(v) => setL({ uploadConcurrency: v })} />
+          </Field>
+          <Field label="单片重试次数">
+            <NumInput min={0} max={10} value={form.lasr.uploadRetries ?? 4} onChange={(v) => setL({ uploadRetries: v })} />
           </Field>
           <div className="flex items-end pb-1">
             <Toggle
-              checked={form.lasr.saveSrt}
-              onChange={(v) => setL({ saveSrt: v })}
-              label="默认同时输出 SRT 字幕(单条任务可覆盖)"
+              checked={form.lasr.resumeEnabled ?? true}
+              onChange={(v) => setL({ resumeEnabled: v })}
+              label="断点续传(复用已上传分片)"
             />
           </div>
+          <div className="md:col-span-2 flex flex-wrap items-center gap-4">
+            <span className="text-xs font-semibold text-slate-700">默认产物</span>
+            {OUTPUT_CHOICES.map((choice) => (
+              <Toggle
+                key={choice.value}
+                checked={(form.lasr.outputs ?? ['plain']).includes(choice.value)}
+                onChange={() => toggleDefaultOutput(choice.value)}
+                label={`${choice.label}(${choice.suffix})`}
+              />
+            ))}
+            <span className="text-[11px] text-slate-400">单条任务可临时覆盖</span>
+          </div>
+        </div>
+      </div>
+
+      <div className={cx(studioSurfaceClassName, 'space-y-4 p-5')}>
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+          <FaMicrophone className="text-violet-500" />
+          语音转文本(用户页 /transcribe)
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold text-slate-800">开放给普通用户</div>
+              <div className="text-xs text-slate-500">关闭后管理端仍可用,用户页提交会被拒</div>
+            </div>
+            <Toggle checked={form.user?.enabled ?? true} onChange={(v) => setU({ enabled: v })} label="" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="单任务文件数">
+              <NumInput min={1} max={20} value={form.user?.maxFilesPerJob ?? 5} onChange={(v) => setU({ maxFilesPerJob: v })} />
+            </Field>
+            <Field label="每人活跃任务">
+              <NumInput min={1} max={10} value={form.user?.maxActiveJobs ?? 2} onChange={(v) => setU({ maxActiveJobs: v })} />
+            </Field>
+          </div>
+        </div>
+        <div className="text-[11px] leading-4 text-slate-400">
+          用户只能看到自己目录（workDir/users/&lt;uid&gt;）里的文件与任务；转写产物与该目录同层。上述限额仅限制用户页，管理端不受限。
         </div>
       </div>
 

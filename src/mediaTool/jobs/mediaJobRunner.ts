@@ -12,6 +12,7 @@ import type {
   MediaJobStage,
   MediaToolSettings,
 } from "../types";
+import { resolveJobOutputs } from "../types";
 
 /** 纯音频扩展(video 容器格式不送 vivo 转写)。 */
 const AUDIO_ONLY_RE = /\.(m4a|mp3|wav|aac|amr|flac|ogg|opus|m4b|3gp|wma|mka|ape|caf)$/i;
@@ -149,17 +150,19 @@ export class MediaJobRunner {
     };
     const progress = (stage: MediaJobStage, pct: number) => {
       doc.stage = stage;
-      doc.progress = Math.max(0, Math.min(100, Math.round(pct)));
+      // 并发上传与多文件并发时完成顺序是乱的,进度只单调向前,避免回跳
+      doc.progress = Math.max(doc.progress, Math.max(0, Math.min(100, Math.round(pct))));
       schedulePersist();
     };
     const isCancelled = () => this.aborts.has(id);
     await persistNow();
 
     const params = doc.params ?? {};
+    const outputs = resolveJobOutputs(params, settings.lasr.outputs);
     const lasr = {
       ...settings.lasr,
-      saveSrt: typeof params.saveSrt === "boolean" ? params.saveSrt : settings.lasr.saveSrt,
-      concurrency: Math.max(1, settings.lasr.concurrency),
+      outputs,
+      concurrency: Math.max(1, Math.min(8, settings.lasr.concurrency || 1)),
     };
     const items: MediaJobFileItem[] = [];
     const filesSet = new Set<string>();
@@ -209,56 +212,91 @@ export class MediaJobRunner {
                 progress: (_, pct) => progress("transcribe", 70 + Math.round(pct * 0.3)),
                 isCancelled,
               });
-              const txtRel = relInside(root, out.txtPath) ?? out.txtPath;
-              filesSet.add(txtRel);
+              const txtRel = relInside(root, out.txtPath ?? out.jsonPath) ?? undefined;
+              if (txtRel) filesSet.add(txtRel);
               items.push({
                 ok: true,
                 label: `转写: ${relAudio}`,
                 txtFile: txtRel,
+                timedFile: out.timedPath ? relInside(root, out.timedPath) ?? out.timedPath : undefined,
+                srtFile: out.srtPath ? relInside(root, out.srtPath) ?? out.srtPath : undefined,
+                jsonFile: relInside(root, out.jsonPath) ?? out.jsonPath,
                 segments: out.segments.length,
+                durationSec: out.durationSec,
               });
             }
           }
         }
       } else {
-        // kind = transcribe
+        // kind = transcribe:件内多文件按 lasr.concurrency 并发跑(与脚本 CONCURRENCY 同义),
+        // 单件失败不拖垮整批(记入 items 继续跑),取消仍整链中断。
         const files = Array.isArray(doc.input.values) ? doc.input.values.map(String).filter((x) => x.trim()) : [];
         if (files.length === 0) throw new Error("没有可转写的文件");
-        for (let i = 0; i < files.length; i++) {
-          const rel = files[i];
+        for (const rel of files) {
           const abs = path.resolve(root, rel);
           const inside = relInside(root, abs);
           if (inside === null) throw new Error(`文件路径越界: ${rel}`);
           const st = statOrNull(abs);
-          if (!st || !st.isFile() || !isAudioFile(abs)) {
-            items.push({ ok: false, label: rel, error: "文件不存在或非音频" });
-            continue;
-          }
-          if (!st || st.size <= 0) {
-            items.push({ ok: false, label: rel, error: "文件大小为 0" });
-            continue;
-          }
-          log(`[${i + 1}/${files.length}] 转写: ${rel}`);
-          progress("transcribe", Math.round((i / files.length) * 100));
-          const out = await transcribeAudioFile(lasr, abs, {
-            log: (t) => log(`[${i + 1}/${files.length}] ${t}`),
-            progress: (_stage, pct) =>
-              progress("transcribe", Math.round(((i + pct / 100) / files.length) * 100)),
-            isCancelled,
-          });
-          const relOut = relInside(root, out.txtPath) ?? out.txtPath;
-          filesSet.add(rel);
-          filesSet.add(relOut);
-          items.push({
-            ok: true,
-            label: rel,
-            file: rel,
-            txtFile: relOut,
-            segments: out.segments.length,
-          });
-          if (out.srtPath) filesSet.add(relInside(root, out.srtPath) ?? out.srtPath);
-          await persistNow();
+          if (!st || !st.isFile() || !isAudioFile(abs)) throw new Error(`文件不存在或非音频: ${rel}`);
         }
+
+        const slot = new Array<MediaJobFileItem | undefined>(files.length).fill(undefined);
+        const total = files.length;
+        const poolSize = Math.max(1, Math.min(lasr.concurrency, total));
+        let cursor = 0;
+        let finished = 0;
+        log(`并发 ${poolSize}, 共 ${total} 个文件`);
+        progress("transcribe", 0);
+
+        const runOne = async (i: number): Promise<void> => {
+          const rel = files[i];
+          const abs = path.resolve(root, rel);
+          const tag = `[${i + 1}/${total}]`;
+          log(`${tag} 转写: ${rel}`);
+          try {
+            const out = await transcribeAudioFile(lasr, abs, {
+              log: (t) => log(`${tag} ${t}`),
+              progress: (_stage, pct) =>
+                progress("transcribe", Math.round(((finished + pct / 100) / total) * 100)),
+              isCancelled,
+            });
+            const relOut = relInside(root, out.txtPath ?? out.jsonPath) ?? undefined;
+            filesSet.add(rel);
+            if (relOut) filesSet.add(relOut);
+            if (out.timedPath) filesSet.add(relInside(root, out.timedPath) ?? out.timedPath);
+            if (out.srtPath) filesSet.add(relInside(root, out.srtPath) ?? out.srtPath);
+            filesSet.add(relInside(root, out.jsonPath) ?? out.jsonPath);
+            slot[i] = {
+              ok: true,
+              label: rel,
+              file: rel,
+              txtFile: relOut,
+              timedFile: out.timedPath ? relInside(root, out.timedPath) ?? out.timedPath : undefined,
+              srtFile: out.srtPath ? relInside(root, out.srtPath) ?? out.srtPath : undefined,
+              jsonFile: relInside(root, out.jsonPath) ?? out.jsonPath,
+              segments: out.segments.length,
+              durationSec: out.durationSec,
+            };
+          } catch (e) {
+            if (e instanceof CancelledError) throw e;
+            slot[i] = { ok: false, label: rel, file: rel, error: (e as Error).message };
+            log(`${tag} [失败] ${rel}: ${(e as Error).message}`);
+          }
+          finished += 1;
+          progress("transcribe", Math.round((finished / total) * 100));
+          await persistNow();
+        };
+
+        const workers = Array.from({ length: poolSize }, async () => {
+          while (true) {
+            if (isCancelled()) throw new CancelledError();
+            const i = cursor++;
+            if (i >= total) break;
+            await runOne(i);
+          }
+        });
+        await Promise.all(workers);
+        for (const it of slot) if (it) items.push(it);
       }
 
       const okCount = items.filter((it) => it.ok).length;

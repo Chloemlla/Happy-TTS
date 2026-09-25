@@ -26,6 +26,7 @@ import {
   FaLanguage,
   FaLink,
   FaList,
+  FaMicrophone,
   FaPaperPlane,
   FaSearch,
   FaShareAlt,
@@ -77,6 +78,7 @@ export function getRootNavGroups(ctx: NavVisibilityContext): NavGroup[] {
         [
           { title: '首页', url: '/', icon: FaHome as IconType },
           { title: '语音合成', url: '/tts', icon: FaVolumeUp as IconType },
+          { title: '语音转文本', url: '/transcribe', icon: FaMicrophone as IconType },
           {
             title: '资源商店',
             url: '/store',

@@ -4,10 +4,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { MediaToolJobModel } from "../../models/mediaToolModels";
 import { ensureDir } from "../runtime";
-import type { MediaJobRecord } from "../types";
+import type { MediaJobRecord, MediaJobScope } from "../types";
+
+/** 用户态按归属隔离任务列表;不传 = 全量(管理端)。 */
+export interface MediaJobOwnerFilter {
+  scope: MediaJobScope;
+  ownerId: string;
+}
 
 export interface MediaJobStore {
-  list(limit: number): Promise<MediaJobRecord[]>;
+  list(limit: number, owner?: MediaJobOwnerFilter): Promise<MediaJobRecord[]>;
   get(id: string): Promise<MediaJobRecord | null>;
   create(record: MediaJobRecord): Promise<void>;
   patch(id: string, partial: Partial<MediaJobRecord>): Promise<void>;
@@ -30,8 +36,13 @@ export function createMongoMediaJobStore(): MediaJobStore {
   };
 
   return {
-    async list(limit: number): Promise<MediaJobRecord[]> {
-      const docs = await MediaToolJobModel.find()
+    async list(limit: number, owner?: MediaJobOwnerFilter): Promise<MediaJobRecord[]> {
+      const filter: Record<string, unknown> = {};
+      if (owner) {
+        filter.scope = owner.scope;
+        filter.ownerId = owner.ownerId;
+      }
+      const docs = await MediaToolJobModel.find(filter)
         .sort({ createdAt: -1 })
         .limit(Math.min(Math.max(1, limit), 200))
         .lean()
@@ -103,8 +114,11 @@ export function createJsonMediaJobStore(file: string): MediaJobStore {
   process.once("exit", flush);
 
   return {
-    list(limit: number): Promise<MediaJobRecord[]> {
-      return Promise.resolve(backing.jobs.slice(0, Math.min(Math.max(1, limit), 200)));
+    list(limit: number, owner?: MediaJobOwnerFilter): Promise<MediaJobRecord[]> {
+      const scoped = owner
+        ? backing.jobs.filter((j) => j.scope === owner.scope && j.ownerId === owner.ownerId)
+        : backing.jobs;
+      return Promise.resolve(scoped.slice(0, Math.min(Math.max(1, limit), 200)));
     },
     get(id: string): Promise<MediaJobRecord | null> {
       return Promise.resolve(backing.jobs.find((j) => j.id === id) ?? null);

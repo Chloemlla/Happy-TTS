@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { MediaToolSettingsModel } from "../models/mediaToolModels";
 import { ensureDir } from "./runtime";
-import { defaultMediaToolSettings, type BiliOptions, type LasrOptions, type MediaToolSettings } from "./types";
+import { defaultMediaToolSettings, explicitEnvLayer, type BiliOptions, type LasrOptions, type MediaSettingsLayer, type MediaToolSettings, type TranscribeUserSettings } from "./types";
 
 export const SECRET_MASK = "********";
 
@@ -17,6 +17,7 @@ export type MediaSettingsPatch = {
   maxJobLogLines?: number;
   lasr?: Partial<LasrOptions>;
   bili?: Partial<BiliOptions>;
+  user?: Partial<TranscribeUserSettings>;
 };
 
 export interface MediaSettingsStore {
@@ -34,10 +35,17 @@ function mergeDefaults(target: MediaToolSettings | undefined, defaults: MediaToo
   base.maxJobLogLines = target.maxJobLogLines ?? base.maxJobLogLines;
   base.lasr = { ...base.lasr, ...target.lasr };
   base.bili = { ...base.bili, ...target.bili };
+  base.user = { ...base.user, ...(target.user ?? {}) };
   return base;
 }
 
-function applyPatch(base: MediaToolSettings, patch: MediaSettingsPatch): MediaToolSettings {
+/** 环境变量显式层是最终权威:只覆盖「真的写了值」的字段。 */
+function withEnvLayer(settings: MediaToolSettings): MediaToolSettings {
+  const layer = explicitEnvLayer() as MediaSettingsLayer & MediaSettingsPatch;
+  return applyPatch(settings, layer, { ignoreSecretMask: true });
+}
+
+function applyPatch(base: MediaToolSettings, patch: MediaSettingsPatch, opts: { ignoreSecretMask?: boolean } = {}): MediaToolSettings {
   const next = JSON.parse(JSON.stringify(base)) as MediaToolSettings;
   if (patch.enabled !== undefined) next.enabled = patch.enabled;
   if (patch.workDir !== undefined) next.workDir = patch.workDir;
@@ -47,10 +55,13 @@ function applyPatch(base: MediaToolSettings, patch: MediaSettingsPatch): MediaTo
     for (const key of Object.keys(patch.lasr) as Array<keyof LasrOptions>) {
       const value = patch.lasr[key];
       if (value === undefined) continue;
-      if (SECRET_FIELDS.has(key) && value === SECRET_MASK) continue; // 未改动,保留旧密钥
+      if (!opts.ignoreSecretMask && SECRET_FIELDS.has(key) && value === SECRET_MASK) continue; // 未改动,保留旧密钥
       (next.lasr as unknown as Record<string, unknown>)[key] = value;
     }
-    next.lasr.concurrency = Math.max(1, next.lasr.concurrency);
+    next.lasr.concurrency = clamp(next.lasr.concurrency, 1, 8, 1);
+    next.lasr.uploadConcurrency = clamp(next.lasr.uploadConcurrency, 1, 8, 1);
+    next.lasr.uploadRetries = clamp(next.lasr.uploadRetries, 0, 10, 4);
+    if (!Array.isArray(next.lasr.outputs) || next.lasr.outputs.length === 0) next.lasr.outputs = ["plain"];
   }
   if (patch.bili) {
     for (const key of Object.keys(patch.bili) as Array<keyof BiliOptions>) {
@@ -58,9 +69,23 @@ function applyPatch(base: MediaToolSettings, patch: MediaSettingsPatch): MediaTo
       if (value === undefined) continue;
       (next.bili as unknown as Record<string, unknown>)[key] = value;
     }
-    next.bili.concurrency = Math.max(1, Math.min(8, next.bili.concurrency));
+    next.bili.concurrency = clamp(next.bili.concurrency, 1, 8, 1);
+  }
+  if (patch.user) {
+    for (const key of Object.keys(patch.user) as Array<keyof TranscribeUserSettings>) {
+      const value = patch.user[key];
+      if (value === undefined) continue;
+      (next.user as unknown as Record<string, unknown>)[key] = value;
+    }
+    next.user.maxFilesPerJob = clamp(next.user.maxFilesPerJob, 1, 20, 5);
+    next.user.maxActiveJobs = clamp(next.user.maxActiveJobs, 1, 10, 2);
   }
   return next;
+}
+
+function clamp(value: number | undefined, min: number, max: number, fallback: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(value)));
 }
 
 /** 出参脱敏副本:密钥字段一律显示占位(前端 PUT 时原样带回即可不覆盖)。 */
@@ -71,7 +96,6 @@ export function maskedView(settings: MediaToolSettings): MediaToolSettings {
   }
   return copy;
 }
-
 // ---------------------------------------------------------------------------
 // Mongo 实现
 // ---------------------------------------------------------------------------
@@ -82,7 +106,7 @@ export function createMongoMediaSettingsStore(): MediaSettingsStore {
       const defaults = defaultMediaToolSettings();
       const doc = await MediaToolSettingsModel.findOne({ key: KEY }).lean().exec();
       if (!doc) return defaults;
-      return mergeDefaults(doc.value as unknown as MediaToolSettings | undefined, defaults);
+      return withEnvLayer(mergeDefaults(doc.value as unknown as MediaToolSettings | undefined, defaults));
     },
     async update(patch: MediaSettingsPatch): Promise<MediaToolSettings> {
       const defaults = defaultMediaToolSettings();
@@ -94,7 +118,7 @@ export function createMongoMediaSettingsStore(): MediaSettingsStore {
         { $set: { key: KEY, value: next as unknown as Record<string, unknown>, updatedAt: Date.now() } },
         { upsert: true },
       ).exec();
-      return next;
+      return withEnvLayer(next); // 与下次 GET 保持一致:环境变量显式层仍是最终权威
     },
   };
 }
@@ -131,13 +155,13 @@ export function createJsonMediaSettingsStore(file: string): MediaSettingsStore {
   return {
     get(): Promise<MediaToolSettings> {
       const settings = load();
-      if (!hasStored) save(settings); // 首次即种出可编辑文件
-      return Promise.resolve(JSON.parse(JSON.stringify(settings)) as MediaToolSettings);
+      if (!hasStored) save(settings); // 首次即种出可编辑文件(不含环境变量层)
+      return Promise.resolve(withEnvLayer(settings));
     },
     async update(patch: MediaSettingsPatch): Promise<MediaToolSettings> {
       const next = applyPatch(load(), patch);
       save(next);
-      return JSON.parse(JSON.stringify(next)) as MediaToolSettings;
+      return withEnvLayer(next);
     },
   };
 }

@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -114,6 +115,33 @@ export function relInside(root: string, target: string): string | null {
   return rel.split(path.sep).join("/");
 }
 
+/**
+ * 把客户端传的相对路径归一并锁定在 root 内:越界/空/绝对 → null。
+ * 返回的是可直接 path.join(root, rel) 的 posix 相对路径。
+ */
+export function relInsideRoot(root: string, value: string): string | null {
+  const rel = path.posix.normalize((value || "").replace(/\\/g, "/")).replace(/^\/+/, "");
+  if (!rel || rel === "." || rel.startsWith("../")) return null;
+  const abs = path.resolve(root, rel);
+  return relInside(root, abs) === rel ? rel : null;
+}
+
+/** 上传文件名清洗:修多编码转换 + 去掉路径分隔/控制字符,限长。 */
+export function sanitizeFileName(name: string, fallback = "upload"): string {
+  const cleaned = Buffer.from(name || "", "latin1").toString("utf8").replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").trim();
+  return (cleaned || fallback).slice(0, 180);
+}
+
+/**
+ * 用户专属子目录名:可读前缀 + id 摘要。
+ * 先洗掉非安全字符再拼 sha1 前 8 位,保证不同用户不会因清洗碰撞到同一目录。
+ */
+export function userScopedDirName(userId: string): string {
+  const safe = String(userId || "").replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 48) || "anon";
+  const digest = createHash("sha1").update(String(userId || "")).digest("hex").slice(0, 8);
+  return `${safe}-${digest}`;
+}
+
 /** 音频时长(秒):优先 ffprobe,退回解析 m4a mvhd,再退回 0。ffprobePath 为空时直接尝试 ffprobe。 */
 export function audioDurationSec(filePath: string, ffprobePath?: string): number {
   const bin = ffprobePath || "ffprobe";
@@ -153,6 +181,17 @@ export function fmtMs(v: number | null | undefined): string {
   if (v == null) return "?";
   const s = Math.floor(v / 1000);
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/** 时间线文本用的时钟:超过一小时补时位,否则 mm:ss。 */
+export function fmtClock(v: number | null | undefined): string {
+  if (v == null) return "?";
+  const total = Math.floor(Math.max(0, v) / 1000);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const p = (n: number) => String(n).padStart(2, "0");
+  return h > 0 ? `${p(h)}:${p(m)}:${p(s)}` : `${p(m)}:${p(s)}`;
 }
 
 export function fmtSrt(v: number | null | undefined): string {

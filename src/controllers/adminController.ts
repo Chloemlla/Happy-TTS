@@ -83,6 +83,18 @@ const ENV_READ_WHITELIST: string[] = [
   "POLYMART_WEBHOOK_SECRET",
   "ECOENCHANTS_PAYPAL_WEBHOOK_SECRET",
   "PAYPAL_WEBHOOK_SECRET",
+  // 语音转文本 / 媒体工具:只登记「换机器就得改」的那几个键(开关/接地址/身份/密钥/目录)。
+  // 其余参数写死在 src/mediaTool/types.ts,调它们走「媒体工具 → 设置」(存库),不走环境变量。
+  "MEDIA_TOOL_DISABLED",
+  "MEDIA_TOOL_WORK_DIR",
+  "MEDIA_TOOL_LASR_URL",
+  "MEDIA_TOOL_APP_ID",
+  "MEDIA_TOOL_APP_KEY",
+  "MEDIA_TOOL_VIVO_TOKEN",
+  "MEDIA_TOOL_VIVO_OPENID",
+  "MEDIA_TOOL_YTDLP",
+  "MEDIA_TOOL_COOKIES",
+  "MEDIA_TOOL_DOWNLOAD_DIR",
 ];
 
 // G4-06: 禁止通过运行时 envs 接口改写的键，清单见 config/protectedEnvKeys.ts。

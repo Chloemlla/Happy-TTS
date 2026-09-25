@@ -11,6 +11,7 @@ import {
   modlistMountLimiter,
   nexaiSecurityLimiter,
   statusLimiter,
+  transcribeLimiter,
 } from "../../middleware/routeLimiters";
 import logger from "../../utils/logger";
 import antaRoutes from "../antaRoutes";
@@ -50,6 +51,7 @@ import openapiJsonRoutes from "../openapiJsonRoutes";
 import passkeyRoutes from "../passkeyRoutes";
 import resourceRoutes from "../resourceRoutes";
 import socialRoutes from "../socialRoutes";
+import transcribeRoutes from "../transcribeRoutes";
 import webhookEventRoutes from "../webhookEventRoutes";
 import { assetLinksRoutes, faviconRoutes } from "../siteMetadataRoutes";
 import { wellKnownRoutes } from "../wellKnownRoutes";
@@ -599,6 +601,25 @@ export const postTamperRouteModules: RouteModule[] = [
       mode: "router",
       limiters: ["bilibiliSyncLimiter"],
       note: "All Bilibili binding and sync operations share the authenticated sync limiter.",
+    },
+  },
+  {
+    name: "transcribe-user-routes",
+    path: "/api/transcribe",
+    router: transcribeRoutes,
+    middlewares: [authenticateToken, transcribeLimiter],
+    requiresAuth: true,
+    rateLimited: true,
+    isPublic: false,
+    authPolicy: {
+      mode: "mount",
+      handlers: ["authenticateToken"],
+      note: "语音转文本用户页:整棵 /api/transcribe 先过 authenticateToken,router 内再按 req.user 复核任务归属与用户目录作用域;普通登录用户可用,不要求管理员角色。",
+    },
+    rateLimitPolicy: {
+      mode: "mount",
+      limiters: ["transcribeLimiter"],
+      note: "用户态转写专用 limiter(authRead 档,240/5min),与管理端 adminLimiter 分桶。",
     },
   },
   {

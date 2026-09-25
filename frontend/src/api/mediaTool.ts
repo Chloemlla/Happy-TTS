@@ -11,6 +11,8 @@ export interface MediaTarget {
   toolKey: string;
 }
 
+export type TranscribeOutput = 'plain' | 'timed' | 'srt';
+
 export interface LasrOptions {
   serverUrl: string;
   appId: string;
@@ -20,6 +22,7 @@ export interface LasrOptions {
   language: string;
   scene: string;
   saveSrt: boolean;
+  outputs: TranscribeOutput[];
   brand: string;
   model: string;
   product: string;
@@ -36,6 +39,12 @@ export interface LasrOptions {
   blockSizeBytes: number;
   maxFileSizeBytes: number;
   concurrency: number;
+  /** 单文件内并发上传的分片数(1=逐片串行) */
+  uploadConcurrency: number;
+  /** 单片上传重试次数(指数退避) */
+  uploadRetries: number;
+  /** 断点续传开关 */
+  resumeEnabled: boolean;
 }
 
 export interface BiliOptions {
@@ -48,6 +57,12 @@ export interface BiliOptions {
   transcribeAfter: boolean;
 }
 
+export interface TranscribeUserSettings {
+  enabled: boolean;
+  maxFilesPerJob: number;
+  maxActiveJobs: number;
+}
+
 export interface MediaToolSettings {
   enabled: boolean;
   workDir: string;
@@ -55,6 +70,7 @@ export interface MediaToolSettings {
   maxJobLogLines: number;
   lasr: LasrOptions;
   bili: BiliOptions;
+  user: TranscribeUserSettings;
 }
 
 export type MediaSettingsPatch = {
@@ -64,6 +80,7 @@ export type MediaSettingsPatch = {
   maxJobLogLines?: number;
   lasr?: Partial<LasrOptions>;
   bili?: Partial<BiliOptions>;
+  user?: Partial<TranscribeUserSettings>;
 };
 
 export type MediaJobKind = 'bili-download' | 'transcribe';
@@ -88,20 +105,15 @@ export interface MediaJobLogLine {
 export interface MediaJobResult {
   summary: string;
   files: string[];
-  items: Array<{
-    ok: boolean;
-    label: string;
-    file?: string;
-    txtFile?: string;
-    segments?: number;
-    error?: string;
-  }>;
+  items: MediaJobFileItem[];
 }
 
 export interface MediaJobRecord {
   id: string;
   kind: MediaJobKind;
   mode: string;
+  scope?: 'admin' | 'user';
+  ownerId?: string;
   createdBy: string;
   createdAt: number;
   startedAt?: number;
@@ -115,12 +127,45 @@ export interface MediaJobRecord {
     audioFormat?: string;
     transcribeAfter?: boolean;
     saveSrt?: boolean;
+    outputs?: TranscribeOutput[];
     urls?: string[];
   };
   logs: MediaJobLogLine[];
   error?: string;
   result?: MediaJobResult;
   cancelRequested: boolean;
+}
+
+export interface MediaJobFileItem {
+  ok: boolean;
+  label: string;
+  file?: string;
+  txtFile?: string;
+  timedFile?: string;
+  srtFile?: string;
+  jsonFile?: string;
+  segments?: number;
+  durationSec?: number;
+  error?: string;
+}
+
+/** 任务详情里的单个转写结果(分段来自产物 .json)。 */
+export interface TranscriptSegment {
+  bg: number;
+  ed: number;
+  onebest?: string;
+  speaker?: string;
+}
+
+export interface AdminTranscriptItem {
+  index: number;
+  label: string;
+  ok: boolean;
+  error?: string;
+  durationSec: number;
+  segmentCount: number;
+  segments: TranscriptSegment[];
+  files: { txt: string | null; timed: string | null; srt: string | null; json: string | null };
 }
 
 export interface MediaDirEntry {
@@ -157,6 +202,7 @@ export interface MediaJobCreateInput {
   audioFormat?: string;
   transcribeAfter?: boolean;
   saveSrt?: boolean;
+  outputs?: TranscribeOutput[];
 }
 
 const BASE = '/api/admin/media-tool';
@@ -199,9 +245,9 @@ export const mediaToolApi = {
     return res.data.jobs ?? [];
   },
 
-  getJob: async (target: MediaTarget, id: string): Promise<MediaJobRecord | null> => {
+  getJob: async (target: MediaTarget, id: string): Promise<{ job: MediaJobRecord | null; transcripts: AdminTranscriptItem[] }> => {
     const res = await api.get(`${BASE}/jobs/${encodeURIComponent(id)}`, cfgFor(target));
-    return res.data.job ?? null;
+    return { job: res.data.job ?? null, transcripts: res.data.transcripts ?? [] };
   },
 
   createJob: async (target: MediaTarget, kind: MediaJobKind, input: MediaJobCreateInput): Promise<MediaJobRecord> => {

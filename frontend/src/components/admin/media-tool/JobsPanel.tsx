@@ -12,7 +12,8 @@ import {
   FaTrash,
 } from 'react-icons/fa';
 import { mediaToolApi } from '../../../api/mediaTool';
-import type { MediaJobRecord, MediaTarget } from '../../../api/mediaTool';
+import type { AdminTranscriptItem, MediaJobRecord, MediaTarget } from '../../../api/mediaTool';
+import TranscriptView from '../../speech-to-text/TranscriptView';
 import { studioSurfaceClassName } from '../../studioTheme';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
 import {
@@ -50,7 +51,23 @@ export const JobsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => {
   const [flash, setFlash] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ title: string; text: string } | null>(null);
+  const [transcripts, setTranscripts] = useState<Record<string, AdminTranscriptItem[]>>({});
   const polling = useRef(false);
+
+  /** 详情与分段一次取回(分段就装在同一个响应里,不再多发一个请求)。 */
+  const loadDetail = useCallback(
+    (id: string) =>
+      mediaToolApi
+        .getJob(target, id)
+        .then((res) => {
+          const job = res.job;
+          if (!job) return;
+          setDetail((d) => ({ ...d, [job.id]: job }));
+          setTranscripts((t) => ({ ...t, [job.id]: res.transcripts }));
+        })
+        .catch(() => undefined),
+    [target],
+  );
 
   const refreshList = useCallback(async () => {
     if (polling.current) return;
@@ -83,15 +100,10 @@ export const JobsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => {
       : undefined;
     if (!expandedId || !active || (active.status !== 'queued' && active.status !== 'running')) return;
     const timer = window.setTimeout(() => {
-      void mediaToolApi
-        .getJob(target, expandedId)
-        .then((j) => {
-          if (j) setDetail((d) => ({ ...d, [j.id]: j }));
-        })
-        .catch(() => undefined);
+      void loadDetail(expandedId);
     }, 800);
     return () => window.clearTimeout(timer);
-  }, [expandedId, detail, jobs, target]);
+  }, [expandedId, detail, jobs, loadDetail]);
 
   const act = async (action: 'cancel' | 'retry' | 'delete', job: MediaJobRecord) => {
     setPendingAction(`${action}:${job.id}`);
@@ -123,13 +135,16 @@ export const JobsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => {
   const toggleExpand = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
     if (expandedId !== id) {
-      void mediaToolApi
-        .getJob(target, id)
-        .then((j) => {
-          if (j) setDetail((d) => ({ ...d, [j.id]: j }));
-        })
-        .catch(() => undefined);
+      void loadDetail(id);
     }
+  };
+
+  /** 分段视图的可下载产物:管理端走已有的 files/download。 */
+  const downloadAdminArtifact = (rel: string) => {
+    void mediaToolApi.downloadFile(target, rel, baseName(rel)).catch((err) => {
+      setError(`下载 ${rel} 失败。`);
+      console.error('下载转写产物失败:', err);
+    });
   };
 
   const openPreview = async (rel: string) => {
@@ -293,6 +308,28 @@ export const JobsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => {
                                 <FaDownload className="text-[11px]" />
                               </button>
                             </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {(transcripts[job.id] ?? []).length > 0 ? (
+                      <div>
+                        <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                          转写分段
+                        </div>
+                        <div className="space-y-3">
+                          {(transcripts[job.id] ?? []).map((item) => (
+                            <div key={`${job.id}-${item.index}`} className="space-y-1">
+                              <div className="truncate text-[11px] font-medium text-slate-600">{item.label}</div>
+                              <TranscriptView
+                                item={item}
+                                onDownload={(format) => {
+                                  const rel = item.files[format];
+                                  if (rel) downloadAdminArtifact(rel);
+                                }}
+                              />
+                            </div>
                           ))}
                         </div>
                       </div>

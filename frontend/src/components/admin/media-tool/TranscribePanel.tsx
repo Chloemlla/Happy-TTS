@@ -11,7 +11,13 @@ import {
   FaUpload,
 } from 'react-icons/fa';
 import { mediaToolApi } from '../../../api/mediaTool';
-import type { MediaDirEntry, MediaJobRecord, MediaTarget, MediaToolSettings } from '../../../api/mediaTool';
+import type {
+  MediaDirEntry,
+  MediaJobRecord,
+  MediaTarget,
+  MediaToolSettings,
+  TranscribeOutput,
+} from '../../../api/mediaTool';
 import { studioSurfaceClassName } from '../../studioTheme';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
 import {
@@ -25,15 +31,23 @@ import {
 } from './ui';
 import { InfoSectionTitle } from '../../InfoQueryScaffold';
 
+const OUTPUT_CHOICES: Array<{ value: TranscribeOutput; label: string; suffix: string }> = [
+  { value: 'plain', label: '纯文本', suffix: '.txt' },
+  { value: 'timed', label: '带时间线', suffix: '.timed.txt' },
+  { value: 'srt', label: 'SRT 字幕', suffix: '.srt' },
+];
+
 /**
- * 音频转写:两类来源 —— 浏览器直接上传(进 workDir/inbox)与浏览服务端已有文件。
- * 汇入「待转写」清单后统一提交给 vivo LASR。
+ * 语音转文本(音频转写):两类来源 —— 浏览器直接上传(进 workDir/inbox)与浏览服务端已有文件。
+ * 汇入「待转写」清单后统一提交给 vivo LASR;产物三选(纯文本 / 带时间线 / SRT)。
  */
 export const TranscribePanel: React.FC<{ target: MediaTarget; settings: MediaToolSettings }> = ({ target, settings }) => {
   const [sub, setSub] = useState('');
   const [entries, setEntries] = useState<MediaDirEntry[]>([]);
   const [chosen, setChosen] = useState<string[]>([]);
-  const [saveSrt, setSaveSrt] = useState(settings.lasr.saveSrt);
+  const [outputs, setOutputs] = useState<TranscribeOutput[]>(
+    settings.lasr.outputs?.length ? settings.lasr.outputs : settings.lasr.saveSrt ? ['plain', 'srt'] : ['plain'],
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
@@ -100,6 +114,9 @@ export const TranscribePanel: React.FC<{ target: MediaTarget; settings: MediaToo
     }
   };
 
+  const toggleOutput = (value: TranscribeOutput) =>
+    setOutputs((prev) => (prev.includes(value) ? prev.filter((o) => o !== value) : [...prev, value]));
+
   const start = async () => {
     if (chosen.length === 0) return;
     setBusy(true);
@@ -108,9 +125,9 @@ export const TranscribePanel: React.FC<{ target: MediaTarget; settings: MediaToo
     try {
       const job: MediaJobRecord = await mediaToolApi.createJob(target, 'transcribe', {
         files: chosen,
-        saveSrt,
+        outputs,
       });
-      setOk(`转写任务已提交(${job.id})。结果 txt${saveSrt ? ' + srt' : ''} 会写到源文件旁。`);
+      setOk(`转写任务已提交(${job.id})。产物 ${outputs.join(' / ')} 会写到源文件旁。`);
       setChosen([]);
     } catch (err) {
       setError('提交转写失败:请检查后端与文件状态。');
@@ -123,8 +140,8 @@ export const TranscribePanel: React.FC<{ target: MediaTarget; settings: MediaToo
   return (
     <div className="space-y-4">
       <InfoSectionTitle
-        title="音频转写(vivo 录音接口)"
-        description="浏览器直接上传音频,或浏览服务器工作目录挑选已下载的音频;汇入清单后统一识别,每段输出 .txt(可选 .srt)。"
+        title="语音转文本(vivo 录音接口)"
+        description="浏览器直接上传音频,或浏览服务器工作目录挑选已下载的音频;汇入清单后统一识别,产物可选纯文本 / 带时间线文本 / SRT 字幕。"
         icon={FaPlay}
         tone="violet"
       />
@@ -262,8 +279,16 @@ export const TranscribePanel: React.FC<{ target: MediaTarget; settings: MediaToo
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-6 pt-1">
-            <Toggle checked={saveSrt} onChange={setSaveSrt} label="同时生成 SRT 字幕" />
+          <div className="flex flex-wrap items-center gap-4 pt-1">
+            <span className="text-xs font-semibold text-slate-700">转写产物</span>
+            {OUTPUT_CHOICES.map((choice) => (
+              <Toggle
+                key={choice.value}
+                checked={outputs.includes(choice.value)}
+                onChange={() => toggleOutput(choice.value)}
+                label={`${choice.label}(${choice.suffix})`}
+              />
+            ))}
           </div>
 
           {error ? (
