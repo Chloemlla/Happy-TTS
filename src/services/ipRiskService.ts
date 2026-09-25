@@ -31,6 +31,11 @@ import {
  *   1. Mongo 去重缓存（proxycheck_risk_cache，TTL 到期即失效）
  *   2. 进程内 in-flight Promise 合并（同 IP 并发请求共享同一个 Promise）
  *   3. 每日配额（proxycheck_daily_quotas，按 Asia/Shanghai 日切）
+ *
+ * proxycheck_lookup_logs 记的是「每一次交给调用方的决策」，不是「每一次外呼」：
+ * 上面第 1、2 层拦下来的请求也各落一行（status=cache / status=deduped）。
+ * 早先命中缓存一行都不写，于是上游一挂，整张表只剩 status=failed 的行，
+ * 管理面板读起来就是「闸门一直在上游失败」，而真实判据一直是缓存里那份结论 —— 记录与事实相反。
  */
 
 // proxycheck 的 key 可复用同一把，不照 IPQS 做多 key 轮换；slot 恒为 0，保留字段是为了
@@ -41,6 +46,12 @@ const DEFAULT_TIMEOUT_MS = 8000;
 const DEFAULT_CACHE_TTL_HOURS = 24;
 const DEFAULT_DAILY_QUOTA_PER_KEY = 1000;
 const DEFAULT_CHALLENGE_RISK_SCORE = 66;
+
+// 命中缓存的行用的 status 与 apiKeyHash 哨兵：这次判定零外呼、零配额，但决策照样交付了出去。
+// 与真实外呼行（ok / failed）分开，管理端才能把「上游挂了」和「走缓存」区分开。
+// 导出去是为了让概览计数能把「真的打到上游」与「命中缓存」分开数（ipRiskLogController）。
+export const CACHE_LOOKUP_STATUS = "cache";
+const CACHE_API_KEY_HASH = "cache";
 
 // 只有这三类检测单独触发验证：hosting 对机房出口过于常见，risk 分里已经体现其权重。
 const CHALLENGE_FLAGS = ["vpn", "proxy", "tor"] as const;
@@ -183,6 +194,40 @@ async function readCachedRisk(ip: string): Promise<IpRiskResult | null> {
     .exec();
   if (!doc) return null;
   return toRiskResult(docToParsed(doc), true, "cache");
+}
+
+/**
+ * 把「本次判定走的是缓存里那份结论」落成一条决策日志。
+ *
+ * 零外呼、零配额，但 shouldChallenge / risk / threshold 这些当时算给调用方的字段必须存下来：
+ * 否则面板里只能看到真的外呼过的那几次，缓存命中这主路完全隐形。
+ * apiKeyHash 用 "cache" 哨兵，以免被误读成「这把 key 查过上游」。
+ */
+async function logCachedLookup(
+  result: IpRiskResult,
+  caller: IpRiskCaller,
+  durationMs: number,
+): Promise<void> {
+  await logLookup({
+    ip: result.ip,
+    apiKeyHash: CACHE_API_KEY_HASH,
+    status: CACHE_LOOKUP_STATUS,
+    ok: true,
+    risk: result.risk,
+    deduped: false,
+    durationMs,
+    decision: buildIpRiskDecision(result, caller),
+  });
+}
+
+/** 缓存决策落库不能把判定卡在门外：写失败只记日志，不向上冒。 */
+function recordCachedLookup(result: IpRiskResult, caller: IpRiskCaller, durationMs: number): void {
+  void logCachedLookup(result, caller, durationMs).catch((error: unknown) => {
+    logger.warn("[IpRisk] Failed to record proxycheck cache decision", {
+      ip: result.ip,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
 }
 
 async function persistRiskCache(parsed: ParsedRisk, cacheTtlHours: number): Promise<void> {
@@ -412,8 +457,13 @@ export async function getIpRisk(ip: string, caller: IpRiskCaller): Promise<IpRis
   if (isLocalIP(normalized)) return unavailableResult(normalized);
 
   if (ensureMongoIfEnabled()) {
+    const cacheReadStartedAt = Date.now();
     const cached = await readCachedRisk(normalized);
-    if (cached) return cached;
+    if (cached) {
+      // 命中缓存也是一次真实交付：先记下「已走缓存」这一行，再返回结论（不 await，见 helper）。
+      recordCachedLookup(cached, caller, Date.now() - cacheReadStartedAt);
+      return cached;
+    }
   }
 
   const joined = inFlightLookups.get(normalized);
@@ -550,7 +600,10 @@ export async function getIpRiskBatch(ips: string[], caller: IpRiskCaller): Promi
         .lean()
         .exec();
       for (const doc of cached) {
-        resolved.set(doc.ip, toRiskResult(docToParsed(doc), true, "cache"));
+        const result = toRiskResult(docToParsed(doc), true, "cache");
+        resolved.set(doc.ip, result);
+        // 批量路径同样要能看出「这一条是缓存给的」，不是真的向上游查了 N 个地址。
+        recordCachedLookup(result, caller, 0);
       }
 
       const missing = unique.filter((ip) => !resolved.has(ip));

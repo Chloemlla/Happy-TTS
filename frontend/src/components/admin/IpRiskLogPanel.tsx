@@ -25,7 +25,7 @@ type TabKey = 'overview' | 'lookups' | 'risk-cache' | 'probes' | 'quotas';
 
 const TABS: ReadonlyArray<{ key: TabKey; label: string; icon: React.ReactNode; hint: string }> = [
   { key: 'overview', label: '概览', icon: <FaSlidersH />, hint: '配置 / 集合 / 配额 / 计数' },
-  { key: 'lookups', label: 'API 请求日志', icon: <FaListUl />, hint: 'proxycheck_lookup_logs' },
+  { key: 'lookups', label: '判定决策日志', icon: <FaListUl />, hint: 'proxycheck_lookup_logs' },
   { key: 'risk-cache', label: '风险缓存', icon: <FaDatabase />, hint: 'proxycheck_risk_cache' },
   { key: 'probes', label: '探测上报', icon: <FaShieldAlt />, hint: 'proxycheck_probe_reports' },
   { key: 'quotas', label: '每日配额', icon: <FaKey />, hint: 'proxycheck_daily_quotas' },
@@ -97,7 +97,11 @@ const IpRiskLogPanel: React.FC = () => {
       <InfoQueryHero
         eyebrow="IP 风险检测"
         title="proxycheck.io 详细日志"
-        description="把 proxycheck.io 集成的一切摊开：上游 API 请求日志、四个集合的已有内容、每一次交给前端的决策。决策字段（caller / action / shouldChallenge / reason / threshold / failOpen / closedOnFailure）都来自后端的同一个 buildIpRiskDecision 函数，与真正回给前端的判据同源。"
+        description={[
+          '把 proxycheck.io 集成的一切摊开：每一次风险判定决策（真打到上游 / 命中缓存 / in-flight 合并）与四个集合的已有内容。',
+          '决策字段（caller / action / shouldChallenge / reason / threshold / failOpen / closedOnFailure）',
+          '都来自后端的同一个 buildIpRiskDecision 函数，与真正回给前端的判据同源。',
+        ].join('')}
         icon={FaShieldAlt}
         tone="violet"
         meta={
@@ -135,9 +139,13 @@ const IpRiskLogPanel: React.FC = () => {
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <InfoMetricCard
-          label="上游请求日志"
+          label="风险判定决策日志"
           value={counts ? formatCount(counts.lookupLogs) : '—'}
-          detail={counts ? `24 小时内 ${formatCount(counts.lookupLogs24h)} 条` : '等待概览'}
+          detail={
+            counts
+              ? `24 小时内 ${formatCount(counts.lookupLogs24h)} 条（打到上游 ${formatCount(counts.upstreamCalls24h)} 次）`
+              : '等待概览'
+          }
           icon={FaListUl}
           tone="sky"
         />

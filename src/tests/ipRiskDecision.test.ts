@@ -7,6 +7,7 @@
  */
 import { ProxycheckLookupLogModel } from "../models/proxycheckLookupLogModel";
 import { buildIpRiskDecision, type IpRiskCaller } from "../services/ipRiskService";
+import { LOOKUP_STATUSES, parseLookupQuery } from "../services/proxycheckLogQuery";
 import { unavailableResult, type IpRiskDetections, type IpRiskResult } from "../services/proxycheckParsing";
 
 const IP = "203.0.113.7";
@@ -136,5 +137,57 @@ describe("proxycheck_lookup_logs 的 decision 子文档", () => {
     expect(doc.decision?.caller).toBe("api");
     expect(doc.decision?.threshold).toBe(decision.threshold);
     expect(doc.decision?.level).toBe("high");
+  });
+});
+
+/**
+ * 命中缓存的判定必须自带一行「已走缓存」的决策日志。
+ *
+ * 钉住这条是因为老行为会误判：只有真的外呼才落行，于是上游持续失败时整张表只剩
+ * status=failed，管理面板读起来就是「闸门一直在上游失败」，而当时绝大多数判定其实是
+ * 缓存里那份结论给的（零外呼、零配额）。记录方式必须能把两者区分开。
+ */
+describe("命中缓存的决策日志", () => {
+  const cachedResult = (): IpRiskResult => ({
+    ...unavailableResult(IP),
+    source: "cache",
+    cached: true,
+    risk: 90,
+    level: "high",
+  });
+
+  it("决策快照把 source 记成 cache，且按闸门 caller 正常判挑战（缓存结论照样能拦人）", () => {
+    const decision = buildIpRiskDecision(cachedResult(), "first_visit_gate");
+
+    expect(decision.source).toBe("cache");
+    expect(decision.shouldChallenge).toBe(decision.risk >= decision.threshold);
+    expect(decision.action).toBe(decision.shouldChallenge ? "challenge" : "allow");
+    // 拿得到了结论 = 不是失败降级路径，failOpen / closedOnFailure 都不该参与。
+    expect(decision.reason).toBe("proxycheck_risk_high");
+    expect(decision.closedOnFailure).toBe(false);
+  });
+
+  it("cache 是合法的 status 取值，服务端筛选认它（否则面板无法只看走缓存的行）", () => {
+    expect(LOOKUP_STATUSES).toContain("cache");
+    expect(parseLookupQuery({ status: "cache" }).status).toBe("cache");
+  });
+
+  it("status=cache 的行能落库，且不要求 error", () => {
+    const doc = new ProxycheckLookupLogModel({
+      ip: IP,
+      apiKeySlot: 0,
+      // 命中缓存不消耗配额、没动任何 key：apiKeyHash 记成 "cache" 哨兵，不借用真 key 的哈希。
+      apiKeyHash: "cache",
+      status: "cache",
+      ok: true,
+      risk: 90,
+      deduped: false,
+      durationMs: 1,
+      error: "",
+      decision: buildIpRiskDecision(cachedResult(), "first_visit_gate"),
+    });
+
+    expect(doc.validateSync()).toBeUndefined();
+    expect(doc.decision?.source).toBe("cache");
   });
 });

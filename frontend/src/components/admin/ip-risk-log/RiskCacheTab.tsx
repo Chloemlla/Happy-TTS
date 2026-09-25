@@ -112,13 +112,14 @@ const RiskCacheTab: React.FC<Props> = ({ refreshNonce }) => {
 
       <SectionNote>
         写入点：<code>src/services/ipRiskService.ts</code> 的 <code>persistRiskCache</code>（上游查询成功后才写）。
-        命中本集合的查询是<span className="font-semibold">零上游、零日志</span>的，所以这里既是最省的路径，也是唯一能看出「上次查到什么」的地方。
+        命中本集合的查询<span className="font-semibold">零上游、零配额</span>，但会往 <code>proxycheck_lookup_logs</code> 写一行
+        <code>status=cache</code> 的决策——本页看「上次查到什么」，那一页看「当时怎么判」。
         <br />
         <span className="font-semibold text-amber-800">
           本页每行的决策是按当前配置重算的，不是历史记录
         </span>
         ：缓存文档本身不存决策。重算用的是当下的 <code>challengeRiskScore</code> / <code>failOpen</code>，
-        caller 固定按 API 口径（所以 action 恒为「仅上报」）。想看在某个时间点真实给出的决策，请看「API 请求日志」页。
+        caller 固定按 API 口径（所以 action 恒为「仅上报」）。想看在某个时间点真实给出的决策（包括当时是不是走缓存），请看「判定决策日志」页。
       </SectionNote>
 
       <InfoPanel compact>

@@ -18,6 +18,9 @@ export const LOOKUP_STATUSES = [
   "deduped",
   "quota_exhausted",
   "not_configured",
+  // 命中 proxycheck_risk_cache 的决策行：零外呼、零配额，但当时确实交给调用方一个结论。
+  // 不记下它的话，上游持续失败时本表只剩 failed，面板会被读成「闸门一直在失败」。
+  "cache",
 ] as const;
 export type LookupStatus = (typeof LOOKUP_STATUSES)[number];
 

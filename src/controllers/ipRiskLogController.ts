@@ -6,7 +6,12 @@ import {
   ProxycheckRiskCacheModel,
   type ProxycheckRiskCacheDoc,
 } from "../models/proxycheckRiskCacheModel";
-import { buildIpRiskDecision, type IpRiskCaller, type IpRiskDecision } from "../services/ipRiskService";
+import {
+  buildIpRiskDecision,
+  CACHE_LOOKUP_STATUS,
+  type IpRiskCaller,
+  type IpRiskDecision,
+} from "../services/ipRiskService";
 import { mongoose } from "../services/mongoService";
 import { currentDayKey, docToParsed, toRiskResult } from "../services/proxycheckParsing";
 import {
@@ -49,14 +54,20 @@ const RECENT_WINDOW_MS = DAY_MS;
 const MAX_QUOTA_HISTORY_ROWS = 500;
 
 /**
- * 缓存页的决策是「按当前阈值重算」，不是当时的记录：命中缓存的分支一条日志都不写，
- * 库里根本没有当时的 decision 可读。caller 固定 "api"（缓存页展示的是 GET /api/ip-risk 视角）。
+ * 缓存页（risk-cache tab）没有逐行的历史 decision：那里展示的是缓存文档本身，只能按当前阈值重算，
+ * 所以 caller 固定 "api"（缓存页展示的是 GET /api/ip-risk 视角）。
+ * 注意这与「命中缓存时写的那行 status=cache 日志」不矛盾：日志行记的是当时真实交给调用方的决策，
+ * 缓存页记的是这份缓存现在会怎么判。
  */
 const CACHE_DERIVED_CALLER: IpRiskCaller = "api";
 
 interface OverviewCounts {
+  /** 决策日志总行数（含 status=cache 的命中缓存行与 status=deduped 的 in-flight 合并行）。 */
   lookupLogs: number;
   lookupLogs24h: number;
+  /** 真的打到上游的行数（排除命中缓存）：它才与配额、外呼失败对应，不能混在总行数里读。 */
+  upstreamCalls: number;
+  upstreamCalls24h: number;
   riskCache: number;
   riskCacheActive: number;
   probeReports: number;
@@ -144,17 +155,39 @@ function toLooseDocs(docs: unknown): LooseDoc[] {
 async function readCounts(): Promise<OverviewCounts> {
   const since = new Date(Date.now() - RECENT_WINDOW_MS);
   const now = new Date();
-  const [lookupLogs, lookupLogs24h, riskCache, riskCacheActive, probeReports, probeReports24h] =
-    await Promise.all([
-      ProxycheckLookupLogModel.countDocuments({}).exec(),
-      ProxycheckLookupLogModel.countDocuments({ createdAt: { $gte: since } }).exec(),
-      ProxycheckRiskCacheModel.countDocuments({}).exec(),
-      ProxycheckRiskCacheModel.countDocuments({ expiresAt: { $gt: now } }).exec(),
-      ProxycheckProbeReportModel.countDocuments({}).exec(),
-      ProxycheckProbeReportModel.countDocuments({ createdAt: { $gte: since } }).exec(),
-    ]);
+  const [
+    lookupLogs,
+    lookupLogs24h,
+    upstreamCalls,
+    upstreamCalls24h,
+    riskCache,
+    riskCacheActive,
+    probeReports,
+    probeReports24h,
+  ] = await Promise.all([
+    ProxycheckLookupLogModel.countDocuments({}).exec(),
+    ProxycheckLookupLogModel.countDocuments({ createdAt: { $gte: since } }).exec(),
+    ProxycheckLookupLogModel.countDocuments({ status: { $ne: CACHE_LOOKUP_STATUS } }).exec(),
+    ProxycheckLookupLogModel.countDocuments({
+      createdAt: { $gte: since },
+      status: { $ne: CACHE_LOOKUP_STATUS },
+    }).exec(),
+    ProxycheckRiskCacheModel.countDocuments({}).exec(),
+    ProxycheckRiskCacheModel.countDocuments({ expiresAt: { $gt: now } }).exec(),
+    ProxycheckProbeReportModel.countDocuments({}).exec(),
+    ProxycheckProbeReportModel.countDocuments({ createdAt: { $gte: since } }).exec(),
+  ]);
 
-  return { lookupLogs, lookupLogs24h, riskCache, riskCacheActive, probeReports, probeReports24h };
+  return {
+    lookupLogs,
+    lookupLogs24h,
+    upstreamCalls,
+    upstreamCalls24h,
+    riskCache,
+    riskCacheActive,
+    probeReports,
+    probeReports24h,
+  };
 }
 
 /** 当日配额：manifest 里槽位恒为 0，多槽位时取最小的那个。 */
@@ -291,7 +324,7 @@ export class IpRiskLogController {
     }
   }
 
-  /** GET /api/admin/proxycheck/lookups —— 上游 API 请求日志（含落库的 decision）。 */
+  /** GET /api/admin/proxycheck/lookups —— 风险决策日志（上游外呼 / 命中缓存 / in-flight 合并，含落库的 decision）。 */
   static async listLookups(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       if (!isMongoReady()) {

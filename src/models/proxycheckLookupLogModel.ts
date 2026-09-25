@@ -22,6 +22,12 @@ export interface ProxycheckLookupLogDoc {
   ip: string;
   apiKeySlot: number;
   apiKeyHash: string;
+  /**
+   * 本次判定的来源。取值跟 src/services/proxycheckLogQuery.ts 的 LOOKUP_STATUSES 对齐：
+   * ok / failed / deduped / quota_exhausted / not_configured / cache。
+   * cache = 命中 proxycheck_risk_cache（零外呼、零配额，apiKeyHash 记 "cache" 哨兵）；
+   * 一行就是一交「交给调用方的决策」，不是「一次外呼」。
+   */
   status: string;
   ok: boolean;
   risk: number | null;

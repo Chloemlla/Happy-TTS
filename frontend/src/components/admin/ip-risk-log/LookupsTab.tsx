@@ -94,7 +94,7 @@ const LookupsTab: React.FC<Props> = ({ refreshNonce }) => {
         setError(null);
       } catch (err) {
         if (requestId !== requestRef.current) return;
-        const message = getBackendErrorMessage(err, '加载上游请求日志失败');
+        const message = getBackendErrorMessage(err, '加载判定决策日志失败');
         setError(message);
         notice(message);
       } finally {
@@ -134,19 +134,23 @@ const LookupsTab: React.FC<Props> = ({ refreshNonce }) => {
   return (
     <div className="space-y-5">
       <InfoSectionTitle
-        title="上游 API 请求日志"
-        description="集合 proxycheck_lookup_logs 的内容，每次真的向上游 proxycheck.io 发起查询（或判定为未配置/配额用尽/上游失败/in-flight 合并）都会留一行。"
+        title="风险判定决策日志"
+        description="集合 proxycheck_lookup_logs 的内容：每一次把结论交给调用方都留一行 —— 真的向上游 proxycheck.io 发起查询、命中缓存、in-flight 合并，以及未配置/配额用尽/上游失败。"
         icon={FaListUl}
         eyebrow="§2.2 lookups"
         action={<RefreshButton onClick={() => setManualNonce((current) => current + 1)} loading={loading} />}
       />
 
       <SectionNote>
-        写入点：<code>src/services/ipRiskService.ts</code> 的 <code>logLookup</code>。
+        写入点：<code>src/services/ipRiskService.ts</code> 的 <code>logLookup</code>（外呼）与 <code>logCachedLookup</code>（命中缓存）。
         每条记录都带一份 <code>decision</code>：这是当时真实算给前端的决策快照。
         <br />
-        注意两条<span className="font-semibold">不会</span>出现在这里的情况：命中 <code>proxycheck_risk_cache</code> 时零上游、零写入（要看命中情况请去「风险缓存」页）；
-        本面板上线之前写入的旧行没有 <code>decision</code> 字段，会显式标注为「旧数据」。
+        读这一页时先看 <code>status</code>：<span className="font-semibold">已走缓存</span> 是零上游、零配额的判定，
+        <span className="font-semibold"> 上游成功 / 上游失败</span> 才是真的打过一次 proxycheck.io。
+        以前的版本只在真的外呼时落行，上游一挂整页就只剩 failed，看着像「闸门一直在失败」，
+        而当时绝大多数判定其实是缓存里那份结论给的。
+        <br />
+        唯一不会出现在这里的是本面板上线之前写入的旧行：它们没有 <code>decision</code> 字段，会显式标注为「旧数据」。
       </SectionNote>
 
       <InfoPanel compact>
@@ -277,7 +281,7 @@ const LookupsTab: React.FC<Props> = ({ refreshNonce }) => {
               loading={loading && rows.length === 0}
               error={rows.length === 0 ? error : null}
               empty={!loading && rows.length === 0}
-              emptyText={hasFilters ? '当前筛选条件下没有上游请求日志' : '还没有任何上游请求日志'}
+              emptyText={hasFilters ? '当前筛选条件下没有风险判定决策日志' : '还没有任何风险判定决策日志'}
               colSpan={11}
             />
             {rows.map((row, index) => {

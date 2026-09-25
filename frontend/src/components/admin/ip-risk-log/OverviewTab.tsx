@@ -76,7 +76,7 @@ const OverviewTab: React.FC<Props> = ({ overview, loading, error, onRefresh }) =
   const collectionDocs: Record<string, { value: string; hint: string }> = {
     proxycheck_lookup_logs: {
       value: formatCount(counts?.lookupLogs),
-      hint: `其中最近 24 小时 ${formatCount(counts?.lookupLogs24h)} 条`,
+      hint: `其中最近 24 小时 ${formatCount(counts?.lookupLogs24h)} 条（真的打到上游 ${formatCount(counts?.upstreamCalls)} 次，余下为命中缓存 / in-flight 合并）`,
     },
     proxycheck_risk_cache: {
       value: formatCount(counts?.riskCache),
@@ -107,15 +107,15 @@ const OverviewTab: React.FC<Props> = ({ overview, loading, error, onRefresh }) =
     <div className="space-y-6">
       <SectionNote>
         数据来源：<code>GET /api/admin/proxycheck/overview</code>。它会现读配置（<code>RuntimeConfigService.getProxycheckSetting()</code>，密钥已 mask）、
-        现数四个集合的文档量与索引，并回传当前配额与最近 30 天配额历史。命中缓存的查询不写任何日志（零上游、零写入），
-        所以不会出现在「API 请求日志」页，也不计入这里的 24 小时计数。
+        现数四个集合的文档量与索引，并回传当前配额与最近 30 天配额历史。日志行按 status 分两份数：
+        总决策行数（包含命中缓存的判定）与真的打到上游的次数（只有后者跟配额有关）。
       </SectionNote>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <InfoMetricCard
-          label="上游请求日志"
+          label="风险判定决策日志"
           value={formatCount(counts?.lookupLogs)}
-          detail={`24 小时内 ${formatCount(counts?.lookupLogs24h)} 条`}
+          detail={`24 小时内 ${formatCount(counts?.lookupLogs24h)} 条（其中打到上游 ${formatCount(counts?.upstreamCalls24h)} 次）`}
           icon={FaListUl}
           tone="sky"
         />

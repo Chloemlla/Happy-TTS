@@ -150,6 +150,7 @@ export const LOOKUP_STATUS_LABELS: Record<string, string> = {
   deduped: 'in-flight 合并',
   quota_exhausted: '配额用尽',
   not_configured: '未配置密钥',
+  cache: '已走缓存',
 };
 
 export const lookupStatusStyle = (status: string): BadgeStyle => {
@@ -158,6 +159,7 @@ export const lookupStatusStyle = (status: string): BadgeStyle => {
   if (status === 'deduped') return { label, ...SKY };
   if (status === 'quota_exhausted') return { label, ...AMBER };
   if (status === 'not_configured') return { label, ...SLATE };
+  if (status === 'cache') return { label, ...VIOLET };
   if (status === 'failed') return { label, ...ROSE };
   return { label, ...SLATE };
 };
@@ -169,6 +171,7 @@ export const LOOKUP_STATUS_OPTIONS: ReadonlyArray<{ value: string; label: string
   { value: 'deduped', label: 'in-flight 合并' },
   { value: 'quota_exhausted', label: '配额用尽' },
   { value: 'not_configured', label: '未配置密钥' },
+  { value: 'cache', label: '已走缓存' },
 ];
 
 /**
@@ -230,7 +233,7 @@ export const SOURCE_LABELS: Record<IpRiskDecisionSource, string> = {
 };
 
 export const SOURCE_HINTS: Record<IpRiskDecisionSource, string> = {
-  cache: '结果来自 proxycheck_risk_cache，未消耗每日配额、未写 lookup 日志。',
+  cache: '结果来自 proxycheck_risk_cache，未消耗每日配额；本次判定已写成 status=cache 的日志行。',
   proxycheck: '本次真的向上游发起了查询并已扣减配额。',
   unavailable: '未配置密钥 / 配额用尽 / 上游报错 / 超时，未拿到结论。',
 };

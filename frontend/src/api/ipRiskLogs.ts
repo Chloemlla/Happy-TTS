@@ -50,6 +50,9 @@ export interface ProxycheckSettingConfig {
 export interface ProxycheckOverviewCounts {
   lookupLogs: number;
   lookupLogs24h: number;
+  /** 真的打到上游的行数（排除 status=cache）：与配额、外呼失败对应。 */
+  upstreamCalls: number;
+  upstreamCalls24h: number;
   riskCache: number;
   riskCacheActive: number;
   probeReports: number;
@@ -108,7 +111,15 @@ export interface ProxycheckLookupLogRow {
   [key: string]: unknown;
 }
 
-export type LookupStatusFilter = '' | 'ok' | 'failed' | 'deduped' | 'quota_exhausted' | 'not_configured';
+// 'cache' = 命中 proxycheck_risk_cache 的决策行：零外呼、零配额，但当时确实交出了一个结论。
+export type LookupStatusFilter =
+  | ''
+  | 'ok'
+  | 'failed'
+  | 'deduped'
+  | 'quota_exhausted'
+  | 'not_configured'
+  | 'cache';
 
 export type TriStateFilter = '' | 'true' | 'false';
 
