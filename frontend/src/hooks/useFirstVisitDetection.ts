@@ -32,6 +32,7 @@ export const useFirstVisitDetection = (enabled = true): UseFirstVisitDetectionRe
   const [banExpiresAt, setBanExpiresAt] = useState<Date | undefined>(undefined);
   const refreshTimerRef = useRef<number | null>(null);
   const checkFirstVisitRef = useRef<((silent?: boolean) => Promise<void>) | null>(null);
+  const bootstrapInFlightRef = useRef(false);
 
   const clearRefreshTimer = useCallback(() => {
     if (refreshTimerRef.current) {
@@ -161,13 +162,20 @@ export const useFirstVisitDetection = (enabled = true): UseFirstVisitDetectionRe
           ? event.detail.reason
           : 'IP verification is required to continue.';
       setError(nextError);
-      setIsVerified(false);
-      setIsFirstVisit(true);
-      clearRefreshTimer();
+
+      // 服务端说"要验证"，但结论得由握手来给：直接弹挑战页会把 IP 干净的访客也挡在验证码
+      // 前（他本该被静默换一张自动令牌）。所以就地重跑一次静默握手——干净 IP 换到令牌后
+      // 请求自动恢复正常，真有风险才落到 isFirstVisit 上弹验证页。一批并发 403 会同时触发，
+      // 用 in-flight 标志合并成一次，避免重复消耗风险查询额度。
+      if (bootstrapInFlightRef.current) return;
+      bootstrapInFlightRef.current = true;
+      void (checkFirstVisitRef.current?.(true) ?? Promise.resolve()).finally(() => {
+        bootstrapInFlightRef.current = false;
+      });
     });
 
     return unsubscribe;
-  }, [clearRefreshTimer, enabled]);
+  }, [enabled]);
 
   return useMemo(
     () => ({

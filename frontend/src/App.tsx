@@ -19,6 +19,7 @@ import { FirstVisitVerification } from './components/FirstVisitVerification';
 import { useFingerprintRequest } from './hooks/useFingerprintRequest';
 import FingerprintRequestModal from './components/FingerprintRequestModal';
 import { setFirstVisitVerificationEnabled } from './utils/firstVisitVerificationConfig';
+import { onIpVerificationRequired } from './utils/ipVerification';
 import { recordRecentFeature } from './utils/recentFeature';
 import { fetchWithTimeout } from './utils/fetchWithTimeout';
 import ArticleCommandPalette from './components/ArticleCommandPalette';
@@ -856,6 +857,20 @@ const App: React.FC = () => {
     fetchConfig();
     return () => controller.abort();
   }, []);
+
+  // 服务端一旦回 IP_VERIFICATION_REQUIRED，就说明闸门此刻确实开着——而前端这份开关只是
+  // 页面加载时取的快照。开闸之前打开的页面（配置/环境变量/运行时开关变化、镜像里换了判据）
+  // 会一直以为自己不用验证：不带验证头发请求、403 又被静默吞掉，用户只看到请求失败而始终
+  // 等不到验证页。收到服务端判定就把闸门就地打开，让 useFirstVisitDetection 重新握手决定
+  // 是静默换自动令牌，还是真弹验证页。
+  useEffect(
+    () =>
+      onIpVerificationRequired(() => {
+        setFirstVisitVerificationEnabled(true);
+        setEnableFirstVisitVerification(true);
+      }),
+    [],
+  );
 
   // React 19 文档元数据：根据当前路由动态设置页面标题和描述
   useEffect(() => {

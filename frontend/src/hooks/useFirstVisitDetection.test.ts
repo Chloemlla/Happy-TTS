@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useFirstVisitDetection } from './useFirstVisitDetection';
 
@@ -75,5 +75,35 @@ describe('useFirstVisitDetection', () => {
 
     expect(result.current.isVerified).toBe(false);
     expect(result.current.error).toContain('fingerprint');
+  });
+
+  it('re-runs the bootstrap silently when the server demands verification mid-session', async () => {
+    let notify: (event: CustomEvent<Record<string, unknown>>) => void = () => {};
+    onIpVerificationRequired.mockImplementation((handler) => {
+      notify = handler;
+      return () => {};
+    });
+
+    const { result } = renderHook(() => useFirstVisitDetection());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(initializeIpVerificationSession).toHaveBeenCalledTimes(1);
+
+    initializeIpVerificationSession.mockResolvedValue({
+      success: true,
+      verified: false,
+      requiresVerification: true,
+      fingerprint: 'fingerprint-123456',
+      ipAddress: '203.0.113.10',
+      reason: 'fraud_score=91',
+      tokenTtlMinutes: 40,
+    });
+
+    act(() => {
+      notify(new CustomEvent('hapx:ip-verification-required', { detail: { reason: 'missing_verification_headers' } }));
+    });
+
+    await waitFor(() => expect(initializeIpVerificationSession).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.isFirstVisit).toBe(true));
+    expect(result.current.isVerified).toBe(false);
   });
 });

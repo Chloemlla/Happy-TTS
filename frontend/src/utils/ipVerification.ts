@@ -135,7 +135,9 @@ function normalizeSessionPayload(payload: Partial<IpVerificationSession>, finger
 
 export function emitIpVerificationRequired(detail: Record<string, unknown> = {}): void {
   if (typeof window === 'undefined') return;
-  if (!isFirstVisitVerificationEnabled()) return;
+  // 不按本地开关拦截。这个载荷只可能由服务端的首访闸门产生，它本身就是"服务端此刻在拦截"
+  // 的证据；而本地开关是页面加载时抓的快照，开闸之前打开的页面会永远以为自己不用验证：
+  // 请求不带验证头、403 又被静默丢掉，用户只看得到请求失败，验证页始终不弹。
   window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail }));
 }
 
@@ -159,7 +161,7 @@ function isIpVerificationErrorPayload(payload: unknown): payload is Record<strin
 }
 
 async function maybeHandleBlockedResponse(response: Response, url: URL): Promise<void> {
-  if (!isFirstVisitVerificationEnabled()) return;
+  // 同 emitIpVerificationRequired：只看响应本身，不看本地开关快照。
   if (response.status !== 403 || isExemptPath(url.pathname)) return;
 
   const payload = await response
@@ -309,20 +311,27 @@ export function installIpVerificationTransport(): void {
       return originalFetch(request);
     }
 
-    if (!isFirstVisitVerificationEnabled() || isExemptPath(url.pathname)) {
+    if (isExemptPath(url.pathname)) {
       return originalFetch(request);
     }
 
-    const headers = new Headers(request.headers);
-    const ipVerificationHeaders = await buildIpVerificationHeaders();
+    // 本地开关是页面加载时的快照，开闸之前打开的页面会一直以为自己不用验证。
+    // 所以"开关关着"只跳过加头，不跳过 403 检查：服务端真开始拦截时，这条响应
+    // 会触发重新握手并打开闸门，而不是被静默丢掉。
+    let nextRequest = request;
+    if (isFirstVisitVerificationEnabled()) {
+      const headers = new Headers(request.headers);
+      const ipVerificationHeaders = await buildIpVerificationHeaders();
 
-    Object.entries(ipVerificationHeaders).forEach(([key, value]) => {
-      if (!headers.has(key)) {
-        headers.set(key, value);
-      }
-    });
+      Object.entries(ipVerificationHeaders).forEach(([key, value]) => {
+        if (!headers.has(key)) {
+          headers.set(key, value);
+        }
+      });
 
-    const nextRequest = new Request(request, { headers });
+      nextRequest = new Request(request, { headers });
+    }
+
     const response = await originalFetch(nextRequest);
     await maybeHandleBlockedResponse(response, url);
     return response;
