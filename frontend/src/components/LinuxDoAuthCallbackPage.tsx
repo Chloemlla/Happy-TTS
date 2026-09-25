@@ -16,11 +16,11 @@ import {
   authTitleClassName,
 } from "./authStudioTheme";
 
-function buildSynapseAndroidDeepLink(searchParams: URLSearchParams): string {
+function buildSynapseAndroidDeepLink(params: URLSearchParams): string {
   const deepLink = new URL("synapse://linuxdo-callback");
   const keys = ["ticket", "intent", "error", "status", "mergeToken", "sessionToken", "client"];
   for (const key of keys) {
-    const value = searchParams.get(key);
+    const value = params.get(key);
     if (value) {
       deepLink.searchParams.set(key, value);
     }
@@ -29,6 +29,29 @@ function buildSynapseAndroidDeepLink(searchParams: URLSearchParams): string {
     deepLink.searchParams.set("client", "synapse-android");
   }
   return deepLink.toString();
+}
+
+/**
+ * G2-38 为了不让一次性 ticket 进 Referer 和服务端日志，把它放进了 URL fragment。
+ * fragment 不会进 location.search，只读 query 的回调页会把 ticket 当成缺失，
+ * 于是每次登录都显示"缺少票据"并弹回登录页；给 App 的深链也会漏掉 ticket。
+ */
+function readCallbackHashParams(): URLSearchParams {
+  if (typeof window === "undefined") {
+    return new URLSearchParams();
+  }
+  return new URLSearchParams(window.location.hash.replace(/^#/, ""));
+}
+
+/** query 优先，fragment 兜底，合并成一份参数供整页使用。 */
+function mergeCallbackParams(searchParams: URLSearchParams, hashParams: URLSearchParams): URLSearchParams {
+  const merged = new URLSearchParams(searchParams);
+  hashParams.forEach((value, key) => {
+    if (!merged.has(key)) {
+      merged.set(key, value);
+    }
+  });
+  return merged;
 }
 
 export const LinuxDoAuthCallbackPage: React.FC = () => {
@@ -47,19 +70,20 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
     }
     handledRef.current = true;
 
-    const error = searchParams.get("error");
-    const ticket = searchParams.get("ticket");
-    const intent = searchParams.get("intent");
-    const client = searchParams.get("client");
-    const bindStatus = searchParams.get("status");
-    const mergeToken = searchParams.get("mergeToken");
+    const params = mergeCallbackParams(searchParams, readCallbackHashParams());
+    const error = params.get("error");
+    const ticket = params.get("ticket");
+    const intent = params.get("intent");
+    const client = params.get("client");
+    const bindStatus = params.get("status");
+    const mergeToken = params.get("mergeToken");
     // Only honor the explicit mobile OAuth marker. Do not treat all Android
     // browser sessions as Synapse Mobile, or normal web Linux.do login breaks.
     const isSynapseAndroid = client === "synapse-android";
 
     if (error) {
       if (isSynapseAndroid) {
-        const appUrl = buildSynapseAndroidDeepLink(searchParams);
+        const appUrl = buildSynapseAndroidDeepLink(params);
         setDeepLinkUrl(appUrl);
         setStatus("Linux.do 授权失败，正在尝试返回 Synapse Mobile...");
         window.location.replace(appUrl);
@@ -151,7 +175,7 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
     // Prefer custom-scheme handoff so login returns to the app even when
     // Android App Links verification is still 0.
     if (isSynapseAndroid) {
-      const appUrl = buildSynapseAndroidDeepLink(searchParams);
+      const appUrl = buildSynapseAndroidDeepLink(params);
       setDeepLinkUrl(appUrl);
       setTicketForCopy(ticket);
       setStatus("授权完成。正在打开 Synapse Mobile...");

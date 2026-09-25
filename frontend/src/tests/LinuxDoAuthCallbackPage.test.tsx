@@ -34,6 +34,7 @@ describe("LinuxDoAuthCallbackPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     currentSearchParams = new URLSearchParams();
+    window.history.replaceState({}, "", "/");
     vi.stubGlobal("fetch", vi.fn());
   });
 
@@ -67,6 +68,29 @@ describe("LinuxDoAuthCallbackPage", () => {
       expect(loginWithToken).toHaveBeenCalledWith("jwt-token", {
         id: "1",
         username: "linuxdo_user",
+      }),
+    );
+  });
+
+  it("reads the one-time ticket from the URL fragment", async () => {
+    window.history.replaceState({}, "", "/auth/linuxdo/callback#ticket=hash-ticket");
+
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        token: "jwt-token",
+        user: { id: "1", username: "linuxdo_user" },
+        isNewUser: false,
+      }),
+    } as Response);
+
+    render(<LinuxDoAuthCallbackPage />);
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:3000/api/auth/linuxdo/exchange",
+      expect.objectContaining({
+        body: JSON.stringify({ ticket: "hash-ticket" }),
       }),
     );
   });
