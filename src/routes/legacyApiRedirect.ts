@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Request, RequestHandler, Response } from "express";
 import { config } from "../config/config";
+import { ADMIN_SPA_MODULE_PATHS } from "../generated/adminSpaModulePaths";
 
 const exactReplacements = new Map<string, string>([
   ["/api-docs.json", "/api/openapi.json"],
@@ -90,49 +91,6 @@ const frontendRoutesWithLegacyApiCollision = new Set<string>([
 // 新增这类页面时在此登记，且只用精确路径——前缀会让 /tts/generate 这类旧 API
 // 调用也被误放行。
 const frontendOnlySpaPaths = new Set<string>(["/tts"]);
-
-// 现代 /admin 面板的 SPA 模块页（镜像 frontend/src/components/admin/adminModules.tsx 的
-// loader key → `/admin/<key>`；除已在碰撞集里按静态路由处理的 lottery/users/store 外）。
-// 这些路径从未在非 /api 前缀下提供可书签内容，浏览器深链时不存在
-// "旧 API vs 页面"歧义，应直接交给 SPA。命中此列表的文档导航若不放行，
-// 会被下方 /admin → /api/admin 前缀映射 308 整页跳到 API 路径。
-// 新增 /admin 模块页时务必在此登记，并确保不与该列表重复。
-const frontendAdminModulePathPrefixes = [
-  "/admin/registration-invites",
-  "/admin/librechat",
-  "/admin/ecoenchants",
-  "/admin/ecoenchants-ops",
-  "/admin/announcement",
-  "/admin/markdown-articles",
-  "/admin/env",
-  "/admin/mail-system",
-  "/admin/coin-flip",
-  "/admin/outemail",
-  "/admin/shortlink",
-  "/admin/shorturlmigration",
-  "/admin/command",
-  "/admin/humancheck",
-  "/admin/logshare",
-  "/admin/media-tool",
-  "/admin/fbiwanted",
-  "/admin/webhookevents",
-  "/admin/data-collection",
-  "/admin/github-billing-cache",
-  "/admin/ip-ban",
-  "/admin/fingerprint",
-  "/admin/broadcast",
-  "/admin/oauth",
-  "/admin/apikeys",
-  "/admin/apikey-billing",
-  "/admin/audit-log",
-  "/admin/crash-reports",
-  "/admin/qq-guard",
-  "/admin/translation-audit",
-  "/admin/email-traceability",
-  "/admin/tts-history",
-  "/admin/system",
-  "/admin/bilibili-sync",
-] as const;
 
 const legacyApiChoiceCookieName = "legacyApiNavigationChoice";
 const legacyApiFrontendBypassCookieName = "legacyApiFrontendBypass";
@@ -335,8 +293,14 @@ function isFrontendRouteWithLegacyApiCollision(pathname: string): boolean {
   return frontendRoutesWithLegacyApiCollision.has(pathname);
 }
 
+// 现代 /admin 面板的 SPA 模块页。清单是生成的（scripts/generate-admin-spa-paths.js），
+// 数据源就是 frontend/src/components/admin/adminModules.tsx 的 ADMIN_MODULE_LOADERS：
+// 新增模块页只要登记 loader，路径清单自动补齐，不必再手改这里。
+// 这些路径从未在非 /api 前缀下提供可书签内容，浏览器深链时不存在「旧 API vs 页面」
+// 歧义，应直接交给 SPA；命中此清单的文档导航若不放行，会被上方
+// /admin → /api/admin 前缀映射 308 整页跳到 API 路径。
 function isFrontendAdminModulePath(pathname: string): boolean {
-  return frontendAdminModulePathPrefixes.some((prefix) => hasPathPrefix(pathname, prefix));
+  return ADMIN_SPA_MODULE_PATHS.some((prefix) => hasPathPrefix(pathname, prefix));
 }
 
 function isFrontendOnlySpaPath(pathname: string): boolean {
@@ -424,16 +388,13 @@ export const legacyApiRedirectMiddleware: RequestHandler = (req, res, next) => {
     return next();
   }
 
-  if (isBrowserDocumentNavigation(req) && isFrontendAdminModulePath(normalizedRequestPath)) {
-    // SPA 模块页的深链：整页导航时直接放行给前端兜底，不做旧 API 重定向。
-    return next();
-  }
-
   if (isBrowserDocumentNavigation(req) && isFrontendOnlySpaPath(normalizedRequestPath)) {
     // 与旧 API 前缀重名、但从未作为 API 暴露过的前端页面：整页导航直接放行给 SPA。
     return next();
   }
 
+  // 碰撞集必须排在模块页清单之前：/admin/users、/admin/lottery 之类既是面板页面又是旧
+  // API 路径，得先让用户在「页面 vs API」之间选，不能因为它在 loader 表里就静默放行。
   if (isBrowserDocumentNavigation(req) && isFrontendRouteWithLegacyApiCollision(normalizedRequestPath)) {
     if (hasTransientFrontendBypass(req)) {
       clearTransientFrontendBypassCookie(res);
@@ -472,6 +433,11 @@ export const legacyApiRedirectMiddleware: RequestHandler = (req, res, next) => {
 
     res.setHeader("X-Canonical-API-Path", canonicalPath);
     return res.redirect(302, getLegacyApiChoicePageLocation(req, canonicalPath));
+  }
+
+  if (isBrowserDocumentNavigation(req) && isFrontendAdminModulePath(normalizedRequestPath)) {
+    // SPA 模块页的深链：整页导航时直接放行给前端兜底，不做旧 API 重定向。
+    return next();
   }
 
   const location = getCanonicalLocation(req, canonicalPath);

@@ -151,6 +151,25 @@ describe("legacyApiRedirectMiddleware", () => {
       .set("Accept", "text/html")
       .set("Sec-Fetch-Mode", "navigate")
       .expect(204);
+
+    // /admin/ip-risk-logs 曾在手工维护的清单里漏登记，深链被 308 到 API。
+    await request(createApp())
+      .get("/admin/ip-risk-logs")
+      .set("Accept", "text/html")
+      .set("Sec-Fetch-Mode", "navigate")
+      .expect(204);
+  });
+
+  it("keeps admin modules that collide with legacy API paths on the choice page", async () => {
+    // /admin/users 与 /admin/lottery 既是 loader 里的面板页面，也是旧 API 路径，
+    // 没做选择时必须先问用户，不能被模块页清单直接放行。
+    const usersLocation = await getChoiceLocation("/admin/users");
+    expect(usersLocation.pathname).toBe("/legacy-api-choice");
+    expect(usersLocation.searchParams.get("api")).toBe("/api/admin/users");
+
+    const lotteryLocation = await getChoiceLocation("/admin/lottery");
+    expect(lotteryLocation.pathname).toBe("/legacy-api-choice");
+    expect(lotteryLocation.searchParams.get("api")).toBe("/api/admin/lottery");
   });
 
   it("still redirects non-document requests to modern admin module paths to the API", async () => {

@@ -163,6 +163,14 @@ Frontend is in `frontend/` directory:
 4. Add title mapping in `routeConfig.titles`
 5. Add navigation link in `MobileNav` component if needed
 
+**Adding a new admin panel page**: register the loader in
+`frontend/src/components/admin/adminModules.tsx` (`ADMIN_MODULE_LOADERS`) and add the
+`routeConfig.titles` entry. That is the only list you edit — the backend's `/admin/<module>`
+SPA allowlist (`src/generated/adminSpaModulePaths.ts`) is generated from that loader table by
+`scripts/generate-admin-spa-paths.js`, which runs automatically inside `build:backend` and
+`dev:backend` and is drift-checked in CI (`pnpm run check:admin-spa-paths`). Miss it and deep
+links to the new page 308-redirect to `/api/admin/<module>` instead of rendering the panel.
+
 ### Testing Configuration
 
 Jest with ts-jest preset:
