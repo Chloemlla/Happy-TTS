@@ -10,7 +10,9 @@ import { canonicalizeBackendApiUrl } from '../utils/apiPath';
 import { maybeEmitPenaltyAppealFromError } from '../utils/penaltyAppeal';
 
 
-// 获取API基础URL：生产环境默认同源，开发环境保留后端直连能力
+// 获取API基础URL：生产环境固定指向 https://chloemlla.com，开发环境保留后端直连能力
+// 注意：返回值不带尾部斜杠。调用方普遍按 `${getApiBaseUrl()}/api/...` 拼接，
+// 带斜杠会拼出 `//api/...` 这类后端路由匹配不到的双斜杠路径。
 const getApiBaseUrl = () => {
     const configuredUrl = import.meta.env.VITE_API_URL?.trim();
     if (configuredUrl) {
@@ -35,7 +37,7 @@ const getApiBaseUrl = () => {
         return 'http://localhost:3000';
     }
 
-    return '';
+    return 'https://chloemlla.com';
 };
 
 const resolveRequestPathname = (config?: AxiosRequestConfig): string | null => {
