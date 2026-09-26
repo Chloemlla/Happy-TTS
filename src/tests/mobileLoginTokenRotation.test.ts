@@ -188,7 +188,7 @@ describe("rotateClientLoginToken", () => {
     expect(next?.deviceId).toBe(DEVICE_ID);
 
     const old = model.__docs.get(doc.tokenHash);
-    expect(old?.supersededAt).toBeTypeOf("number");
+    expect(typeof old?.supersededAt).toBe("number");
     expect(old?.supersededTo).toBe(hashOf(result.clientLoginToken));
     expect(old?.revokedAt).toBeNull(); // 宽限期内旧代还能兜住在途请求
     expect(authSession.createAuthSession).toHaveBeenCalledTimes(1);
@@ -215,8 +215,8 @@ describe("rotateClientLoginToken", () => {
 
     expect((error as MobileTokenError).status).toBe(401);
     expect((error as MobileTokenError).errorCode).toBe("MOBILE_TOKEN_REUSED");
-    expect(model.__docs.get(doc.tokenHash)?.revokedAt).toBeTypeOf("number");
-    expect(model.__docs.get(next.doc.tokenHash)?.revokedAt).toBeTypeOf("number");
+    expect(typeof model.__docs.get(doc.tokenHash)?.revokedAt).toBe("number");
+    expect(typeof model.__docs.get(next.doc.tokenHash)?.revokedAt).toBe("number");
     expect(authSession.revokeAuthSessionsByClientTokenHashes).toHaveBeenCalledWith(
       USER_ID,
       expect.arrayContaining([doc.tokenHash, next.doc.tokenHash]),
