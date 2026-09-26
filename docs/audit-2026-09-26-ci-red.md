@@ -1,8 +1,12 @@
-# Synapse 后端单测红灯清单（2026-09-26，Node Verification run 36215411595）
+# Synapse 单测红灯清单（2026-09-26，Node Verification run 36215411595；含后端 Jest 与前端的后续层）
 
 > 依据 `F:\Repositories\GitHub\verified-methodology.md` 原则 8 落盘。每条含编号、文件+行号、类型、
 > 详细错误信息（症状/根因/复现条件）、改法。修复按编号追溯，收尾逐条核对去向。
 > 硬约束：禁止本地构建/测试/装依赖，CI 是唯一裁判；提交一律签名。
+>
+> **收尾状态（2026-09-26）**：断言层（T-01…T-13，`00891216` + `8d6a32ab`）→ 退出码层
+> （T-14，`5e8dd13d`）→ 存量句柄层（T-15，`5e8dd13d`）→ 前端 Vitest 层（T-16，`d8670478`）。
+> 逐条去向见文末汇总表。
 
 ## 归因基线（先定性，再动手）
 
@@ -170,20 +174,104 @@
 
 ---
 
+## T-14 — 审计批量刷新定时器活过 Jest 拆卸点（**exit 1 的真根因**）
+
+- **类型**：进程生命周期缺陷（不是断言失败、不是覆盖率闸门、不是 open handle 报告）
+- **位置**：`src/services/auditLogService.ts:42-44`（`ensureAuditBatchFlush` 的 `setInterval`）
+  → `flushAuditBatch` 的 `insertMany`（`:55-58`）
+- **症状**：run `36224604327`（HEAD `8d6a32ab`）摘要 `Tests: 2 skipped, 1065 passed, 1067 total`
+  零失败，`Test Suites: 1 skipped, 125 passed`，覆盖率表正常打完且远高于阈值，步骤仍 `exit 1`。
+  尾部有 **6 处**（3 个套件 × 2）：
+  `ReferenceError: You are trying to \`require\` a file after the Jest environment has been torn down.`
+  栈固定为 `at flushAuditBatch (src/services/auditLogService.ts:56:45)`
+  ← `at Timeout._onTimeout (src/services/auditLogService.ts:43:9)`。
+- **根因**：`jest-runtime@30.4.2` 的拆卸守卫（`CjsLoader.requireModule` 的 `env-disposed` 分支、
+  `bailIfTornDown`、`_getFakeTimers`）在拆卸后遇到 `require` **只打印 ReferenceError 并把
+  `process.exitCode = 1`**，既不算用例失败、也不改 `results.success`；`jest-cli` 的
+  `readResultsAndExit` 又只在失败时写退出码（`result.success ? 0 : testFailureExitCode`），
+  于是这个 1 被原样带出，`[ELIFECYCLE] Command failed with exit code 1.`。
+  触发链：审计批量刷新的 1s `setInterval` 在测试文件结束时缓冲非空 → 环境拆卸后回调才触发
+  → `insertMany` 造 Document → mongoose 惰性 require（`schema/objectId.js:298 resetId` →
+  `schemaType.js` → `document.js`）→ 撞守卫。
+- **已排除的错误猜测**：① 不是覆盖率——Jest 30 的真实措辞是 `does not meet`（不是旧版的 `not met`），
+  全量日志 0 命中，且实测值 43.05/67.15/38.64/43.05 对阈值 8/5/7/8；
+  ② 不是缺 `unref()`——四个服务每个定时器都已 `unref`；③ 不是 open handle 报告本身
+  （`detectOpenHandles` 只报告，见 T-15）。
+- **改法**：新增 `src/utils/backgroundTaskRegistry.ts`（进程级后台任务的停机登记表）；
+  `auditLogService` 导出 `stopAuditBatchFlush()`（同时清 1s interval 与指数退避的重试 `setTimeout`）
+  并登记；`src/tests/setup.ts` 已有的全局 `afterAll` 在拆卸前排空登记表。生产行为不变。
+  → `5e8dd13d`
+
+## T-15 — 四处 import 期后台监控定时器活过测试文件（存量句柄，非闸门）
+
+- **类型**：资源生命周期缺陷（**不是** exit 1 的原因——别把它当闸门改）
+- **位置**：`cdkService`（`CDKService.getInstance()` ← `src/controllers/cdkController.ts:12` ← 路由树，
+  此前**完全没有**停机方法）、`libreChatService`（构造期 `startSSECleanup`）、
+  `dataCollectionService`（`initializeService` 三个定时器）、`LifeService` / `ProductionServiceBase`
+- **症状**：`Jest has detected the following 4 open handles potentially keeping Jest from exiting`
+  （`FSREQCALLBACK/TickObject/Immediate`，四帧全部收敛到 `src/tests/totp-login.test.ts:10` 的 `import app`）；
+  摘要之后仍有 `tts_jobs.find()` / `verification_tokens.deleteMany()` 的
+  `buffering timed out after 10000ms`（无连接时的 10s 驱动缓冲）。
+- **根因**：这些服务在构造期就装 `setInterval`，测试进程里没有任何地方拆它们。`unref()` 只保证
+  定时器不阻止进程退出，**不阻止回调在别的句柄撑着事件循环时触发**，所以它们会活过拆卸点继续做事。
+- **判据澄清**：`detectOpenHandles` 从不修改退出码（jest-cli `readResultsAndExit` 只读 `result.success`）。
+  这一层是存量欠账 + 日志噪声；修它是因为它给 T-14 那类「拆卸后惰性 require」提供了触发窗口。
+- **改法**：`cdkService` 补 `stopMonitoring()`，`dataCollectionService` 补 `stopMonitoring()`
+  （两者此前都只把 interval 存成局部变量，拆不掉）；连同 `libreChatService.cleanup()`、
+  `ProductionServiceBase.stopMonitoring()` 一并登记进 `backgroundTaskRegistry`，测试拆卸时停表。
+  四处的 `unref()` 与生产启动顺序都不变。 → `5e8dd13d`
+
+## T-16 — 前端 Vitest 套件 6 条用例（**第三层，后端退出 0 后才暴露**）
+
+- **类型**：测试陈旧 + 异步写法缺陷（**不是**基建问题，也不是覆盖率闸门）
+- **位置**：`frontend/src/tests/VerificationMethodSelector.test.tsx`
+- **症状**：run `36226638923`（HEAD `5e8dd13d`）里 `Run frontend Vitest tests with coverage`
+  第一次真的执行（此前被上一步的失败跳过了六周），结果
+  `Test Files 1 failed | 9 passed (10)`、`Tests 6 failed | 49 passed (55)`，6 条全在同一文件；
+  其余 9 个文件 49 条全绿。覆盖率表正常打完，**没有**任何 `threshold` 报错
+  （阈值 statements 1 / functions 0.8 / branches 0.5 / lines 1）。
+- **根因 A（陈旧断言，3 条）**：断言里的「为 testuser 选择**二次**验证方式」、
+  `.line-clamp-2` 截断类、顶部那条 `.absolute.top-2.left-1/2 ... bg-white/30` 的滑动把手，
+  全部在 `22607ecf`（2025-08-30 改版）时就被删掉/改掉了（换成「安全验证方式」、标题 `truncate`、
+  滑动关闭改由整块面板承担）。用例本身是 `51787b65`（2026-04-05）写下的 ——
+  **这三条断言从写下起就没可能通过**：当时整个文件在渲染阶段就死于
+  `Element type is invalid`（全局 framer-motion 替身只列了 `motion.div`），`a19d72c6` 修好替身
+  之后才轮到它们暴露。
+- **根因 B（异步 click，3 条）**：`user-event` v14 的 `click()` 返回 Promise，事件在下一个宏任务
+  才派发。用例不 await 就断言，`toHaveBeenCalledWith` 恒看到 0 次调用。
+  同因还藏了一条**反向假绿**：「加载状态下禁用选择」用 `userEvent.click` + 同步
+  `not.toHaveBeenCalled()` —— 事件根本没派发，所以就算把 `!loading` 守卫删掉它也是绿的。
+- **根因 C（软跳过，1 条）**：触摸用例写成 `if (touchHandler) {...} else { console.warn('skipping') }`，
+  面板一旦不存在就静默通过。
+- **改法**：① 文案断言改成现行契约；用户名在 `<span>` 里，`getByText` 的默认匹配只拼元素的
+  **直接**文本节点，整串永远匹配不上，改用 `textContent` 函数匹配器把插值仍钉在断言里；
+  截断断言改为两条标题都带 `truncate`；滑动断言改为「承担 `onTouch*` 的面板本体存在且可滚动」。
+  ② 按仓库既有写法（`TOTPSetup.test.tsx` 同款）统一 `await` 收口。
+  ③ 软跳过改硬断言。**未放宽任何判据**：期望值与类名都是对当前契约的精确匹配。
+  → `d8670478`
+
+---
+
 ## 汇总表
 
-| 编号 | 套件 | 类型 | 去向 |
-|---|---|---|---|
-| T-01 | ipVerificationTokenReuse | 加载期阵亡 | 替掉 turnstile/ipBan |
-| T-02 | ipVerificationService | 替身陈旧 | apiKeys 进 config 替身 |
-| T-03 | wsUpgradeRouting ×3 | 缺替身 | 替掉 authSessionService |
-| T-04 | totp-authentication-fix ×2 | 缺替身 | 共享替身加直通 |
-| T-05 | totp-login | 缺替身 | 同上 |
-| T-06 | logRoutes ×4 | 测试陈旧 | 补 Bearer + superadmin |
-| T-07 | backupCodes ×3 | 缺替身 + 断言陈旧 | 补 getUserSecretsById，断言跟契约 |
-| T-08 | passkey-token-validation | 夹具无效 | 替掉 simplewebauthn |
-| T-09 | cdictRequestSignature ×2 | **生产缺陷** | 改 getRawBodyString |
-| T-10 | ttsFishProvider | 夹具陈旧 | 换合法 MP3 头 |
-| T-11 | bilibiliSyncService | 替身缺陷 + 断言取错层级 | Once 改 queryLike；currentVersion 改从 details 取 |
-| T-12 | bilibiliAccountService | 断言陈旧 | 补 `{upsert:true}` |
-| T-13 | linuxDoAuthService | 断言陈旧 | ticket 从 hash 读 |
+| 编号 | 套件 | 类型 | 去向 | commit |
+|---|---|---|---|---|
+| T-01 | ipVerificationTokenReuse | 加载期阵亡 | 替掉 turnstile/ipBan | `00891216` |
+| T-02 | ipVerificationService | 替身陈旧 | apiKeys 进 config 替身 | `00891216` |
+| T-03 | wsUpgradeRouting ×3 | 缺替身 | 替掉 authSessionService | `00891216` |
+| T-04 | totp-authentication-fix ×2 | 缺替身 | 共享替身加直通 | `00891216` |
+| T-05 | totp-login | 缺替身 | 同上 | `00891216` |
+| T-06 | logRoutes ×4 | 测试陈旧 | 补 Bearer + superadmin（含 `mockUserService.getPrimaryAdminAuthUser`） | `00891216` |
+| T-07 | backupCodes ×3 | 缺替身 + 断言陈旧 | 补 getUserSecretsById，断言跟契约 | `00891216` |
+| T-08 | passkey-token-validation | 夹具无效 | 替掉 simplewebauthn | `00891216` |
+| T-09 | cdictRequestSignature ×2 | **生产缺陷** | 改 getRawBodyString | `00891216` |
+| T-10 | ttsFishProvider | 夹具陈旧 | 换合法 MP3 头 | `00891216` |
+| T-11 | bilibiliSyncService | 替身缺陷 + 断言取错层级 | ①Once 改 queryLike ②currentVersion 改从 details 取 | `00891216` / `8d6a32ab` |
+| T-12 | bilibiliAccountService | 断言陈旧 | 补 `{upsert:true}` | `00891216` |
+| T-13 | linuxDoAuthService | 断言陈旧 | ticket 从 hash 读 | `00891216` |
+| T-14 | auditLogService（批量刷新定时器） | 进程生命周期（**exit 1 真根因**） | 补 `stopAuditBatchFlush()` + 拆卸前排空登记表 | `5e8dd13d` |
+| T-15 | cdk / libreChat / dataCollection / LifeService | 存量后台定时器 | 补 `stopMonitoring()` 并登记停表（生产行为不变） | `5e8dd13d` |
+| T-16 | 前端 VerificationMethodSelector ×6 | 断言陈旧 + 异步写法 | 按现行契约改写 + `await` 收口 + 软跳过改硬断言 | `d8670478` |
+
+16 条全部落地，无一条静默消失。T-16 是第三层：前端 Vitest 步骤此前被上一步的失败跳过
+（方法论 §五-68 记录过同一套件因全局 mock 覆盖面整批失败，`a19d72c6` 修的是更靠前的加载期阵亡）。
