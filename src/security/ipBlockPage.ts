@@ -17,6 +17,12 @@ export interface IpBlockPageOptions {
   ip?: string;
 }
 
+/**
+ * 与 ticketController.ts 的 SUPPORT_EMAIL、前端 PenaltyAppealActions.tsx 的 SUPPORT_EMAIL
+ * 同一地址。被拦截期间工单接口也会被 ipBanCheck 拦下，所以阻断页只给邮箱，不给工单入口。
+ */
+const SUPPORT_EMAIL = "support@chloemlla.com";
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -63,6 +69,7 @@ h1{margin:2px 0 0;font-size:22px;line-height:1.25;font-weight:600;letter-spacing
 .label{margin:16px 0 4px;font-size:12px;color:#8b97a6}
 code{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:#334155;word-break:break-all}
 .foot{margin-top:20px;font-size:12px;color:#8b97a6}
+a{color:#e0562b;font-weight:600}
 </style>
 </head>
 <body>
@@ -78,7 +85,7 @@ code{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;f
     <p>${escapeHtml(reason)}</p>
     ${expiresAt ? `<div class="meta"><span aria-hidden="true">&#128339;</span><span>Retry after ${escapeHtml(expiresAt)}</span></div>` : ""}
     ${ip ? `<p class="label">IP address</p><code>${escapeHtml(ip)}</code>` : ""}
-    <p class="foot">如果这是误判，请把上面的 IP 与时间一并告知站点管理员申请解封。</p>
+    <p class="foot">被拦截期间工单接口同样会被拦下，提交工单无法送达。如果这是误判，请把上面的 IP 与时间发送到 <a href="mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("申诉：IP 访问限制")}">${SUPPORT_EMAIL}</a>，管理员会人工核查后解封。</p>
   </div>
 </main>
 </body>
