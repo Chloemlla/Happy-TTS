@@ -29,10 +29,6 @@ describe("SmartHumanCheckController", () => {
 
   beforeEach(() => {
     app = express();
-    // getClientIP() 读的是 req.ip，而 req.ip 只有在 trust proxy 开启后才会按 X-Forwarded-For 解代理链
-    // （生产在 src/app/assembly.ts 里 app.set("trust proxy", parseTrustProxySetting())）。
-    // 测试自建 app 不设就会退回 TCP 地址（127.0.0.1），X-Forwarded-For 那条用例永远对不上。
-    app.set("trust proxy", 1);
     app.use(express.json());
 
     // Lightweight rate limiter for tests to satisfy static analysis
@@ -110,7 +106,7 @@ describe("SmartHumanCheckController", () => {
       });
     });
 
-    it("should extract client IP from headers", async () => {
+    it("不接受客户端自报的 X-Forwarded-For 作为身份 IP（防伪造）", async () => {
       const mockNonceResult = {
         success: true,
         nonce: "test-nonce-123",
@@ -125,13 +121,19 @@ describe("SmartHumanCheckController", () => {
         .set("User-Agent", "Test-Agent/1.0")
         .expect(200);
 
+      // 本用例原先断言的是“从 X-Forwarded-For 取 192.168.1.100”，而
+      // utils/ipUtils.extractRealIP 的设计恰好相反：只认 req.ip（未开 trust proxy 时就是
+      // TCP 对端地址），并在注释里写明“不信任客户端直接设置的 X-Forwarded-For 等头部，
+      // 避免 IP 伪造”。nonce 身份与限流共用这一个 IP，所以这里钉的是“头部说了不算”，
+      // 而不是某个已撑销的旧行为；ua / origin 的透传仍然照验。
       expect(mockService.issueNonce).toHaveBeenCalledWith(
         expect.objectContaining({
-          ip: "192.168.1.100",
+          ip: "127.0.0.1",
           ua: "Test-Agent/1.0",
           origin: expect.any(String),
         }),
       );
+      expect(mockService.issueNonce.mock.calls[0][0].ip).not.toBe("192.168.1.100");
     });
   });
 
