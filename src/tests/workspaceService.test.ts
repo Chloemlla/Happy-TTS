@@ -134,9 +134,11 @@ describe("workspaceService.getWorkspaceMembers / getWorkspace", () => {
 
   it("工作空间不存在抛 WS_001", async () => {
     mockWorkspaceFindOne(null);
-    await expect(service.getWorkspaceMembers("missing")).rejects.toThrow(
-      expect.objectContaining({ code: WorkspaceErrorCodes.WORKSPACE_NOT_FOUND, name: "WorkspaceError" }),
-    );
+    await expect(service.getWorkspaceMembers("missing")).rejects.toMatchObject({
+      name: "WorkspaceError",
+      code: WorkspaceErrorCodes.WORKSPACE_NOT_FOUND,
+      message: expect.stringContaining("missing"),
+    });
     await expect(service.getWorkspace("missing")).rejects.toBeInstanceOf(WorkspaceError);
   });
 

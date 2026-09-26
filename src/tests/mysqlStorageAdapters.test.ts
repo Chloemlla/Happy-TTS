@@ -60,14 +60,19 @@ function loadModule(spec: string, responder: Responder): Harness {
 const loadModlist = (responder: Responder) => loadModule("../services/modlistStorage/mysql", responder);
 const loadLottery = (responder: Responder) => loadModule("../services/lotteryStorage/mysql", responder);
 
-/** 只在第一条语句上返回给定行的应答器（用于“是否已存在”判定）。 */
+/** 把建表 DDL 过滤掉：否则有状态的应答器会被开头那几条 CREATE TABLE 提前消耗。 */
+function onDml(fn: Responder): Responder {
+  return (sql, params) => (/^\s*CREATE TABLE/.test(sql) ? [] : fn(sql, params));
+}
+
+/** 只在第一条 DML 上返回给定行的应答器（用于“是否已存在”判定）。 */
 function rowsOnce(rows: unknown[]): Responder {
   let used = false;
-  return () => {
+  return onDml(() => {
     if (used) return [];
     used = true;
     return rows;
-  };
+  });
 }
 
 beforeEach(() => {
@@ -145,14 +150,14 @@ describe("modlistStorage/mysql", () => {
 
   it("updateMod 改写后复读整行并返回全字段", async () => {
     let readBack = false;
-    const h = loadModlist((sql) => {
+    const h = loadModlist(onDml((sql) => {
       if (sql.startsWith("UPDATE")) return [];
       if (!readBack) {
         readBack = true;
         return [{ id: "m1", name: "旧", hash: "h", md5: "5" }];
       }
       return [{ id: "m1", name: "新", hash: "h2", md5: "6" }];
-    });
+    }));
 
     const updated = await h.mod.updateMod("m1", "新", "h2", "6");
 
@@ -162,7 +167,7 @@ describe("modlistStorage/mysql", () => {
   });
 
   it("updateMod 缺省 hash/md5 时按 null 覆盖", async () => {
-    const h = loadModlist(() => [{ id: "m1", name: "旧", hash: "h", md5: "5" }]);
+    const h = loadModlist(onDml((sql) => (sql.startsWith("SELECT * FROM modlist WHERE id=?") ? [{ id: "m1", name: "旧", hash: "h", md5: "5" }] : [])));
     await h.mod.updateMod("m1", "改名");
     const update = h.dml().find((c) => c.sql.startsWith("UPDATE"));
     expect(update?.params).toEqual(["改名", null, null, "m1"]);

@@ -61,8 +61,10 @@ describe("InternalServiceClient baseUrl 校验（G5-24）", () => {
     expect(() => client({ baseUrl: "http://user:pass@127.0.0.1:8081" })).toThrow(/不允许携带用户名\/密码/);
   });
 
-  it("拒绝没有主机名的 URL", () => {
-    expect(() => client({ baseUrl: "http://" })).toThrow(/缺少主机名/);
+  it("无主机名的 URL 在 new URL 阶段就被拒", () => {
+    // http/https 缺少 host 时 WHATWG 解析已经失败，走不到构造函数里的 hostname 兜底分支
+    expect(() => client({ baseUrl: "http://" })).toThrow(/baseUrl 无效/);
+    expect(() => client({ baseUrl: "https://" })).toThrow(/baseUrl 无效/);
   });
 
   it("尾部斜杠在拼接时被规范化", async () => {
