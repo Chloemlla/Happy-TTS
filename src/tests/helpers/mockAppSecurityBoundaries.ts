@@ -45,6 +45,22 @@ jest.mock("../../middleware/tamperProtection", () => ({
   tamperProtectionMiddleware: mockPassThrough,
 }));
 
+/**
+ * 封禁检查同样直通。
+ *
+ * ipBanCheck 在 Redis 与 Mongo 都问不到时是 fail-closed 的 503（G1-06），
+ * 而整 app 级套件（import ../app）没有 Mongo ⇒ 每个请求都被它拦在 503，
+ * CI 日志里「封禁状态查询不可用，拒绝请求（fail-closed）」单次跑出 33 行。
+ * 这些套件的职责不是封禁语义（logRoutes 验上传与取回、totp-login 验登录流程），
+ * 所以把封禁中间件直通；真要验封禁的套件请显式 jest.unmock 自己接管。
+ * 保留 requireActual 列：warmupBanCache / isIPBannedFromCache 等会被其他模块引用。
+ */
+jest.mock("../../middleware/ipBanCheck", () => ({
+  ...jest.requireActual("../../middleware/ipBanCheck"),
+  ipBanCheckMiddleware: mockPassThrough,
+  ipBanCheckWithRateLimit: [mockPassThrough],
+}));
+
 jest.mock("../../middleware/routeLimiters", () =>
   new Proxy(
     {

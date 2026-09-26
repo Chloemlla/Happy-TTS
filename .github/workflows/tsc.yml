@@ -79,26 +79,25 @@ jobs:
 
       - name: Run backend Jest tests with coverage
         id: backend-tests
-        continue-on-error: true
         run: pnpm run test:ci
 
       - name: Run frontend Vitest tests with coverage
         id: frontend-tests
-        continue-on-error: true
         run: pnpm --dir frontend run test:ci
 
-      - name: Report test step outcomes (known degraded)
+      - name: Report test step outcomes
         if: always()
         run: |
           {
-            echo "## Test step outcomes"
+            echo "## 单元测试结果（已入门禁）"
             echo ""
             echo "- Backend Jest (\`backend-tests\`): \`${{ steps.backend-tests.outcome }}\`"
             echo "- Frontend Vitest (\`frontend-tests\`): \`${{ steps.frontend-tests.outcome }}\`"
             echo ""
-            echo "> 这两个测试步骤当前处于**已知失败状态**（后端：ts-jest 与 typescript@7 不兼容；前端：缺 @vitest/coverage-istanbul），"
-            echo "> 结果**未参与门禁**（continue-on-error）。恢复方案见审查报告 G13-01 / G13-02；在恢复之前，"
-            echo "> 本 job 的绿色不代表任何单元测试真实通过。"
+            echo "> 这两步从 2026-09-26 起不再挂着 \`continue-on-error\`：失败就红。"
+            echo "> 在此之前它们被这个开关盖着：ts-jest 与 typescript@7 不兼容，让"
+            echo "> 118 个后端套件静默停了六周（参 verified-methodology.md §五-62）。"
+            echo "> 现在暴露出的失败都是那六周里攒下的存量欠账，不是本次改动引入的。"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload backend coverage
