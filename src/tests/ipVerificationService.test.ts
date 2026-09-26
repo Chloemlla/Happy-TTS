@@ -30,14 +30,23 @@ const mockCreateLookupLog = jest.fn();
 const quotaLean = jest.fn();
 const verifyTokenDetailed = jest.fn();
 
-jest.mock("../services/mongoService", () => ({
-  connectMongo: jest.fn().mockResolvedValue(undefined),
-  mongoose: {
-    connection: {
-      readyState: 1,
-    },
-  },
-}));
+jest.mock("../services/mongoService", () => {
+  // 真 mongoose + 只抹掉 readyState：以前只给了一个 { connection: { readyState: 1 } }，
+  // 但 ipVerificationService 会经 ipRiskService 导入 model 文件，它们在 import 期就要
+  // `new mongoose.Schema(...)` ⇒ "mongoose.Schema is not a constructor"，整个套件死在加载阶段。
+  // 真正的数据库访问全部由下面的 model 逐个 mock 拦掉了，这里不需要假 Schema。
+  const actual = jest.requireActual("../services/mongoService");
+  const fakeConnection = { readyState: 1 };
+  const mongooseStub = new Proxy(actual.mongoose as object, {
+    get: (target, prop) =>
+      prop === "connection" ? fakeConnection : Reflect.get(target, prop as string | symbol, target),
+  });
+  return {
+    ...actual,
+    connectMongo: jest.fn().mockResolvedValue(undefined),
+    mongoose: mongooseStub,
+  };
+});
 
 jest.mock("../models/ipVerificationTokenModel", () => ({
   IpVerificationTokenModel: {

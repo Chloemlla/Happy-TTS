@@ -26,21 +26,25 @@ jest.mock("../services/emailService", () => ({
 }));
 
 jest.mock("../services/mongoService", () => {
-  const schema: any = function Schema() {
-    return {};
-  };
-  schema.Types = { ObjectId: String, Mixed: Object, String, Number, Date, Boolean };
-  return {
-    mongoose: {
-      Schema: schema,
-      models: {},
-      model: jest.fn(() => ({
-        findOne: (...args: unknown[]) => mockFindOne(...args),
-        create: jest.fn(),
-        insertMany: jest.fn(),
-      })),
+  // 用真 mongoose，只把 model() 拦下来递测试自己的查询替身。
+  // 原先手写了一个 function Schema(){ return {} } 的替身：outEmailService 在 import 期会调
+  // OutEmailQuotaSchema.index({date:1},{unique:true})，空对象没这个方法，当场就报
+  // "OutEmailQuotaSchema.index is not a function"（缺 .virtual/.statics 同理）。
+  const actual = jest.requireActual("../services/mongoService");
+  const fakeModel = () => ({
+    findOne: (...args: unknown[]) => mockFindOne(...args),
+    create: jest.fn(),
+    insertMany: jest.fn(),
+  });
+  const mongooseStub = new Proxy(actual.mongoose as object, {
+    get: (target, prop) => {
+      if (prop === "model") return jest.fn(fakeModel);
+      if (prop === "models") return {};
+      if (prop === "connection") return { readyState: 1 };
+      return Reflect.get(target, prop as string | symbol, target);
     },
-  };
+  });
+  return { ...actual, mongoose: mongooseStub };
 });
 
 // outEmailService imports `./logger` (src/services/logger); mock that module path.

@@ -11,9 +11,13 @@ jest.mock("../config/startupDiagnostics", () => ({
   })),
 }));
 
-jest.mock("../services/mongoService", () => ({
-  isConnected: jest.fn(() => true),
-}));
+jest.mock("../services/mongoService", () => {
+  // 只替掉 isConnected，mongoose 本体必须用真的：config.ts → runtimeConfigModel 在模块加载时
+  // 就要 new mongoose.Schema(...)，原先把整个模块替成 { isConnected } 后 Schema 是 undefined，
+  // 套件在 import 阶段就死（"Cannot read properties of undefined (reading 'Schema')"）。
+  const actual = jest.requireActual("../services/mongoService");
+  return { ...actual, isConnected: jest.fn(() => true) };
+});
 
 jest.mock("../middleware/routeLimiters", () => ({
   createLimiter: jest.fn(() => (_req, _res, next) => next()),

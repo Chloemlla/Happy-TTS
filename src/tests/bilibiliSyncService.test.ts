@@ -35,6 +35,24 @@ function queryResult<T>(value: T) {
   };
 }
 
+/**
+ * findOneAndUpdate 的替身：生产代码两种用法都有 ——
+ *   ensureDocument 直接 `await findOneAndUpdate(...)`；
+ *   updateBilibiliSettings 则 `findOneAndUpdate(...).lean()`。
+ * 只给 mockResolvedValue(doc) 的话，后者拿不到 .lean ⇒
+ * "TypeError: findOneAndUpdate(...).lean is not a function"。所以做成「可 await 又可链」的查询对象。
+ */
+function queryLike<T>(value: T) {
+  const query: any = {
+    lean: () => Promise.resolve(value),
+    exec: () => Promise.resolve(value),
+    session: () => query,
+    then: (onFulfilled?: unknown, onRejected?: unknown) =>
+      Promise.resolve(value).then(onFulfilled as never, onRejected as never),
+  };
+  return query;
+}
+
 function syncDoc(overrides: Record<string, unknown> = {}) {
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv(
@@ -64,7 +82,7 @@ describe("bilibiliSyncService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFindOne.mockReturnValue(queryResult(syncDoc()));
-    mockFindOneAndUpdate.mockResolvedValue(syncDoc());
+    mockFindOneAndUpdate.mockReturnValue(queryLike(syncDoc()));
     mockUpdateOne.mockResolvedValue({ acknowledged: true });
   });
 
@@ -167,7 +185,7 @@ describe("bilibiliSyncService", () => {
   });
 
   it("deduplicates batch records and preserves tombstones in incremental changes", async () => {
-    mockFindOneAndUpdate.mockResolvedValueOnce(syncDoc());
+    mockFindOneAndUpdate.mockReturnValueOnce(queryLike(syncDoc()));
     await upsertBilibiliSearchRecords("user-1", [
       { id: "a", keyword: "  Hello " },
       { id: "b", keyword: "hello" },

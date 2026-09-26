@@ -68,6 +68,22 @@ const mockedPlanModel = EcoEnchantsPlanModel as jest.Mocked<typeof EcoEnchantsPl
 const mockedProductModel = EcoEnchantsProductModel as jest.Mocked<typeof EcoEnchantsProductModel>;
 const mockedReleaseBuildModel = EcoEnchantsReleaseBuildModel as jest.Mocked<typeof EcoEnchantsReleaseBuildModel>;
 const mockedAuditLogModel = EcoEnchantsAuditLogModel as jest.Mocked<typeof EcoEnchantsAuditLogModel>;
+
+/**
+ * G7-30 之后配额统计走事务：`countDocuments(filter).session(session).exec()`。
+ * 单用 mockResolvedValue(number) 会让 .session 不存在 ⇒
+ * "TypeError: countDocuments(...).session is not a function"（套件里的四个用例全挂在这）。
+ * 这个替身同时支持「直接 await」与「继续链式」，断言语义不变。
+ */
+function countQuery(value: number) {
+  const query: any = {
+    session: () => query,
+    exec: () => Promise.resolve(value),
+    then: (onFulfilled?: unknown, onRejected?: unknown) =>
+      Promise.resolve(value).then(onFulfilled as never, onRejected as never),
+  };
+  return query;
+}
 const mockedRiskEventModel = EcoEnchantsRiskEventModel as jest.Mocked<typeof EcoEnchantsRiskEventModel>;
 const mockedTelemetryEventModel = EcoEnchantsTelemetryEventModel as jest.Mocked<typeof EcoEnchantsTelemetryEventModel>;
 const mockedIdempotencyModel = EcoEnchantsIdempotencyRecordModel as jest.Mocked<
@@ -128,7 +144,7 @@ describe("EcoEnchantsService.verifyLicense", () => {
     mockedLicenseModel.findOne.mockResolvedValue(license);
     mockedReleaseBuildModel.findOne.mockResolvedValue({ buildId: "build_test" } as any);
     mockedActivationModel.findOne.mockResolvedValue(activation);
-    mockedActivationModel.countDocuments.mockResolvedValue(1);
+    mockedActivationModel.countDocuments.mockReturnValue(countQuery(1));
 
     const result = await EcoEnchantsService.verifyLicense(baseVerifyRequest, {
       requestId: "req_test",
@@ -167,7 +183,7 @@ describe("EcoEnchantsService.verifyLicense", () => {
     } as any;
     mockedLicenseModel.findOne.mockResolvedValue(createLicense({ status: "trial" }));
     mockedActivationModel.findOne.mockResolvedValue(null);
-    mockedActivationModel.countDocuments.mockResolvedValue(0);
+    mockedActivationModel.countDocuments.mockReturnValue(countQuery(0));
     mockedActivationModel.create.mockResolvedValue(createdActivation);
 
     const result = await EcoEnchantsService.verifyLicense(
@@ -239,7 +255,7 @@ describe("EcoEnchantsService.verifyLicense", () => {
   it("returns activation_limit_exceeded when no activation seat remains", async () => {
     mockedLicenseModel.findOne.mockResolvedValue(createLicense({ maxActivations: 1 }));
     mockedActivationModel.findOne.mockResolvedValue(null);
-    mockedActivationModel.countDocuments.mockResolvedValue(1);
+    mockedActivationModel.countDocuments.mockReturnValue(countQuery(1));
 
     const result = await EcoEnchantsService.verifyLicense(
       {
@@ -274,7 +290,7 @@ describe("EcoEnchantsService.reportRuntimeTelemetryEvents", () => {
     mockedLicenseModel.findOne.mockResolvedValue(license);
     mockedReleaseBuildModel.findOne.mockResolvedValue({ buildId: "build_test" } as any);
     mockedActivationModel.findOne.mockResolvedValue(activation);
-    mockedActivationModel.countDocuments.mockResolvedValue(1);
+    mockedActivationModel.countDocuments.mockReturnValue(countQuery(1));
     mockedTelemetryEventModel.bulkWrite.mockResolvedValue({
       insertedCount: 1,
       upsertedCount: 0,

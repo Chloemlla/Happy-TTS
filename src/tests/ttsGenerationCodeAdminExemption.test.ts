@@ -7,18 +7,27 @@
  * 普通用户与匿名调用仍然必须有正确生成码。
  */
 
-const mockSchemaConstructor = jest.fn();
-const mockMongooseModels: Record<string, unknown> = {};
-
-jest.mock("../services/mongoService", () => ({
-  mongoose: {
-    connection: { readyState: 1 },
-    Schema: mockSchemaConstructor,
-    models: mockMongooseModels,
-    model: jest.fn((name: string) => mockMongooseModels[name]),
-    isValidObjectId: () => true,
-  },
-}));
+/**
+ * mongoService 的替身：只需要「不真连库 + 看起来已连接」，不需要一份假 mongoose。
+ *
+ * 以前这里手写了一个只带 connection/Schema/models/model 的 object，而导入链上的
+ * model 文件会在 import 期读 `mongoose.Schema.Types.Mixed`、调 `schema.index(...)`，
+ * 手写替身永远少几个成员 → 套件在 import 阶段就死。改成 Proxy 包真 mongoose，
+ * 只抹掉 connection.readyState。
+ */
+jest.mock("../services/mongoService", () => {
+  const actual = jest.requireActual("../services/mongoService");
+  const fakeConnection = { readyState: 1 };
+  const mongooseStub = new Proxy(actual.mongoose as object, {
+    get: (target, prop) =>
+      prop === "connection" ? fakeConnection : Reflect.get(target, prop as string | symbol, target),
+  });
+  return {
+    ...actual,
+    connectMongo: jest.fn(async () => undefined),
+    mongoose: mongooseStub,
+  };
+});
 
 jest.mock("../services/auditLogService", () => ({
   AuditLogService: { log: jest.fn(async () => undefined) },
