@@ -39,6 +39,8 @@ skills-lock.json
 # 构建输出
 dist/
 frontend/dist/
+# 构建期短 SHA 落盘文件（Dockerfile 写入镜像，见 src/config/buildInfo.ts）
+.build-sha
 build/
 out/
 .next/

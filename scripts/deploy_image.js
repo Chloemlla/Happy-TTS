@@ -427,6 +427,28 @@ function dockerRunFlag(flag, value) {
   return `${flag} ${shellQuote(value)}`;
 }
 
+// docker inspect 的 Config.Env 是「镜像 ENV + docker run -e」的合并结果，因此旧容器的
+// APP_GIT_SHA 等构建元数据也在里面。若全量继承成新容器的显式 -e，就会盖掉新镜像里的同名
+// ENV，页脚后端短 SHA 会永远停在首次部署那一版（且每次重建都自我复制）。
+// 构建元数据一律不继承，让新镜像自己说了算。
+const NON_INHERITED_ENV_KEYS = new Set([
+  "APP_GIT_SHA",
+  "VITE_GIT_SHA",
+  "GIT_SHA",
+  "GITHUB_SHA",
+  "SOURCE_VERSION",
+]);
+
+function shouldInheritEnv(env) {
+  const separator = env.indexOf("=");
+  const key = separator === -1 ? env : env.slice(0, separator);
+  // PATH/HOSTNAME 是容器运行时自带的，继承没有意义
+  if (key === "PATH" || key === "HOSTNAME") {
+    return false;
+  }
+  return !NON_INHERITED_ENV_KEYS.has(key);
+}
+
 function normalizeDockerCommand(command) {
   if (command === null || command === undefined) {
     return [];
@@ -737,8 +759,8 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
     // 继承环境变量
     const envVars = config.Env || [];
     for (const env of envVars) {
-      // 跳过系统默认环境变量
-      if (!env.startsWith("PATH=") && !env.startsWith("HOSTNAME=")) {
+      // 跳过系统默认环境变量与构建元数据（见 shouldInheritEnv）
+      if (shouldInheritEnv(env)) {
         createCommand += `${dockerRunFlag("-e", env)} `;
       }
     }
@@ -1381,7 +1403,7 @@ function generateDockerRunCommand(inspectData, overrideImage) {
   // 环境变量
   const envVars = config.Env || [];
   for (const env of envVars) {
-    if (!env.startsWith("PATH=") && !env.startsWith("HOSTNAME=")) {
+    if (shouldInheritEnv(env)) {
       cmd += ` \\\n  -e ${shellQuote(env)}`;
     }
   }
