@@ -145,7 +145,7 @@ const Footer: React.FC = () => {
       {/* 四块信息不再死板地一列堆叠：按可用宽度自动 1 / 2 / 4 列重排（窄屏竖排，宽屏横排）。
           每块都是「拉伸等高 + 内容居中」：内容包一层单一子节点，
           否则 flex 会把行内图标/文本拆成多个子项而打乱排版。 */}
-      <div className="grid w-full max-w-5xl grid-cols-1 items-stretch gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid w-full max-w-5xl grid-cols-1 items-stretch gap-2 px-4 sm:grid-cols-2 sm:px-6 xl:grid-cols-4">
         <div className="flex items-center justify-center rounded border border-amber-200 bg-amber-50 px-2 py-1 text-amber-700 text-xs">
           <div className="text-center">
             <FaExclamationTriangle className="inline mr-1" /> 本站为个人独立开发项目，与 OpenAI 官方无任何隶属或合作关系。请勿将本站内容视为 OpenAI 官方服务。
