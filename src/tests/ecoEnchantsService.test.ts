@@ -476,6 +476,11 @@ describe("EcoEnchantsService.withIdempotency", () => {
   });
 
   it("rejects a reused idempotency key with a different request body", async () => {
+    // G7-16 之后是 claim-then-execute：先 create 抢注，只有撞到重复键（code 11000）
+    // 才会进 findOne 去比对 bodyHash。替身不拒一下的话，代码会一直往前走，
+    // 到 claimed.save()/deleteOne(claimed._id) 上抛 TypeError，把真正的 409 盖掉。
+    // 拒法跟本文件里其他重复键用例（product/plan）保持同一写法。
+    mockedIdempotencyModel.create.mockRejectedValue({ code: 11000 } as any);
     mockedIdempotencyModel.findOne.mockResolvedValue({
       bodyHash: "different",
       method: "POST",

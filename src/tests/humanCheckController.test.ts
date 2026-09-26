@@ -283,7 +283,7 @@ describe("SmartHumanCheckController", () => {
   });
 
   describe("IP extraction", () => {
-    it("should extract IP from X-Forwarded-For header", async () => {
+    it("should ignore a client-supplied X-Forwarded-For chain when identifying the nonce", async () => {
       const mockNonceResult = {
         success: true,
         nonce: "test-nonce",
@@ -294,12 +294,17 @@ describe("SmartHumanCheckController", () => {
 
       await request(app).get("/nonce").set("X-Forwarded-For", "203.0.113.1, 198.51.100.1, 192.0.2.1").expect(200);
 
+      // 同上：这条用例原先钉的是“取 XFF 链第一段”，而 extractRealIP 现在写明
+      // 不信客户端自报的 XFF / 只认 req.ip（nonce 身份与限流共用这个 IP）。
+      // 多段 XFF 正好是伪造场景，这里钉“头部整条都不采信”。
       expect(mockService.issueNonce).toHaveBeenCalledWith(
         expect.objectContaining({
-          ip: "203.0.113.1",
+          ip: "127.0.0.1",
           origin: expect.any(String),
         }),
       );
+      const issued = mockService.issueNonce.mock.calls[0][0] as { ip: string };
+      expect(["203.0.113.1", "198.51.100.1", "192.0.2.1"]).not.toContain(issued.ip);
     });
 
     it("should handle missing X-Forwarded-For header", async () => {

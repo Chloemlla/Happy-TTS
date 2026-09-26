@@ -1,3 +1,8 @@
+// 先加载共享的安全边界替身：本套件把 config 整个 mock 成了一个只含 ipqs/proxycheck 的对象，
+// 而真的 routeLimiters 在模块作域就会建 sharedRateLimitStore（读 config.redis）
+// → "Cannot read properties of undefined (reading 'redis')"，整个套件死在 import 阶段。
+// 本文件测的是 ipVerificationService 的判定逻辑，不需要真的限流/封禁中间件。
+import "./helpers/mockAppSecurityBoundaries";
 import axios from "axios";
 
 jest.mock("axios");
