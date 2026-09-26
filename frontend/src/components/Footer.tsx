@@ -6,6 +6,7 @@ import {
   FaMapMarkerAlt
 } from 'react-icons/fa';
 import getApiBaseUrl from '../api';
+import { buildInfo } from '../config/buildInfo';
 
 interface IPInfo {
   ip: string;
@@ -124,6 +125,9 @@ const Footer: React.FC = () => {
         ) : (
           <span className="font-mono font-bold text-rose-600">获取失败</span>
         )}
+      </div>
+      <div className="mt-1 w-full max-w-xs px-2 py-1 bg-slate-100 border border-slate-200 rounded text-slate-600 text-xs font-mono">
+        前端 v{buildInfo.frontendVersion} ({buildInfo.shortSha}) · 后端 v{buildInfo.backendVersion} ({buildInfo.shortSha})
       </div>
     </footer>
   );

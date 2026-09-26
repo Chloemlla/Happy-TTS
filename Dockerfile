@@ -14,7 +14,14 @@ RUN corepack enable && corepack prepare pnpm@11.11.0 --activate
 
 WORKDIR /app/frontend
 
+# 页脚「前后端版本 + 短 SHA」的构建期来源：
+# - 后端版本要读仓库根 package.json，而本阶段只 COPY frontend/，所以单独拷一份到 /app/package.json；
+# - 构建上下文排除了 .git（见 .dockerignore），短 SHA 无法 git 读取，只能由 CI 通过 GIT_SHA 构建参数传入。
+ARG GIT_SHA=unknown
+ENV VITE_GIT_SHA=$GIT_SHA
+
 # 利用 Docker 缓存层：先复制依赖声明文件
+COPY package.json /app/package.json
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml frontend/.npmrc ./
 
 # 安装依赖（frozen-lockfile 保证一致性）

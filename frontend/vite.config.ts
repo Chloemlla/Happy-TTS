@@ -16,6 +16,45 @@ const __dirname = path.dirname(__filename);
 // hashes and gzip sizes. A zero/omitted seed makes javascript-obfuscator random.
 const OBFUSCATION_SEED = "synapse-production-v1";
 
+// 页脚「前后端版本 + 短 SHA」的构建期数据源。
+// 版本号各取自本包与仓库根的 package.json；短 SHA 优先用构建环境注入的环境变量
+// （Vercel / Netlify / Docker build-arg 都能提供），本地与 GitHub Actions 回退到 git。
+// 注意：Docker 构建上下文排除了 .git（见 .dockerignore），那里必须靠 VITE_GIT_SHA 传入。
+function readPackageVersion(packageJsonPath: string): string | undefined {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8")) as { version?: unknown };
+    const version = typeof parsed.version === "string" ? parsed.version.trim() : "";
+    return version || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveGitShortSha(): string {
+  const injected = [
+    process.env.VITE_GIT_SHA,
+    process.env.GIT_SHA,
+    process.env.GITHUB_SHA,
+    process.env.VERCEL_GIT_COMMIT_SHA,
+    process.env.COMMIT_REF,
+  ].find((value) => typeof value === "string" && value.trim().length > 0);
+  if (injected) return injected.trim().slice(0, 7);
+
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return "unknown";
+  }
+}
+
+const FRONTEND_VERSION = readPackageVersion(path.resolve(__dirname, "package.json")) || "unknown";
+// 后端版本来自仓库根 package.json；Docker 前端构建阶段会把它拷到 /app/package.json。
+const BACKEND_VERSION = readPackageVersion(path.resolve(__dirname, "..", "package.json")) || "unknown";
+const GIT_SHORT_SHA = resolveGitShortSha();
+
 // Shared manual chunks mapping — used as a function for rolldown (Vite 7) compatibility
 const MANUAL_CHUNKS: Record<string, string[]> = {
   "react-vendor": ["react", "react-dom"],
@@ -355,6 +394,10 @@ export default defineConfig(({ mode, command }) => {
     },
     define: {
       global: "globalThis",
+      // 构建期注入，供 src/config/buildInfo.ts 读取（页脚展示）。
+      __FRONTEND_VERSION__: JSON.stringify(FRONTEND_VERSION),
+      __BACKEND_VERSION__: JSON.stringify(BACKEND_VERSION),
+      __GIT_SHORT_SHA__: JSON.stringify(GIT_SHORT_SHA),
     },
     esbuild: {
       sourcemap: false,

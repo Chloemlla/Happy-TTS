@@ -49,6 +49,7 @@ jobs:
           tags: synapse:pr-check
           build-args: |
             NODE_OPTIONS=--max-old-space-size=13000
+            GIT_SHA=${{ github.sha }}
           no-cache: true
 
       - name: Verify build success
@@ -130,6 +131,7 @@ jobs:
           build-args: |
             BUILDKIT_INLINE_CACHE=1
             NODE_OPTIONS=--max-old-space-size=13000
+            GIT_SHA=${{ github.sha }}
           cache-from: |
             type=local,src=/tmp/.buildx-cache
             type=gha
