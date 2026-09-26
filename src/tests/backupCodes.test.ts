@@ -29,10 +29,13 @@ const generateTestToken = (userId: string) => {
   return jwt.sign({ userId }, config.jwtSecret, { expiresIn: "1h" });
 };
 
-// 模拟 UserStorage
+// 模拟 UserStorage：G2-22 后备份码读取走 getUserSecretsById（totpController.ts:671），
+// 局部替身只给 getUserById 的话 controller 里就是 `is not a function` → catch → 500。
+// 鉴权链走 getUserById，两个都要有。
 jest.mock("../utils/userStorage", () => ({
   UserStorage: {
     getUserById: jest.fn(),
+    getUserSecretsById: jest.fn(),
   },
 }));
 
@@ -54,6 +57,7 @@ describe("备用恢复码功能测试", () => {
     it("应该成功获取用户的备用恢复码", async () => {
       // 模拟用户存在且已启用TOTP
       (UserStorage.getUserById as jest.Mock).mockResolvedValue(mockUser);
+      (UserStorage.getUserSecretsById as jest.Mock).mockResolvedValue(mockUser);
 
       const token = generateTestToken("test-user-id");
 
@@ -62,10 +66,12 @@ describe("备用恢复码功能测试", () => {
         .set("Authorization", `Bearer ${token}`)
         .expect(200);
 
+      // G2-22 同步收紧了契约：备份码只在生成那一次回显，查询接口永远只报剩余数
+      // （totpController.ts:691-695）。断言跟上现行契约，并继续钉住「不回显明文」。
       expect(response.body).toEqual({
-        backupCodes: ["ABC12345", "DEF67890", "GHI11111", "JKL22222", "MNO33333"],
+        backupCodes: [],
         remainingCount: 5,
-        message: "备用恢复码获取成功",
+        message: "备用恢复码仅在生成时显示一次，请通过重新生成获取新的恢复码",
       });
     });
 
@@ -80,6 +86,7 @@ describe("备用恢复码功能测试", () => {
     it("应该拒绝TOTP未启用的用户", async () => {
       const userWithoutTOTP = { ...mockUser, totpEnabled: false };
       (UserStorage.getUserById as jest.Mock).mockResolvedValue(userWithoutTOTP);
+      (UserStorage.getUserSecretsById as jest.Mock).mockResolvedValue(userWithoutTOTP);
 
       const token = generateTestToken("test-user-id");
 
@@ -96,6 +103,7 @@ describe("备用恢复码功能测试", () => {
     it("应该处理没有备用恢复码的情况", async () => {
       const userWithoutBackupCodes = { ...mockUser, backupCodes: [] };
       (UserStorage.getUserById as jest.Mock).mockResolvedValue(userWithoutBackupCodes);
+      (UserStorage.getUserSecretsById as jest.Mock).mockResolvedValue(userWithoutBackupCodes);
 
       const token = generateTestToken("test-user-id");
 

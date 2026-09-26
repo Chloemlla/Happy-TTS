@@ -12,6 +12,30 @@ jest.mock("../services/authSessionService", () => ({
   }),
 }));
 
+/**
+ * 把 WebAuthn 的密码学校验换成放行（T-08）。
+ *
+ * 夹具里的 `authenticatorData/clientDataJSON/signature` 全是 "test-data" 这种字面量，
+ * 而真的 `verifyAuthenticationResponse` 要做 CBOR 解码 + 签名验证，必然抛错，被
+ * passkeyService.ts:746-747 包成 `throw new Error("验证认证响应失败")`。也就是说
+ * 「应该正确处理Passkey认证流程中的用户验证」这条从写下起就没可能通过 ——
+ * 它长期被 ts-jest 静默六周 + continue-on-error 盖着（见 docs/audit-2026-09-26-ci-red.md）。
+ *
+ * 本用例声称要验的是「认证流程里的用户匹配 + 签出的 token 带对 userId/username」，
+ * 所以只替掉那一步密码学，challenge 消费、认证器匹配、counter 更新与
+ * generateToken 仍然跑的是真实现。
+ */
+jest.mock("@simplewebauthn/server", () => {
+  const actual = jest.requireActual("@simplewebauthn/server");
+  return {
+    ...actual,
+    verifyAuthenticationResponse: jest.fn(async () => ({
+      verified: true,
+      authenticationInfo: { newCounter: 2 },
+    })),
+  };
+});
+
 describe("Passkey Token 和用户ID验证测试", () => {
   let testUser: User;
 

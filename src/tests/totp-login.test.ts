@@ -1,4 +1,5 @@
 import "./helpers/mockAppSecurityBoundaries";
+import "./helpers/mockAuthSessionPersistence";
 import "./helpers/mockUserService";
 import request from "supertest";
 import app from "../app";

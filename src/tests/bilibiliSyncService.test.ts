@@ -92,9 +92,13 @@ describe("bilibiliSyncService", () => {
   });
 
   it("does not accept settings written against a stale version", async () => {
+    // 必须用 queryLike 而不是 mockResolvedValueOnce：生产侧两种用法都有 ——
+    // ensureDocument 直接 await findOneAndUpdate，updateBilibiliSettings 走
+    // findOneAndUpdate(...).lean()（bilibiliSyncService.ts:276,370）。plain Promise
+    // 没有 .lean ⇒ "TypeError: findOneAndUpdate(...).lean is not a function"。
     mockFindOneAndUpdate
-      .mockResolvedValueOnce(syncDoc())
-      .mockResolvedValueOnce(null);
+      .mockReturnValueOnce(queryLike(syncDoc()))
+      .mockReturnValueOnce(queryLike(null));
     mockFindOne.mockReturnValue(queryResult(syncDoc({ settingsVersion: 2 })));
 
     await expect(updateBilibiliSettings("user-1", { theme: "dark" }, 1, true)).rejects.toMatchObject({

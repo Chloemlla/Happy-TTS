@@ -136,6 +136,9 @@ describe("bilibiliAccountService", () => {
     expect(mockSyncUpdateOne).toHaveBeenCalledWith(
       { userId: "user-1" },
       expect.objectContaining({ $set: expect.objectContaining({ bilibiliUid: "12345", credentialStatus: "active" }) }),
+      // mirrorLegacyPrimary 现在带 { upsert: true }（bilibiliAccountService.ts:113-126）：
+      // 没有旧单账号文档时这条镜像也得落下，重复键由 isDuplicateKeyError 兜住。
+      { upsert: true },
     );
   });
 

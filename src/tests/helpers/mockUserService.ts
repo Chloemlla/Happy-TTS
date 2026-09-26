@@ -65,6 +65,20 @@ const mockUserService = {
     };
   }),
   getAllUsersAuth: jest.fn(async () => Array.from(mockUsers.values()).map((user) => mockCloneUser(user))),
+  /**
+   * 与 userService.getPrimaryAdminAuthUser 同义：按 createdAt 升序取最早的管理员。
+   *
+   * 这个导出不能缺：`src/utils/userRepository.ts:118` 直接调它，而
+   * `logShare/store.ts:checkAdminPassword` 在口令不匹配 adminOperationPassword 时会走到
+   * 这一步。替身里没有它 ⇒ 整套件抱 ``getPrimaryAdminAuthUser is not a function``，
+   * logRoutes 的「管理员密码错误时应返回 403」会变成 500。
+   */
+  getPrimaryAdminAuthUser: jest.fn(async () => {
+    const admins = Array.from(mockUsers.values())
+      .filter((user) => user.role === "admin" || user.role === "superadmin")
+      .sort((left, right) => String(left.createdAt || "").localeCompare(String(right.createdAt || "")));
+    return mockCloneUser(admins[0] || null);
+  }),
   getUserById: jest.fn(async (id: string) => mockCloneUser(mockUsers.get(id))),
   getUserAuthById: jest.fn(async (id: string) => mockCloneUser(mockUsers.get(id))),
   /**

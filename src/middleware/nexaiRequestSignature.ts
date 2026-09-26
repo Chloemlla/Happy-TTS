@@ -76,9 +76,23 @@ function getRawBodyString(req: Request): string {
   }
   if (typeof req.body === "string") return req.body;
   if (req.body == null) return "";
-  // Last resort — prefer rawBody in production.
+  if (Buffer.isBuffer(req.body)) return req.body.toString("utf8");
+  if (Array.isArray(req.body)) return req.body.length === 0 ? "" : safeStringify(req.body);
+  // body-parser 的 json() 在判 hasBody 之前就先执行 `req.body = req.body || {}`，
+  // 所以**没有请求体的 GET 也会拿到一个 {}**；而 rawBody 只在确实读进请求体时才由
+  // assembly.ts 的 verify 挂钩写入。两者叠加后，下面兜底的 JSON.stringify 会把
+  // 「无请求体」编成字面量 "{}"，而客户端对 GET 签的是空串 —— enforce 模式下
+  // 每个带签名的 GET 都会 HMAC 不匹配而 403（CI: cdictRequestSignature 的
+  // rotation / replay 两条用例即此）。空对象一律按「无请求体」处理。
+  if (typeof req.body === "object") {
+    return Object.keys(req.body as Record<string, unknown>).length === 0 ? "" : safeStringify(req.body);
+  }
+  return String(req.body);
+}
+
+function safeStringify(value: unknown): string {
   try {
-    return JSON.stringify(req.body);
+    return JSON.stringify(value) ?? "";
   } catch {
     return "";
   }

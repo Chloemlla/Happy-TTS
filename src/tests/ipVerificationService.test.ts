@@ -20,6 +20,11 @@ jest.mock("../config/config", () => ({
       challengeFraudScore: 75,
       tokenTtlMinutes: 40,
       failOpen: true,
+      // G5-23 之后 getApiKeys() 只读 config.ipqs.apiKeys，不再合并 env
+      // （ipVerificationService.ts:201-206）。缺这个字段就是 selectApiKey → no_keys →
+      // failOpen 分支把 requiresVerification 压成 false，高分用例自然变红，
+      // 而且 axios.get 根本不会被调用。
+      apiKeys: ["test-ipqs-key"],
     },
     proxycheck: {
       enabled: false,
@@ -124,7 +129,6 @@ const IpVerificationService = require("../services/ipVerificationService").defau
 describe("IpVerificationService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.IPQS_API_KEY = "test-ipqs-key";
     findOneExec.mockResolvedValue(null);
     findQuotaExec.mockResolvedValue([]);
     deleteManyExec.mockResolvedValue({ deletedCount: 0 });

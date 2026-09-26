@@ -27,6 +27,28 @@ jest.mock("../services/ipRiskService", () => ({
   evaluateIpRisk: jest.fn(),
 }));
 
+/**
+ * 封禁服务不在本套件射程内，但必须替掉（T-01）。
+ *
+ * cfbb90b2 起 ipVerificationService 会 `import { manualBanIp } from "./turnstile/ipBan"`，
+ * 而 ipBan.ts 静态导入 models/ipBanModel —— 后者在 **import 期** 就要
+ * `new mongoose.Schema(...)`，本套件的 mongoService 替身只给了
+ * `{ connection: { readyState: 1 } }` ⇒ 整套件死在加载阶段：
+ *   TypeError: mongoService_1.mongoose.Schema is not a constructor
+ * 这里用替身而不是给 mongoService 补真 Schema：补真 Schema 只能活过 ipBanModel 那一步，
+ * ipBan.ts 还会继续往 middleware/ipBanCheck 拖（那里会拖整棵路由树，
+ * 就是 9cb3ee77 在 mockAppSecurityBoundaries 里避开 requireActual 的原因）。
+ * 本套件测的是「TTL 内复用会话令牌」，封禁语义由 ipRiskDecision 等套件负责。
+ */
+jest.mock("../services/turnstile/ipBan", () => ({
+  isIpBanned: jest.fn(async () => ({ banned: false })),
+  recordViolation: jest.fn(async () => false),
+  manualBanIp: jest.fn(async () => ({ success: false })),
+  unbanIp: jest.fn(async () => false),
+  cleanupExpiredIpBans: jest.fn(async () => 0),
+  getIpBanStats: jest.fn(async () => ({ total: 0, active: 0, expired: 0 })),
+}));
+
 const findOneExec = jest.fn();
 
 jest.mock("../services/mongoService", () => ({

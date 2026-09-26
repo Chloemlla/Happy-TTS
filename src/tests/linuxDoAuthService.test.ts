@@ -129,7 +129,9 @@ describe("linuxDoAuthService", () => {
       ),
     );
     expect(mobileRedirect.pathname).toBe("/auth/linuxdo/callback");
-    expect(mobileRedirect.searchParams.get("ticket")).toBe("ticket-value");
+    // G2-38：一次性 ticket 不再进 query（会被 Referer 与服务端日志带走），
+    // 改放 URL fragment（linuxDoAuthService.ts:340-350）。其余参数仍在 query 上。
+    expect(new URLSearchParams(mobileRedirect.hash.replace(/^#/, "")).get("ticket")).toBe("ticket-value");
     expect(mobileRedirect.searchParams.get("client")).toBe("synapse-android");
 
     const appDeepLink = new URL(
@@ -153,7 +155,8 @@ describe("linuxDoAuthService", () => {
       ),
     );
     expect(webRedirect.pathname).toBe("/auth/linuxdo/callback");
-    expect(webRedirect.searchParams.get("ticket")).toBe("web-ticket");
+    // 同上：ticket 走 fragment（G2-38），对 web 分支也成立。
+    expect(new URLSearchParams(webRedirect.hash.replace(/^#/, "")).get("ticket")).toBe("web-ticket");
   });
 
   it("builds Linux.do authorization URLs from discovery with scope and PKCE", async () => {

@@ -38,11 +38,15 @@ function buildExecution(referenceId = "reference-123"): TtsProviderExecutionSnap
 
 describe("FishAudioTtsProvider", () => {
   it("uses the Fish JSON, Bearer and model-header contract", async () => {
+    // assertAudioResponse 会做魔数校验（tts.provider.ts:24-35，防止把 HTML/JSON 错误页
+    // 当有效音频缓存），所以假音频必须带 ID3v2 头 —— 与 ttsEdgeProvider.test.ts 同一写法。
+    const audioBytes = Buffer.from("ID3\0\0\0\0\0\0fish-audio");
+    const audioArrayBuffer = new Uint8Array(audioBytes).buffer;
     const fetchMock = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
       headers: { get: () => "audio/mpeg" },
-      arrayBuffer: async () => Uint8Array.from([1, 2, 3]).buffer,
+      arrayBuffer: async () => audioArrayBuffer,
     });
     const provider = new FishAudioTtsProvider(
       async () => buildConfig(),
@@ -80,7 +84,7 @@ describe("FishAudioTtsProvider", () => {
       providerVoice: "configured_reference",
       outputFormat: "mp3",
     });
-    expect(response.audioBuffer).toEqual(Buffer.from([1, 2, 3]));
+    expect(response.audioBuffer).toEqual(audioBytes);
   });
 
   it("fails at request time when the API key is absent", async () => {

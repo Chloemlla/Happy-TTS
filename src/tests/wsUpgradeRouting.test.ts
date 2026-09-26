@@ -1,3 +1,4 @@
+import "./helpers/mockAuthSessionPersistence";
 import { createServer, type Server } from "node:http";
 import jwt from "jsonwebtoken";
 import WebSocket from "ws";
