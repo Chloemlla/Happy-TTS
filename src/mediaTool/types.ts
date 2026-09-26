@@ -54,7 +54,19 @@ export interface TranscribeUserSettings {
 /** yt-dlp(哔哩哔哩)下载参数。 */
 export interface BiliOptions {
   ytDlpPath: string;
+  /**
+   * Netscape cookies 文件的【本地/容器内路径】，只当覆盖用。
+   * 留空时自动用「设置页上传、正文持久化在 DB」的那一份（见 biliCookies.ts）——
+   * 镜像没挂持久卷时手填路径的文件重新部署即丢，所以持久化那份才是主路径。
+   */
   cookiesFile: string;
+  /** 下载走 yt-dlp --proxy（http:// 或 socks5://）；留空=直连。境外机器下 B 站常需国内出口。 */
+  proxyUrl: string;
+  /**
+   * B 站「网页」被风控(HTTP 412)时，改走官方 JSON 接口(wbi 签名 playurl)拿直链，
+   * 下载与转码仍交给 yt-dlp。默认开，关掉即回到纯 yt-dlp 抽取器行为。
+   */
+  apiFallback: boolean;
   downloadDir: string;
   audioFormat: string;
   concurrency: number;
@@ -279,6 +291,8 @@ export function defaultMediaToolSettings(env: NodeJS.ProcessEnv = process.env): 
   const bili: BiliOptions = {
     ytDlpPath: env.MEDIA_TOOL_YTDLP || "",
     cookiesFile: env.MEDIA_TOOL_COOKIES || "",
+    proxyUrl: env.MEDIA_TOOL_PROXY || "",
+    apiFallback: env.MEDIA_TOOL_BILI_API_FALLBACK !== "0",
     downloadDir: env.MEDIA_TOOL_DOWNLOAD_DIR || workDir,
     audioFormat: "mp3",
     concurrency: 2,

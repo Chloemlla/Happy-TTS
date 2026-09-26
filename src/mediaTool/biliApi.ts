@@ -117,7 +117,9 @@ async function signedQuery(opts: BiliOptions, params: Record<string, string | nu
     .map((k) => `${encodeComponent(k)}=${encodeComponent(String(withTs[k]).replace(WBI_VALUE_FILTER, ""))}`)
     .join("&");
   const rid = crypto.createHash("md5").update(`${plain}${key}`).digest("hex");
-  const all = { ...withTs, w_rid: rid };
+  // 必须显式标注：把带索引签名的对象展开进字面量时，TS 会丢掉索引签名，
+  // 下一行再用字符串下标取就成 TS7053。
+  const all: Record<string, string | number | boolean> = { ...withTs, w_rid: rid };
   return Object.keys(all).map((k) => `${encodeComponent(k)}=${encodeComponent(String(all[k]))}`).join("&");
 }
 
