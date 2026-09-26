@@ -75,23 +75,33 @@ describe("RuntimeConfigService TTS provider fallback", () => {
     const readError = new Error("temporary Mongo read failure");
     mockRuntimeConfigFindOne.mockReturnValue(mockReadFailure(readError));
 
-    await expect(RuntimeConfigService.getRawTtsProviderConfig()).resolves.toEqual({
-      provider: "fish",
-      defaultModel: FISH_AUDIO_DEFAULT_MODEL,
-      fish: {
-        apiKey: "stored-fish-key",
-        baseUrl: FISH_AUDIO_DEFAULT_BASE_URL,
-        referenceId: "reference-a",
-        catalog: {},
-      },
-      edge: {
-        baseUrl: EDGE_DEFAULT_BASE_URL,
-        defaultVoice: EDGE_DEFAULT_VOICE,
-        voices: [],
-      },
-    });
-    await expect(RuntimeConfigService.getTtsProviderSetting()).resolves.toEqual({
-      config: {
+    // 这里不再用整块 toEqual：TtsProviderRuntimeConfig 是会长大的结构（cd66146f 多提供商
+    // 并存刚加了 enabledProviders），整块相等等于每加一个字段就全组红。
+    // 关键值照旧精确钉，只对“新增字段”宽容。
+    const rawConfig = await RuntimeConfigService.getRawTtsProviderConfig();
+    expect(rawConfig).toEqual(
+      expect.objectContaining({
+        provider: "fish",
+        defaultModel: FISH_AUDIO_DEFAULT_MODEL,
+        fish: {
+          apiKey: "stored-fish-key",
+          baseUrl: FISH_AUDIO_DEFAULT_BASE_URL,
+          referenceId: "reference-a",
+          catalog: {},
+        },
+        edge: {
+          baseUrl: EDGE_DEFAULT_BASE_URL,
+          defaultVoice: EDGE_DEFAULT_VOICE,
+          voices: [],
+        },
+      }),
+    );
+    // 新字段单独验一次：当前生效的提供商必须在 enabledProviders 里（读失败走缓存时也不能丢）。
+    expect(rawConfig?.enabledProviders).toEqual(expect.arrayContaining(["fish"]));
+
+    const setting = await RuntimeConfigService.getTtsProviderSetting();
+    expect(setting.config).toEqual(
+      expect.objectContaining({
         provider: "fish",
         defaultModel: FISH_AUDIO_DEFAULT_MODEL,
         fish: {
@@ -108,8 +118,10 @@ describe("RuntimeConfigService TTS provider fallback", () => {
           voiceCount: EDGE_BUILTIN_VOICE_OPTIONS.length,
         },
         updatedAt: undefined,
-      },
-    });
+      }),
+    );
+    // 管理端设定页同样不能漏掉多提供商列表（它是页面渲染的开关）。
+    expect(setting.config?.enabledProviders).toEqual(expect.arrayContaining(["fish"]));
 
     expect(mockLoggerWarn).toHaveBeenCalledTimes(2);
     expect(mockLoggerWarn).toHaveBeenCalledWith(
