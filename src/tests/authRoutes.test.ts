@@ -48,6 +48,7 @@ jest.mock("../controllers/mobileLoginController", () => ({
     exchangeClientToken: jest.fn(mockNoopHandler),
     rotateClientToken: jest.fn(mockNoopHandler),
     revokeClientToken: jest.fn(mockNoopHandler),
+    createIntegrityChallenge: jest.fn(mockNoopHandler),
   },
 }));
 

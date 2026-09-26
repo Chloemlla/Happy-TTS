@@ -14,6 +14,12 @@ import {
 } from "./authSessionService";
 import { type User, UserStorage } from "../utils/userStorage";
 import logger from "../utils/logger";
+import {
+  downgradedTtlMs,
+  logIntegrityVerdict,
+  shouldDowngradeForVerdict,
+  verifyClientIntegrity,
+} from "./mobileIntegrityService";
 import type { Request } from "express";
 
 const CHALLENGE_TTL_MS = 3 * 60 * 1000;
@@ -26,6 +32,8 @@ const MAX_CHALLENGES = 5000;
  * nextRotationAt / graceMs 走，不自己算节奏。
  */
 const ROTATION_INTERVAL_MS = 24 * 60 * 60 * 1000;
+/** 降级态下的轮换间隔：设备证明没通过时，把下一次证明也提前。 */
+const ROTATION_ELEVATED_INTERVAL_MS = 60 * 60 * 1000;
 /** 同一代令牌的最短寿命；手动连点、脚本刷链到不了下一步。 */
 const ROTATION_MIN_INTERVAL_MS = 5 * 60 * 1000;
 /** 一条血缘 24 小时内的轮换次数上限。 */
@@ -288,14 +296,32 @@ export async function issueClientLoginToken(params: {
   deviceId?: string;
   deviceName?: string;
   metadata?: AuthSessionMetadata;
+  integrityToken?: string;
+  integrityNonce?: string;
 }) {
   if ((params.user as any).accountStatus === "suspended") {
     throw new Error("账户已被封停");
   }
 
+  const verdict = await verifyClientIntegrity({
+    integrityToken: params.integrityToken,
+    nonce: params.integrityNonce,
+    userId: params.user.id,
+    deviceId: params.deviceId,
+  });
+  const downgraded = shouldDowngradeForVerdict(verdict);
+  logIntegrityVerdict({
+    verdict,
+    userId: params.user.id,
+    deviceId: params.deviceId,
+    ip: params.metadata?.ipAddress,
+    downgraded,
+  });
+
   const token = `sml_${randomToken(40)}`;
   const now = Date.now();
-  const expiresAt = now + CLIENT_TOKEN_TTL_MS;
+  const ttlMs = downgraded ? downgradedTtlMs() : CLIENT_TOKEN_TTL_MS;
+  const expiresAt = now + ttlMs;
   const deviceId = typeof params.deviceId === "string" ? params.deviceId.slice(0, 128) : undefined;
   const deviceName = typeof params.deviceName === "string" ? params.deviceName.slice(0, 128) : undefined;
 
@@ -344,7 +370,8 @@ export async function issueClientLoginToken(params: {
 
   return {
     clientLoginToken: token,
-    expiresAt: new Date(now + CLIENT_TOKEN_TTL_MS).toISOString(),
+    expiresAt: new Date(expiresAt).toISOString(),
+    requiresVerification: downgraded,
   };
 }
 
@@ -429,6 +456,8 @@ export async function rotateClientLoginToken(params: {
   ip?: string;
   fingerprint?: string;
   metadata?: AuthSessionMetadata;
+  integrityToken?: string;
+  integrityNonce?: string;
 }) {
   const now = Date.now();
   const ip = params.ip || "unknown";
@@ -474,9 +503,20 @@ export async function rotateClientLoginToken(params: {
     );
   }
 
+  // 设备证明放在所有本地风控之后：被拒绝的请求不该先花掉一次 Google 调用与一个 nonce。
+  const verdict = await verifyClientIntegrity({
+    integrityToken: params.integrityToken,
+    nonce: params.integrityNonce,
+    userId: doc.userId,
+    deviceId: doc.deviceId || params.deviceId,
+  });
+  const downgraded = shouldDowngradeForVerdict(verdict);
+  logIntegrityVerdict({ verdict, userId: doc.userId, deviceId: doc.deviceId, ip, downgraded });
+
   const nextToken = `sml_${randomToken(40)}`;
   const nextHash = hashToken(nextToken);
-  const expiresAt = now + CLIENT_TOKEN_TTL_MS;
+  const expiresAt = now + (downgraded ? downgradedTtlMs() : CLIENT_TOKEN_TTL_MS);
+  const rotationIntervalMs = downgraded ? ROTATION_ELEVATED_INTERVAL_MS : ROTATION_INTERVAL_MS;
   const rotationIndex = (doc.rotationIndex ?? 0) + 1;
 
   await MobileClientTokenModel.create({
@@ -526,6 +566,7 @@ export async function rotateClientLoginToken(params: {
     lineageId,
     rotationIndex,
     rotationsLast24h: rotationsLast24h + 1,
+    downgraded,
     ip,
   });
 
@@ -533,11 +574,40 @@ export async function rotateClientLoginToken(params: {
     clientLoginToken: nextToken,
     expiresAt: new Date(expiresAt).toISOString(),
     rotatedAt: new Date(now).toISOString(),
-    nextRotationAt: new Date(now + ROTATION_INTERVAL_MS).toISOString(),
+    nextRotationAt: new Date(now + rotationIntervalMs).toISOString(),
     rotationIndex,
-    rotateIntervalMs: ROTATION_INTERVAL_MS,
+    rotateIntervalMs: rotationIntervalMs,
     graceMs: ROTATION_SUPERSEDED_GRACE_MS,
+    requiresVerification: downgraded,
   };
+}
+
+/**
+ * 完整性挑战端点专用的身份解析：要么 JWT（首次签发），要么 sml_ 令牌（轮换）。
+ * 只读校验，不轮换、不消耗令牌 —— nonce 只是把"这次证明属于谁、哪台设备"记下来。
+ */
+export async function resolveClientTokenIdentity(params: {
+  authHeader?: unknown;
+  clientLoginToken?: string;
+  deviceId?: string;
+  ip?: string;
+}): Promise<{ userId: string; deviceId?: string }> {
+  const bearerUser = await resolveUserFromBearerToken(params.authHeader);
+  if (bearerUser) {
+    return { userId: bearerUser.id, deviceId: params.deviceId };
+  }
+
+  const token = typeof params.clientLoginToken === "string" ? params.clientLoginToken.trim() : "";
+  if (!token) {
+    throw new MobileTokenError("缺少客户端登录令牌", 400, "MISSING_CLIENT_TOKEN");
+  }
+  const doc = await loadActiveClientTokenDoc(token);
+  if (doc.deviceId && doc.deviceId !== params.deviceId) {
+    throw new MobileTokenError("客户端登录令牌与设备不匹配", 403, "MOBILE_TOKEN_DEVICE_MISMATCH");
+  }
+  await assertTokenNotSuperseded(doc, params.ip || "unknown");
+  await assertClientTokenSession(doc.userId, token);
+  return { userId: doc.userId, deviceId: doc.deviceId || params.deviceId };
 }
 
 export async function exchangeClientLoginToken(params: {

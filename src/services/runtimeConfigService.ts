@@ -10,6 +10,7 @@ import {
   type IpqsRuntimeConfig,
   type LinuxDoRuntimeConfig,
   type LumenRuntimeConfig,
+  type MobileTokenIntegrityRuntimeConfig,
   type NexaiRuntimeConfig,
   type NexaiSigningRuntimeConfig,
   type ProxycheckRuntimeConfig,
@@ -452,6 +453,7 @@ const RUNTIME_CONFIG_KEY_TO_PROP: Partial<Record<RuntimeConfigKey, keyof Runtime
   PROXYCHECK: "proxycheck",
   REGISTRATION_INVITE: "registrationInvite",
   FIRST_VISIT_VERIFICATION: "firstVisitVerification",
+  MOBILE_TOKEN_INTEGRITY: "mobileTokenIntegrity",
   LUMEN: "lumen",
   NEXAI: "nexai",
 };
@@ -719,6 +721,51 @@ function normalizeStoredFirstVisitVerificationConfig(
   };
 }
 
+const DEVICE_INTEGRITY_LEVELS = [
+  "MEETS_BASIC_INTEGRITY",
+  "MEETS_DEVICE_INTEGRITY",
+  "MEETS_STRONG_INTEGRITY",
+] as const;
+
+const INTEGRITY_MODES = ["off", "observe", "enforce"] as const;
+
+function normalizeStoredMobileTokenIntegrityConfig(
+  value: unknown,
+  defaults = runtimeConfigDefaults.mobileTokenIntegrity,
+): MobileTokenIntegrityRuntimeConfig {
+  const raw = asObject(value);
+  const mode = typeof raw.mode === "string" ? raw.mode.trim().toLowerCase() : "";
+  const minDeviceIntegrity =
+    typeof raw.minDeviceIntegrity === "string" &&
+    (DEVICE_INTEGRITY_LEVELS as readonly string[]).includes(raw.minDeviceIntegrity.trim().toUpperCase())
+      ? (raw.minDeviceIntegrity.trim().toUpperCase() as MobileTokenIntegrityRuntimeConfig["minDeviceIntegrity"])
+      : defaults.minDeviceIntegrity;
+
+  return {
+    mode:
+      mode === "observe" || mode === "enforce" || mode === "off"
+        ? (mode as MobileTokenIntegrityRuntimeConfig["mode"])
+        : defaults.mode,
+    packageName: normalizeOptionalString(raw.packageName, defaults.packageName, 255),
+    cloudProjectNumber: normalizeOptionalString(raw.cloudProjectNumber, defaults.cloudProjectNumber, 32),
+    serviceAccountEmail: normalizeOptionalString(raw.serviceAccountEmail, defaults.serviceAccountEmail, 320),
+    // 私钥是多行 PEM，normalizeOptionalString 会 trim 掉首尾空白但保留内部换行。
+    serviceAccountPrivateKey: normalizeOptionalString(
+      raw.serviceAccountPrivateKey,
+      defaults.serviceAccountPrivateKey,
+      8192,
+    ),
+    minDeviceIntegrity,
+    requirePlayRecognizedApp: normalizeBoolean(raw.requirePlayRecognizedApp, defaults.requirePlayRecognizedApp),
+    requireLicensedAccount: normalizeBoolean(raw.requireLicensedAccount, defaults.requireLicensedAccount),
+    nonceTtlSeconds: normalizeInteger(raw.nonceTtlSeconds, defaults.nonceTtlSeconds, 30, 3600),
+    timeoutMs: normalizeInteger(raw.timeoutMs, defaults.timeoutMs, 1000, 30_000),
+    failOpen: normalizeBoolean(raw.failOpen, defaults.failOpen),
+    downgradedTtlHours: normalizeInteger(raw.downgradedTtlHours, defaults.downgradedTtlHours, 1, 720),
+    maxTokenAgeSeconds: normalizeInteger(raw.maxTokenAgeSeconds, defaults.maxTokenAgeSeconds, 60, 86_400),
+  };
+}
+
 // G5-37: 纯函数——只写传入的 target 缓存，不在遍历中改在用的 runtimeConfigCache。
 function applyCacheForKey(target: RuntimeConfigDefaults, key: RuntimeConfigKey, value: unknown): void {
   switch (key) {
@@ -767,6 +814,9 @@ function applyCacheForKey(target: RuntimeConfigDefaults, key: RuntimeConfigKey, 
     case "FIRST_VISIT_VERIFICATION":
       target.firstVisitVerification = normalizeStoredFirstVisitVerificationConfig(value);
       return;
+    case "MOBILE_TOKEN_INTEGRITY":
+      target.mobileTokenIntegrity = normalizeStoredMobileTokenIntegrityConfig(value);
+      return;
     case "LUMEN": {
       const config = normalizeStoredLumenConfig(value, target.lumen);
       target.lumen = config;
@@ -801,6 +851,7 @@ const RUNTIME_CONFIG_KEYS: readonly RuntimeConfigKey[] = [
   "PROXYCHECK",
   "REGISTRATION_INVITE",
   "FIRST_VISIT_VERIFICATION",
+  "MOBILE_TOKEN_INTEGRITY",
 ];
 
 // G5-03: 周期刷新定时器——多实例部署下每个实例每 ~10s 重载一次 DB 配置，
@@ -875,6 +926,9 @@ export class RuntimeConfigService {
     }
     if (!loadedKeys.has("FIRST_VISIT_VERIFICATION")) {
       runtimeConfigCache.firstVisitVerification = cloneRuntimeConfigDefaults(defaults).firstVisitVerification;
+    }
+    if (!loadedKeys.has("MOBILE_TOKEN_INTEGRITY")) {
+      runtimeConfigCache.mobileTokenIntegrity = cloneRuntimeConfigDefaults(defaults).mobileTokenIntegrity;
     }
     if (!loadedKeys.has("LUMEN")) {
       runtimeConfigCache.lumen = cloneRuntimeConfigDefaults(defaults).lumen;
@@ -1644,6 +1698,139 @@ export class RuntimeConfigService {
     ).firstVisitVerification;
     loadedKeys.delete("FIRST_VISIT_VERIFICATION");
     invalidateHotCache("FIRST_VISIT_VERIFICATION");
+  }
+
+  // Play Integrity 设备证明（MOBILE_TOKEN_INTEGRITY）。mode 只能从这里升档：
+  // off → observe（只记日志）→ enforce（判定并降级），保存后 ≤10s 在多实例收敛。
+  static async getMobileTokenIntegritySetting(): Promise<{
+    setting: {
+      config: {
+        mode: MobileTokenIntegrityRuntimeConfig["mode"];
+        packageName: string;
+        cloudProjectNumber: string;
+        serviceAccountEmail: string;
+        serviceAccountPrivateKey: string;
+        hasServiceAccountPrivateKey: boolean;
+        minDeviceIntegrity: MobileTokenIntegrityRuntimeConfig["minDeviceIntegrity"];
+        requirePlayRecognizedApp: boolean;
+        requireLicensedAccount: boolean;
+        nonceTtlSeconds: number;
+        timeoutMs: number;
+        failOpen: boolean;
+        downgradedTtlHours: number;
+        maxTokenAgeSeconds: number;
+      };
+      updatedAt?: string;
+    };
+  }> {
+    const doc = await readRuntimeConfigDoc("MOBILE_TOKEN_INTEGRITY");
+    const config = doc
+      ? normalizeStoredMobileTokenIntegrityConfig(doc.value)
+      : runtimeConfigDefaults.mobileTokenIntegrity;
+    runtimeConfigCache.mobileTokenIntegrity = config;
+
+    return {
+      setting: {
+        config: {
+          mode: config.mode,
+          packageName: config.packageName,
+          cloudProjectNumber: config.cloudProjectNumber,
+          serviceAccountEmail: config.serviceAccountEmail,
+          // PEM 的掩码没有信息量，反而会漏出首尾；这里只回"配了没有"。
+          serviceAccountPrivateKey: config.serviceAccountPrivateKey ? "********" : "",
+          hasServiceAccountPrivateKey: config.serviceAccountPrivateKey.length > 0,
+          minDeviceIntegrity: config.minDeviceIntegrity,
+          requirePlayRecognizedApp: config.requirePlayRecognizedApp,
+          requireLicensedAccount: config.requireLicensedAccount,
+          nonceTtlSeconds: config.nonceTtlSeconds,
+          timeoutMs: config.timeoutMs,
+          failOpen: config.failOpen,
+          downgradedTtlHours: config.downgradedTtlHours,
+          maxTokenAgeSeconds: config.maxTokenAgeSeconds,
+        },
+        updatedAt: doc?.updatedAt?.toISOString(),
+      },
+    };
+  }
+
+  static async setMobileTokenIntegritySetting(
+    input: Partial<MobileTokenIntegrityRuntimeConfig> | Record<string, unknown>,
+  ): Promise<{ updatedAt: string }> {
+    const currentDoc = await readRuntimeConfigDoc("MOBILE_TOKEN_INTEGRITY");
+    const current = currentDoc
+      ? normalizeStoredMobileTokenIntegrityConfig(currentDoc.value)
+      : runtimeConfigCache.mobileTokenIntegrity;
+    const raw = asObject(input);
+
+    let nextMode = current.mode;
+    if (hasOwnKey(raw, "mode")) {
+      const candidate = typeof raw.mode === "string" ? raw.mode.trim().toLowerCase() : "";
+      if (!(INTEGRITY_MODES as readonly string[]).includes(candidate)) {
+        throw new Error("MOBILE_TOKEN_INTEGRITY_MODE 必须是 off、observe 或 enforce");
+      }
+      nextMode = candidate as MobileTokenIntegrityRuntimeConfig["mode"];
+    }
+
+    const updateSecret = (key: string, currentValue: string): string => {
+      if (!hasOwnKey(raw, key)) return currentValue;
+      if (typeof raw[key] !== "string") throw new Error(`${key} 必须是字符串`);
+      const value = (raw[key] as string).trim();
+      if (!value) return currentValue;
+      if (!value.includes("BEGIN") || !value.includes("PRIVATE KEY")) {
+        throw new Error("serviceAccountPrivateKey 必须是含 BEGIN/END PRIVATE KEY 的 PEM 私钥");
+      }
+      return value.slice(0, 8192);
+    };
+
+    // 掩码回显值会被原样提交回来，不能拿它当新密钥写库。
+    const submittedKey = typeof raw.serviceAccountPrivateKey === "string" ? raw.serviceAccountPrivateKey.trim() : "";
+    const keepExistingKey = !submittedKey || submittedKey === "********";
+    const nextConfig = normalizeStoredMobileTokenIntegrityConfig(
+      {
+        ...raw,
+        serviceAccountPrivateKey: raw.clearServiceAccountPrivateKey === true
+          ? ""
+          : keepExistingKey
+            ? current.serviceAccountPrivateKey
+            : updateSecret("serviceAccountPrivateKey", current.serviceAccountPrivateKey),
+      },
+      current,
+    );
+
+    if (nextConfig.mode !== "off") {
+      // 缺配置时本层只会恒判"无法判定"，升档等于骗自己，直接拒绝。
+      const missing = [
+        nextConfig.packageName ? "" : "packageName",
+        nextConfig.cloudProjectNumber ? "" : "cloudProjectNumber",
+        nextConfig.serviceAccountEmail ? "" : "serviceAccountEmail",
+        nextConfig.serviceAccountPrivateKey ? "" : "serviceAccountPrivateKey",
+      ].filter(Boolean);
+      if (missing.length > 0) {
+        throw new Error(`启用设备证明前需要先补齐：${missing.join("、")}`);
+      }
+    }
+
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "MOBILE_TOKEN_INTEGRITY",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
+
+    runtimeConfigCache.mobileTokenIntegrity = nextConfig;
+    loadedKeys.add("MOBILE_TOKEN_INTEGRITY");
+    invalidateHotCache("MOBILE_TOKEN_INTEGRITY");
+    initialized = true;
+
+    return { updatedAt: persistedAt.toISOString() };
+  }
+
+  static async deleteMobileTokenIntegritySetting(): Promise<void> {
+    await RuntimeConfigModel.deleteOne({ key: "MOBILE_TOKEN_INTEGRITY" }).exec();
+    runtimeConfigCache.mobileTokenIntegrity = cloneRuntimeConfigDefaults(
+      runtimeConfigDefaults,
+    ).mobileTokenIntegrity;
+    loadedKeys.delete("MOBILE_TOKEN_INTEGRITY");
+    invalidateHotCache("MOBILE_TOKEN_INTEGRITY");
   }
 
   static async getCdictSigningSetting(): Promise<{

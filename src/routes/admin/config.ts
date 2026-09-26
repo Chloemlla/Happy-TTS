@@ -401,6 +401,23 @@ router.delete(
   auditLog({ module: "config", action: "config.first-visit-verification.delete" }),
   adminController.deleteFirstVisitVerificationSetting,
 );
+// Play Integrity 设备证明（MOBILE_TOKEN_INTEGRITY）。升档前必须先把 Google 服务账号配齐，
+// 保存后立即生效（多实例 ≤ 10s 收敛）；重置回退到部署环境变量 PLAY_INTEGRITY_*。
+router.get("/mobile-token-integrity/setting", adminController.getMobileTokenIntegritySetting);
+router.post(
+  "/mobile-token-integrity/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
+  authenticateSuperAdmin,
+  auditLog({ module: "security", action: "security.mobile-token-integrity.set", captureBody: false }),
+  adminController.setMobileTokenIntegritySetting,
+);
+router.delete(
+  "/mobile-token-integrity/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
+  authenticateSuperAdmin,
+  auditLog({ module: "security", action: "security.mobile-token-integrity.delete" }),
+  adminController.deleteMobileTokenIntegritySetting,
+);
 router.get("/cdict-signing/setting", adminController.getCdictSigningSetting);
 router.post(
   "/cdict-signing/setting",

@@ -120,10 +120,21 @@ jest.mock("../utils/userStorage", () => ({
   },
 }));
 
+// 设备证明（P2）本层逻辑另有 mobileIntegrityService.test.ts 覆盖；
+// 这里只关心"判定结果如何改变轮换节奏"，所以整层换成可编程的替身。
+jest.mock("../services/mobileIntegrityService", () => ({
+  verifyClientIntegrity: jest.fn(),
+  shouldDowngradeForVerdict: jest.fn(),
+  downgradedTtlMs: jest.fn(),
+  logIntegrityVerdict: jest.fn(),
+  issueIntegrityNonce: jest.fn(),
+}));
+
 import crypto from "node:crypto";
 import { MobileTokenError, rotateClientLoginToken } from "../services/mobileLoginService";
 import { MobileClientTokenModel } from "../models/mobileClientTokenModel";
 import * as authSession from "../services/authSessionService";
+import * as integrity from "../services/mobileIntegrityService";
 import { UserStorage } from "../utils/userStorage";
 
 const model = MobileClientTokenModel as unknown as { __docs: Map<string, FakeDoc> };
@@ -168,6 +179,15 @@ beforeEach(() => {
   asMock(authSession.touchAuthSession).mockResolvedValue(undefined);
   asMock(UserStorage.getUserById).mockResolvedValue({ id: USER_ID, username: "u", email: "u@e.com", role: "user" });
   asMock(UserStorage.updateUser).mockResolvedValue({ id: USER_ID, username: "u", email: "u@e.com", role: "user" });
+  asMock(integrity.verifyClientIntegrity).mockResolvedValue({
+    evaluated: false,
+    trusted: false,
+    level: "NONE",
+    reasons: ["MODE_OFF"],
+  });
+  asMock(integrity.shouldDowngradeForVerdict).mockReturnValue(false);
+  asMock(integrity.downgradedTtlMs).mockReturnValue(DAY_MS);
+  asMock(integrity.logIntegrityVerdict).mockReturnValue(undefined);
 });
 
 describe("rotateClientLoginToken", () => {
@@ -262,5 +282,70 @@ describe("rotateClientLoginToken", () => {
 
     expect((error as MobileTokenError).status).toBe(429);
     expect((error as MobileTokenError).errorCode).toBe("MOBILE_TOKEN_ROTATION_QUOTA");
+  });
+});
+
+describe("设备证明判定与轮换节奏（P2）", () => {
+  it("判定通过时不改变既有节奏，也不打降级标记", async () => {
+    const { token } = await seed();
+
+    const result = await rotateClientLoginToken({
+      clientLoginToken: token,
+      deviceId: DEVICE_ID,
+      integrityToken: "integrity-token",
+      integrityNonce: "nonce-value",
+    });
+
+    expect(result.requiresVerification).toBe(false);
+    expect(result.rotateIntervalMs).toBe(DAY_MS);
+    const next = model.__docs.get(hashOf(result.clientLoginToken));
+    expect(next!.expiresAt - next!.createdAt).toBe(90 * DAY_MS);
+    expect(integrity.verifyClientIntegrity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: USER_ID,
+        deviceId: DEVICE_ID,
+        integrityToken: "integrity-token",
+        nonce: "nonce-value",
+      }),
+    );
+  });
+
+  it("判定不通过时只降级：新一代有效期缩短、下一次轮换提前到 1 小时，并标记 requiresVerification", async () => {
+    const { token, doc } = await seed();
+    asMock(integrity.shouldDowngradeForVerdict).mockReturnValue(true);
+    asMock(integrity.downgradedTtlMs).mockReturnValue(DAY_MS);
+
+    const result = await rotateClientLoginToken({
+      clientLoginToken: token,
+      deviceId: DEVICE_ID,
+      integrityToken: "integrity-token",
+      integrityNonce: "nonce-value",
+    });
+
+    expect(result.requiresVerification).toBe(true);
+    expect(result.rotateIntervalMs).toBe(60 * 60 * 1000);
+    expect(new Date(result.nextRotationAt).getTime() - new Date(result.rotatedAt).getTime()).toBe(60 * 60 * 1000);
+    const next = model.__docs.get(hashOf(result.clientLoginToken));
+    expect(next!.expiresAt - next!.createdAt).toBe(DAY_MS);
+    // 降级不是拒绝：旧代仍然只打 superseded，不写 revokedAt。
+    expect(model.__docs.get(doc.tokenHash)?.revokedAt).toBeNull();
+    expect(authSession.createAuthSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("降级判定发生在本地风控之后：被每日配额拦下的请求不会去花一次校验", async () => {
+    const { token, doc } = await seed();
+    for (let index = 0; index < 8; index += 1) {
+      await seed({ lineageId: doc.lineageId, createdAt: Date.now() - 1000 });
+    }
+
+    const error = await rotateClientLoginToken({
+      clientLoginToken: token,
+      deviceId: DEVICE_ID,
+      integrityToken: "integrity-token",
+      integrityNonce: "nonce-value",
+    }).catch((err) => err);
+
+    expect((error as MobileTokenError).errorCode).toBe("MOBILE_TOKEN_ROTATION_QUOTA");
+    expect(integrity.verifyClientIntegrity).not.toHaveBeenCalled();
   });
 });

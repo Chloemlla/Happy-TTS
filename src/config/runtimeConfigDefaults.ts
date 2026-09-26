@@ -238,6 +238,43 @@ export interface FirstVisitVerificationRuntimeConfig {
   enabled: boolean;
 }
 
+/**
+ * Play Integrity 设备证明（`sml_` 客户端登录令牌的 P2 层）。
+ *
+ * `mode` 默认 `off`：不开就是不校验，行为与 P1 完全一致，因此本分区可以随代码先落地、
+ * 由运维在拿到 Google Cloud 服务账号后再逐级升到 `observe` → `enforce`。
+ * 校验失败不走"拒绝登录"，而是降级：单代有效期压到 `downgradedTtlHours` 并在响应里
+ * 带 `requiresVerification`，客户端据此提前轮换（见 docs/mobile-token-risk-control.md）。
+ */
+export interface MobileTokenIntegrityRuntimeConfig {
+  /** off = 不校验；observe = 校验并记日志但不下发降级；enforce = 校验并决定降级。 */
+  mode: "off" | "observe" | "enforce";
+  /** 被证明的应用包名；必须与客户端 applicationId 一致。 */
+  packageName: string;
+  /** Google Cloud 项目号（Play Integrity 的 cloudProjectNumber）。 */
+  cloudProjectNumber: string;
+  /** 服务账号邮箱，用于换取 access token。 */
+  serviceAccountEmail: string;
+  /** 服务账号私钥（PEM）。属于机密，读取时一律掩码。 */
+  serviceAccountPrivateKey: string;
+  /** 要求的最低设备完整性等级。 */
+  minDeviceIntegrity: "MEETS_BASIC_INTEGRITY" | "MEETS_DEVICE_INTEGRITY" | "MEETS_STRONG_INTEGRITY";
+  /** 是否要求应用确实来自 Play（appRecognitionVerdict = PLAY_RECOGNIZED）。 */
+  requirePlayRecognizedApp: boolean;
+  /** 是否要求 Google Play 授权账号（appLicensingVerdict = LICENSED）。 */
+  requireLicensedAccount: boolean;
+  /** 一次性 nonce 的有效期；过期即判失败。 */
+  nonceTtlSeconds: number;
+  /** 调用 Google 判定接口的超时。 */
+  timeoutMs: number;
+  /** 校验链路自身故障（网络/配置缺失）时是否放行；默认 true，用降级换可用性。 */
+  failOpen: boolean;
+  /** 降级后的单代有效期（小时），取代 90 天。 */
+  downgradedTtlHours: number;
+  /** 视作"新鲜"的 token 时间戳窗口；超出即判失败。 */
+  maxTokenAgeSeconds: number;
+}
+
 export interface RuntimeConfigDefaults {
   ipqs: IpqsRuntimeConfig;
   linuxdo: LinuxDoRuntimeConfig;
@@ -256,6 +293,7 @@ export interface RuntimeConfigDefaults {
   proxycheck: ProxycheckRuntimeConfig;
   registrationInvite: RegistrationInviteRuntimeConfig;
   firstVisitVerification: FirstVisitVerificationRuntimeConfig;
+  mobileTokenIntegrity: MobileTokenIntegrityRuntimeConfig;
   lumen: LumenRuntimeConfig;
 }
 
@@ -435,6 +473,23 @@ export function buildRuntimeConfigDefaults(options: {
     firstVisitVerification: {
       enabled: true,
     },
+    // 默认 off：没有 Google Cloud 服务账号的环境必须与 P1 行为完全一致，
+    // 只有运维显式升到 observe / enforce 才会参与判定。
+    mobileTokenIntegrity: {
+      mode: "off",
+      packageName: options.synapseAndroidPackageName?.trim() || "com.chloemlla.synapse.mobile",
+      cloudProjectNumber: "",
+      serviceAccountEmail: "",
+      serviceAccountPrivateKey: "",
+      minDeviceIntegrity: "MEETS_DEVICE_INTEGRITY",
+      requirePlayRecognizedApp: true,
+      requireLicensedAccount: false,
+      nonceTtlSeconds: 300,
+      timeoutMs: 5000,
+      failOpen: true,
+      downgradedTtlHours: 24,
+      maxTokenAgeSeconds: 600,
+    },
     lumen: {
       enabled: false,
       adminUsername: "admin",
@@ -544,6 +599,9 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
     },
     firstVisitVerification: {
       ...config.firstVisitVerification,
+    },
+    mobileTokenIntegrity: {
+      ...config.mobileTokenIntegrity,
     },
     lumen: {
       ...config.lumen,

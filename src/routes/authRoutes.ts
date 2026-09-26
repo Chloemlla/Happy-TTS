@@ -104,6 +104,15 @@ const authClientTokenRotateLimiter = createLimiter({
   max: 24,
   message: "令牌轮换请求过于频繁，请稍后再试",
 });
+// 一次轮换要配一次挑战申请，所以预算比轮换本身宽松一档，别让客户端在第一步就被拦住。
+const authIntegrityChallengeLimiter = createLimiter({
+  name: "authIntegrityChallenge",
+  profile: "verification",
+  category: "auth",
+  windowMs: 60 * 60 * 1000,
+  max: 60,
+  message: "设备证明申请过于频繁，请稍后再试",
+});
 
 /**
  * @openapi
@@ -177,12 +186,49 @@ router.post(
 router.post("/mobile-login/client-token/exchange", authMobileLoginLimiter, MobileLoginController.exchangeClientToken);
 /**
  * @openapi
+ * /auth/mobile-login/integrity-challenge:
+ *   post:
+ *     summary: 申请设备证明挑战
+ *     description: |
+ *       设备证明（P2）的第一步：取一个一次性 nonce，交给客户端向 Google Play Integrity
+ *       换取 integrity token，再连同 nonce 一起带回 rotate / issue。
+ *       身份可以用 Authorization: Bearer <jwt>（首次签发）或 sml_ 令牌（轮换）表达。
+ *       本层未启用时返回 required=false，客户端不需要走这一步。
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               clientLoginToken:
+ *                 type: string
+ *               deviceId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: required=false 表示服务端未启用设备证明；否则附带 nonce / expiresAt
+ *       401:
+ *         description: 令牌无效、已过期、已撤销
+ *       403:
+ *         description: 令牌与 deviceId 不匹配
+ */
+router.post(
+  "/mobile-login/integrity-challenge",
+  authMobileLoginLimiter,
+  authIntegrityChallengeLimiter,
+  MobileLoginController.createIntegrityChallenge,
+);
+/**
+ * @openapi
  * /auth/mobile-login/client-token/rotate:
  *   post:
  *     summary: 轮换客户端登录令牌
  *     description: |
  *       用当前持有的 sml_ 令牌换一张新一代令牌，登录会话不中断。
  *       不要求 JWT；被顶替的旧代超过宽限期再次使用会触发整条血缘吊销。
+ *       设备证明（P2）启用时需附带 integrityNonce + integrityToken，未通过只降级不拒绝：
+ *       单代有效期缩短、nextRotationAt 提前，响应里以 requiresVerification 标记。
  *       策略正文见 docs/mobile-token-risk-control.md。
  *     requestBody:
  *       required: true
@@ -194,6 +240,10 @@ router.post("/mobile-login/client-token/exchange", authMobileLoginLimiter, Mobil
  *               clientLoginToken:
  *                 type: string
  *               deviceId:
+ *                 type: string
+ *               integrityNonce:
+ *                 type: string
+ *               integrityToken:
  *                 type: string
  *               reason:
  *                 type: string

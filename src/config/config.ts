@@ -17,6 +17,7 @@ import {
   type CdictSigningRuntimeConfig,
   type ProxycheckRuntimeConfig,
   type FirstVisitVerificationRuntimeConfig,
+  type MobileTokenIntegrityRuntimeConfig,
   type TtsRuntimeConfig,
 } from "./runtimeConfigDefaults";
 import type { TtsProviderRuntimeConfig } from "./ttsProviderConfig";
@@ -420,6 +421,30 @@ runtimeDefaults.firstVisitVerification = {
   enabled: parsedEnv.ENABLE_FIRST_VISIT_VERIFICATION ?? runtimeDefaults.firstVisitVerification.enabled,
 };
 
+/**
+ * 环境变量里的 PEM 私钥常被压成一行（`\n` 是字面量），直接喂给 JWT 签名会失败。
+ * 这里统一还原换行；已经是真多行的值原样保留。
+ */
+function normalizePlayIntegrityPrivateKey(raw: string | undefined): string {
+  const value = (raw || "").trim();
+  if (!value) return "";
+  return value.includes("\\n") ? value.replace(/\\n/g, "\n") : value;
+}
+
+// Play Integrity 设备证明的默认值来自 env；已存 MOBILE_TOKEN_INTEGRITY 文档覆盖之。
+// 私钥属于机密，用 process.env（非 parsedEnv schema），同 proxycheck。
+// 注意：不在这里决定 mode —— 是否参与判定只能由运行时配置升档，避免某台机器
+// 仅仅因为设了服务账号就把全网客户端挡在降级路径上。
+runtimeDefaults.mobileTokenIntegrity = {
+  ...runtimeDefaults.mobileTokenIntegrity,
+  cloudProjectNumber: (process.env.PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER || "").trim(),
+  packageName: (process.env.PLAY_INTEGRITY_PACKAGE_NAME || "").trim() || runtimeDefaults.mobileTokenIntegrity.packageName,
+  serviceAccountEmail: (process.env.PLAY_INTEGRITY_SERVICE_ACCOUNT_EMAIL || "").trim(),
+  serviceAccountPrivateKey: normalizePlayIntegrityPrivateKey(
+    process.env.PLAY_INTEGRITY_SERVICE_ACCOUNT_PRIVATE_KEY,
+  ),
+};
+
 // Project Lumen server-side config defaults come from env; a stored LUMEN doc
 // overrides them at runtime (see src/config/lumen.ts).
 runtimeDefaults.lumen = buildLumenConfigFromEnv();
@@ -515,6 +540,9 @@ export const runtimeMutableConfig = {
   },
   get firstVisitVerification(): FirstVisitVerificationRuntimeConfig {
     return RuntimeConfigService.getCachedConfig().firstVisitVerification;
+  },
+  get mobileTokenIntegrity(): MobileTokenIntegrityRuntimeConfig {
+    return RuntimeConfigService.getCachedConfig().mobileTokenIntegrity;
   },
   get linuxdo(): LinuxDoRuntimeConfig {
     return RuntimeConfigService.getCachedConfig().linuxdo;

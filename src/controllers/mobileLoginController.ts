@@ -7,10 +7,12 @@ import {
   markMobileLoginChallengeScanned,
   MobileTokenError,
   pollMobileLoginChallenge,
+  resolveClientTokenIdentity,
   resolveMobileLoginUser,
   revokeClientLoginToken,
   rotateClientLoginToken,
 } from "../services/mobileLoginService";
+import { isIntegrityActive, issueIntegrityNonce } from "../services/mobileIntegrityService";
 import { getClientIP } from "../utils/ipUtils";
 import { getAuthSessionMetadata } from "../services/authSessionService";
 import logger from "../utils/logger";
@@ -156,11 +158,37 @@ export class MobileLoginController {
         user,
         deviceId: typeof req.body?.deviceId === "string" ? req.body.deviceId : undefined,
         deviceName: typeof req.body?.deviceName === "string" ? req.body.deviceName : undefined,
+        integrityToken: typeof req.body?.integrityToken === "string" ? req.body.integrityToken : undefined,
+        integrityNonce: typeof req.body?.integrityNonce === "string" ? req.body.integrityNonce : undefined,
         metadata: getAuthSessionMetadata(req, { ipAddress: getClientIP(req) }),
       });
       return res.json({ success: true, ...result });
     } catch (error) {
       return respondError(res, error, "签发客户端登录令牌失败");
+    }
+  }
+
+  /**
+   * 申请设备证明挑战（P2）：客户端拿 nonce 去 Play Integrity SDK 换 integrity token，
+   * 再把它连同 nonce 一起带回 rotate / issue。
+   * 身份可以是 JWT（首次签发）或 sml_ 令牌（轮换），不要求两者同时存在。
+   */
+  public static async createIntegrityChallenge(req: Request, res: Response) {
+    try {
+      if (!isIntegrityActive()) {
+        // 本层没启用就别让客户端白跑一次 Google：原地告诉它不需要证明。
+        return res.json({ success: true, required: false });
+      }
+      const identity = await resolveClientTokenIdentity({
+        authHeader: req.headers.authorization,
+        clientLoginToken: typeof req.body?.clientLoginToken === "string" ? req.body.clientLoginToken : undefined,
+        deviceId: typeof req.body?.deviceId === "string" ? req.body.deviceId : undefined,
+        ip: getClientIP(req),
+      });
+      const challenge = issueIntegrityNonce({ userId: identity.userId, deviceId: identity.deviceId });
+      return res.json({ success: true, required: true, ...challenge });
+    } catch (error) {
+      return respondError(res, error, "申请设备证明失败");
     }
   }
 
@@ -180,6 +208,8 @@ export class MobileLoginController {
         deviceId: typeof req.body?.deviceId === "string" ? req.body.deviceId : undefined,
         ip: getClientIP(req),
         fingerprint: getFingerprint(req),
+        integrityToken: typeof req.body?.integrityToken === "string" ? req.body.integrityToken : undefined,
+        integrityNonce: typeof req.body?.integrityNonce === "string" ? req.body.integrityNonce : undefined,
         metadata: getAuthSessionMetadata(req, { ipAddress: getClientIP(req) }),
       });
       logger.info("[MobileLogin] 客户端令牌轮换完成", {

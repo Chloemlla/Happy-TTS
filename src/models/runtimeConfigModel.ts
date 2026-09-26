@@ -19,6 +19,7 @@ export const RUNTIME_CONFIG_KEYS = [
   "PROXYCHECK",
   "REGISTRATION_INVITE",
   "FIRST_VISIT_VERIFICATION",
+  "MOBILE_TOKEN_INTEGRITY",
 ] as const;
 
 export type RuntimeConfigKey = (typeof RUNTIME_CONFIG_KEYS)[number];
