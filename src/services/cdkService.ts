@@ -11,6 +11,7 @@ import { UserStorage } from "../utils/userStorage";
 import { sendEmail } from "./emailSender";
 import { generateCDKActivatedEmailHtml } from "../templates/emailTemplates";
 import { isAdminRole } from "../middleware/auth";
+import { registerBackgroundTaskStopper } from "../utils/backgroundTaskRegistry";
 
 /**
  * CDK 业务性失败（用户输入错误、无效/已使用、重复兑换、限流等）。
@@ -64,6 +65,7 @@ export class CDKService {
   private readonly serviceStartTime = Date.now();
   private lastError: string | undefined;
   private lastErrorTime: number | undefined;
+  private monitoringIntervals: Array<ReturnType<typeof setInterval>> = [];
 
   // 限流器（Rate Limiter）
   private readonly rateLimiter = new Map<string, { count: number; resetTime: number }>();
@@ -81,6 +83,7 @@ export class CDKService {
   private readonly CIRCUIT_BREAKER_SUCCESS_THRESHOLD = 3;
 
   private constructor() {
+    registerBackgroundTaskStopper(() => this.stopMonitoring());
     this.initializeService();
   }
 
@@ -129,6 +132,7 @@ export class CDKService {
       10 * 60 * 1000,
     ); // 10分钟
     interval.unref?.();
+    this.monitoringIntervals.push(interval);
   }
 
   private startHealthCheck() {
@@ -142,6 +146,7 @@ export class CDKService {
       }
     }, 30000); // 30秒
     interval.unref?.();
+    this.monitoringIntervals.push(interval);
   }
 
   private startCacheCleanup() {
@@ -152,6 +157,15 @@ export class CDKService {
       5 * 60 * 1000,
     ); // 5分钟
     interval.unref?.();
+    this.monitoringIntervals.push(interval);
+  }
+
+  /** 停止三个后台监控定时器（优雅关闭 / 测试拆卸用）。 */
+  public stopMonitoring(): void {
+    for (const interval of this.monitoringIntervals) {
+      clearInterval(interval);
+    }
+    this.monitoringIntervals = [];
   }
 
   private checkRateLimit(userId: string): boolean {

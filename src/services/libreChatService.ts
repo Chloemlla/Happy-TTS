@@ -6,6 +6,7 @@ import axios from "axios";
 import { load } from "cheerio";
 import { mongoose } from "../services/mongoService";
 import logger from "../utils/logger";
+import { registerBackgroundTaskStopper } from "../utils/backgroundTaskRegistry";
 import {
   ChatHistoryModel,
   ChatProviderModel,
@@ -144,6 +145,7 @@ class LibreChatService {
   private readonly MAX_SSE_CLIENTS_PER_OWNER = 10; // G3-20: 同一 ownerKey 的连接数上限
 
   private constructor() {
+    registerBackgroundTaskStopper(() => this.cleanup());
     this.initializationPromise = this.initializeService();
     this.startSSECleanup();
   }

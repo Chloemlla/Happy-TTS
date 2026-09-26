@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { stopRegisteredBackgroundTasks } from "../utils/backgroundTaskRegistry";
 
 process.env.NODE_ENV = "test";
 
@@ -101,6 +102,10 @@ export function addCleanupTask(task: () => void | Promise<void>): void {
 }
 
 afterAll(async () => {
+  // 先停后台定时任务，再跑各套件的清理：定时器活过本测试文件的拆卸点时，
+  // 它们回调里的 mongoose 惰性 require 会把 process.exitCode 悄悄置 1
+  // （断言全绿但步骤 exit 1），必须在拆卸之前切断。
+  stopRegisteredBackgroundTasks();
   for (const task of cleanupTasks.splice(0)) {
     await task();
   }

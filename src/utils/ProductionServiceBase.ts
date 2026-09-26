@@ -1,5 +1,6 @@
 import { mongoose } from "../services/mongoService";
 import logger from "./logger";
+import { registerBackgroundTaskStopper } from "./backgroundTaskRegistry";
 
 // =============== 配置接口 ===============
 
@@ -214,6 +215,7 @@ export abstract class ProductionServiceBase {
     });
 
     if (this.config.monitoring?.enabled) {
+      registerBackgroundTaskStopper(() => this.stopMonitoring());
       this.startMonitoring();
     }
   }

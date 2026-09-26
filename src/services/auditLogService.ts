@@ -5,6 +5,7 @@ import { AuditLogModel, type IAuditLog } from "../models/auditLogModel";
 import { isSensitiveAuditField } from "../utils/auditRedaction";
 import logger from "../utils/logger";
 import { registerShutdownStep, installShutdownHandlers } from "./shutdown";
+import { registerBackgroundTaskStopper } from "../utils/backgroundTaskRegistry";
 import {
   ALLOWED_AUDIT_MODULES,
   inferAuditModuleFromPath,
@@ -22,6 +23,7 @@ const AUDIT_BATCH_MAX_BUFFER = 500;
 const AUDIT_FALLBACK_FILE = join(process.cwd(), "data", "audit-fallback.jsonl");
 const auditBatchBuffer: AuditEntry[] = [];
 let auditBatchTimer: ReturnType<typeof setInterval> | null = null;
+let auditBatchRetryTimer: ReturnType<typeof setTimeout> | null = null;
 let auditBatchRetryCount = 0;
 
 async function appendAuditFallback(entries: AuditEntry[]): Promise<void> {
@@ -80,12 +82,29 @@ async function flushAuditBatch(): Promise<void> {
     // 放回缓冲头部，指数退避后重试。
     auditBatchBuffer.unshift(...batch);
     const backoffMs = Math.min(1_000 * 2 ** auditBatchRetryCount, 30_000);
-    const retryTimer = setTimeout(() => {
+    auditBatchRetryTimer = setTimeout(() => {
+      auditBatchRetryTimer = null;
       flushAuditBatch().catch((retryErr) =>
         logger.error("[AuditBatch] 重试刷新失败", retryErr),
       );
     }, backoffMs);
-    retryTimer.unref?.();
+    auditBatchRetryTimer.unref?.();
+  }
+}
+
+/**
+ * 停止批量刷新定时器（测试拆卸用）。定时器一旦活过 Jest 拆卸测试环境的时点，
+ * 回调里的 mongoose 惰性 require 就会撞上 jest-runtime 的拆卸守卫并把
+ * process.exitCode 悄悄置 1（断言全绿、步骤 exit 1），必须在拆卸之前切断。
+ */
+export function stopAuditBatchFlush(): void {
+  if (auditBatchTimer) {
+    clearInterval(auditBatchTimer);
+    auditBatchTimer = null;
+  }
+  if (auditBatchRetryTimer) {
+    clearTimeout(auditBatchRetryTimer);
+    auditBatchRetryTimer = null;
   }
 }
 
@@ -97,6 +116,7 @@ export async function flushAuditBatchForShutdown(): Promise<void> {
 }
 
 registerShutdownStep("audit-log", flushAuditBatchForShutdown);
+registerBackgroundTaskStopper(stopAuditBatchFlush);
 installShutdownHandlers();
 
 export interface AuditEntry {

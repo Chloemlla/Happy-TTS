@@ -4,6 +4,7 @@ import { join } from "node:path";
 import logger from "../utils/logger";
 import { mongoose } from "./mongoService";
 import { installShutdownHandlers, registerShutdownStep } from "./shutdown";
+import { registerBackgroundTaskStopper } from "../utils/backgroundTaskRegistry";
 
 // FilterQuery type definition for compatibility
 type FilterQuery<T> = {
@@ -124,6 +125,7 @@ class DataCollectionService {
   private batchTimer: NodeJS.Timeout | null = null;
   private isProcessingBatch = false;
   private isShuttingDown = false;
+  private monitoringIntervals: Array<ReturnType<typeof setInterval>> = [];
 
   // 性能统计
   private stats: PerformanceStats = {
@@ -168,6 +170,7 @@ class DataCollectionService {
   private readonly VALIDATION_CACHE_TTL = 300000; // 5分钟
 
   private constructor() {
+    registerBackgroundTaskStopper(() => this.stopMonitoring());
     this.initializeService();
     this.setupBatchProcessor();
     this.setupGracefulShutdown();
@@ -418,6 +421,7 @@ class DataCollectionService {
       10 * 60 * 1000,
     ); // 10分钟
     interval.unref?.();
+    this.monitoringIntervals.push(interval);
   }
 
   private startHealthCheck() {
@@ -434,6 +438,7 @@ class DataCollectionService {
       }
     }, 30000); // 30秒
     interval.unref?.();
+    this.monitoringIntervals.push(interval);
   }
 
   private startCacheCleanup() {
@@ -447,6 +452,15 @@ class DataCollectionService {
       5 * 60 * 1000,
     ); // 5分钟
     interval.unref?.();
+    this.monitoringIntervals.push(interval);
+  }
+
+  /** 停止三个后台监控定时器（测试拆卸用；生产侧走 shutdown 编排）。 */
+  public stopMonitoring(): void {
+    for (const interval of this.monitoringIntervals) {
+      clearInterval(interval);
+    }
+    this.monitoringIntervals = [];
   }
 
   // =============== 断路器模式实现 ===============
