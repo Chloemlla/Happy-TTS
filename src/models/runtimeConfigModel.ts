@@ -20,6 +20,7 @@ export const RUNTIME_CONFIG_KEYS = [
   "REGISTRATION_INVITE",
   "FIRST_VISIT_VERIFICATION",
   "MOBILE_TOKEN_INTEGRITY",
+  "MOBILE_TOKEN_ROTATION_RISK",
 ] as const;
 
 export type RuntimeConfigKey = (typeof RUNTIME_CONFIG_KEYS)[number];

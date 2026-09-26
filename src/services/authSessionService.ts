@@ -301,6 +301,19 @@ export async function revokeAuthSessionsByClientTokenHashes(userId: string, toke
   );
 }
 
+/**
+ * 某张客户端令牌（`sml_`）名下最近一条会话记录的 IP 属地。
+ * 风险分级轮换用它比对"这次轮换的属地与上一代签发时是不是同一个地方"。
+ * 取不到（老会话没记、或属地查询失败）返回 null，调用方据此放弃属地这一路判断。
+ */
+export async function getAuthSessionIpLocation(userId: string, clientTokenHash: string): Promise<string | null> {
+  const session = (await AuthSessionModel.findOne({ userId, clientTokenHash })
+    .sort({ createdAt: -1 })
+    .select("ipLocation")
+    .lean()) as { ipLocation?: string } | null;
+  return session?.ipLocation || null;
+}
+
 export async function assertActiveAuthSession(
   userId: string,
   credential: string,

@@ -275,6 +275,29 @@ export interface MobileTokenIntegrityRuntimeConfig {
   maxTokenAgeSeconds: number;
 }
 
+/**
+ * 客户端登录令牌的风险分级轮换（`sml_` 风控 P3 层）。
+ *
+ * 与 P2 的降级不同：P2 只处理"设备证明没过"，P3 处理"这一代看起来不太对劲"，
+ * 手段都只是把下一次轮换提前（24h → 1h），不动单代有效期，也不拒绝任何请求。
+ * 因此它在 `MOBILE_TOKEN_INTEGRITY.mode = observe` 时也能单独生效 —— 那正是把
+ * "观察到的判定结果"变成实际动作的地方。
+ */
+export interface MobileTokenRotationRiskRuntimeConfig {
+  /** 总开关，默认 false：不开时轮换节奏与 P2 完全一致。 */
+  enabled: boolean;
+  /** 命中任一风险信号后的轮换间隔（分钟），取代默认的 24 小时。 */
+  elevatedIntervalMinutes: number;
+  /** 是否把 IP 属地突变算作风险信号。 */
+  geoJumpEnabled: boolean;
+  /** 属地比对粒度：country 只看国家，region 连省/州一起看。 */
+  geoJumpScope: "country" | "region";
+  /** 新设备（该账号上首次出现的设备）在多长时间内算"新"。 */
+  newDeviceTrustHours: number;
+  /** 上一代是在设备证明未通过的情况下签发时，是否把后续代也压在提级节奏上。 */
+  carryOverVerificationPending: boolean;
+}
+
 export interface RuntimeConfigDefaults {
   ipqs: IpqsRuntimeConfig;
   linuxdo: LinuxDoRuntimeConfig;
@@ -294,6 +317,7 @@ export interface RuntimeConfigDefaults {
   registrationInvite: RegistrationInviteRuntimeConfig;
   firstVisitVerification: FirstVisitVerificationRuntimeConfig;
   mobileTokenIntegrity: MobileTokenIntegrityRuntimeConfig;
+  mobileTokenRotationRisk: MobileTokenRotationRiskRuntimeConfig;
   lumen: LumenRuntimeConfig;
 }
 
@@ -490,6 +514,15 @@ export function buildRuntimeConfigDefaults(options: {
       downgradedTtlHours: 24,
       maxTokenAgeSeconds: 600,
     },
+    // 默认关：不配置就完全沿用 24 小时节奏，只有运维显式打开才会出现提级轮换。
+    mobileTokenRotationRisk: {
+      enabled: false,
+      elevatedIntervalMinutes: 60,
+      geoJumpEnabled: true,
+      geoJumpScope: "country",
+      newDeviceTrustHours: 24,
+      carryOverVerificationPending: true,
+    },
     lumen: {
       enabled: false,
       adminUsername: "admin",
@@ -602,6 +635,9 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
     },
     mobileTokenIntegrity: {
       ...config.mobileTokenIntegrity,
+    },
+    mobileTokenRotationRisk: {
+      ...config.mobileTokenRotationRisk,
     },
     lumen: {
       ...config.lumen,

@@ -6,6 +6,7 @@ import { MobileClientTokenModel, type MobileClientTokenDoc } from "../models/mob
 import {
   assertActiveAuthSession,
   createAuthSession,
+  getAuthSessionIpLocation,
   issueTrackedLoginToken,
   revokeAuthCredential,
   revokeAuthSessionsByClientTokenHashes,
@@ -20,6 +21,13 @@ import {
   shouldDowngradeForVerdict,
   verifyClientIntegrity,
 } from "./mobileIntegrityService";
+import {
+  collectRotationRiskSignals,
+  deviceFingerprintOf,
+  isRotationRiskEnabled,
+  resolveRotationInterval,
+  type RotationRiskSignal,
+} from "./mobileTokenRiskService";
 import type { Request } from "express";
 
 const CHALLENGE_TTL_MS = 3 * 60 * 1000;
@@ -324,6 +332,14 @@ export async function issueClientLoginToken(params: {
   const expiresAt = now + ttlMs;
   const deviceId = typeof params.deviceId === "string" ? params.deviceId.slice(0, 128) : undefined;
   const deviceName = typeof params.deviceName === "string" ? params.deviceName.slice(0, 128) : undefined;
+  // P3：设备首次出现的时间与"待重新验证"标记跟着令牌走，第一次轮换就能用上。
+  const deviceFingerprint = deviceFingerprintOf(deviceId, deviceName);
+  const deviceFirstSeenAt = await resolveDeviceFirstSeenAt({
+    userId: params.user.id,
+    deviceFingerprint,
+    fallback: now,
+  });
+  const verificationPending = verdict.evaluated && !verdict.trusted;
 
   // G2-18: 同一设备的旧令牌先撤销，再写入新令牌（单文档原子，防止并发读改写回滚撤销）。
   const replacedTokenHashes: string[] = [];
@@ -355,6 +371,9 @@ export async function issueClientLoginToken(params: {
     // 一次“登录”开一条新血缘，之后的每日轮换在这条链上往后延。
     lineageId: hashToken(token),
     rotationIndex: 0,
+    deviceFingerprint,
+    deviceFirstSeenAt,
+    verificationPending,
   });
   await revokeAuthSessionsByClientTokenHashes(params.user.id, replacedTokenHashes);
   await createAuthSession({
@@ -373,6 +392,27 @@ export async function issueClientLoginToken(params: {
     expiresAt: new Date(expiresAt).toISOString(),
     requiresVerification: downgraded,
   };
+}
+
+/**
+ * 这台设备在该账号上首次出现的时间：库里有记录就继承，没有就算作现在。
+ * 只在风险分级轮换开着的时候查库 —— 没开这一层就不该为它多打一次查询。
+ */
+async function resolveDeviceFirstSeenAt(params: {
+  userId: string;
+  deviceFingerprint?: string;
+  fallback: number;
+}): Promise<number> {
+  if (!params.deviceFingerprint || !isRotationRiskEnabled()) return params.fallback;
+  const earliest = (await MobileClientTokenModel.findOne({
+    userId: params.userId,
+    deviceFingerprint: params.deviceFingerprint,
+  })
+    .sort({ createdAt: 1 })
+    .select("deviceFirstSeenAt createdAt")
+    .lean()) as { deviceFirstSeenAt?: number; createdAt?: number } | null;
+  if (!earliest) return params.fallback;
+  return earliest.deviceFirstSeenAt ?? earliest.createdAt ?? params.fallback;
 }
 
 async function loadActiveClientTokenDoc(token: string): Promise<MobileClientTokenDoc> {
@@ -516,8 +556,20 @@ export async function rotateClientLoginToken(params: {
   const nextToken = `sml_${randomToken(40)}`;
   const nextHash = hashToken(nextToken);
   const expiresAt = now + (downgraded ? downgradedTtlMs() : CLIENT_TOKEN_TTL_MS);
-  const rotationIntervalMs = downgraded ? ROTATION_ELEVATED_INTERVAL_MS : ROTATION_INTERVAL_MS;
   const rotationIndex = (doc.rotationIndex ?? 0) + 1;
+  // P3：设备首见时间跨代继承；设备证明这轮通过了才算把"待重新验证"清掉。
+  const deviceFingerprint = doc.deviceFingerprint ?? deviceFingerprintOf(doc.deviceId, doc.deviceName);
+  const deviceFirstSeenAt = await resolveDeviceFirstSeenAt({
+    userId: doc.userId,
+    deviceFingerprint,
+    fallback: doc.deviceFirstSeenAt ?? doc.createdAt,
+  });
+  const verdictUntrusted = verdict.evaluated && !verdict.trusted;
+  const verificationPending = verdictUntrusted
+    ? true
+    : verdict.evaluated
+      ? false
+      : Boolean(doc.verificationPending);
 
   await MobileClientTokenModel.create({
     tokenHash: nextHash,
@@ -530,6 +582,9 @@ export async function rotateClientLoginToken(params: {
     lineageId,
     rotationIndex,
     rotatedFrom: doc.tokenHash,
+    deviceFingerprint,
+    deviceFirstSeenAt,
+    verificationPending,
   });
 
   // 旧代先打 superseded 标记；不写 revokedAt，否则在途请求会当场失败。
@@ -548,7 +603,7 @@ export async function rotateClientLoginToken(params: {
     { $set: supersedeSet },
   );
 
-  await createAuthSession({
+  const session = await createAuthSession({
     userId: doc.userId,
     credential: nextToken,
     credentialType: "client-token",
@@ -560,6 +615,28 @@ export async function rotateClientLoginToken(params: {
     ipAddress: ip,
   });
 
+  // 风险分级（P3）放在最后：属地取的是刚建好的这条会话算出来的值，
+  // 因此这一层不额外发一次归属地查询，也不改变上面任何一步的顺序。
+  const riskSignals = await assessRotationRisk({
+    doc,
+    ipLocation: session?.ipLocation,
+    deviceFirstSeenAt,
+    verificationPending,
+    verdictUntrusted,
+    now,
+  });
+  if (riskSignals.length > 0) {
+    await MobileClientTokenModel.updateOne(
+      { tokenHash: doc.tokenHash },
+      { $set: { riskSignals } },
+    );
+  }
+
+  // 降级（P2）与风险信号（P3）都只做一件事：把下一次轮换提前。
+  const rotationIntervalMs = downgraded
+    ? ROTATION_ELEVATED_INTERVAL_MS
+    : resolveRotationInterval(riskSignals, ROTATION_INTERVAL_MS);
+
   logger.info("[MobileToken] 客户端登录令牌已轮换", {
     userId: doc.userId,
     deviceId: doc.deviceId,
@@ -567,6 +644,8 @@ export async function rotateClientLoginToken(params: {
     rotationIndex,
     rotationsLast24h: rotationsLast24h + 1,
     downgraded,
+    riskSignals,
+    escalationReason: downgraded || riskSignals.length > 0 ? "elevated" : "default",
     ip,
   });
 
@@ -579,7 +658,49 @@ export async function rotateClientLoginToken(params: {
     rotateIntervalMs: rotationIntervalMs,
     graceMs: ROTATION_SUPERSEDED_GRACE_MS,
     requiresVerification: downgraded,
+    // 给客户端的只是一句话："这次是提级节奏"，不解释命中了哪几路信号。
+    escalated: downgraded || riskSignals.length > 0,
   };
+}
+
+/**
+ * 轮换时的风险分级。只做判定与日志，不改任何写入 —— 上一代签发时的属地取自
+ * 会话台账（`getAuthSessionIpLocation`），这一代的属地由调用方传进来。
+ * 本层没启用时直接返回空数组，连那一次查询都不发。
+ */
+async function assessRotationRisk(params: {
+  doc: MobileClientTokenDoc;
+  ipLocation?: string | null;
+  deviceFirstSeenAt: number;
+  verificationPending: boolean;
+  verdictUntrusted: boolean;
+  now: number;
+}): Promise<RotationRiskSignal[]> {
+  if (!isRotationRiskEnabled()) return [];
+
+  const previousIpLocation = await getAuthSessionIpLocation(params.doc.userId, params.doc.tokenHash);
+  const signals = collectRotationRiskSignals({
+    previousIpLocation,
+    currentIpLocation: params.ipLocation,
+    verificationPending: params.verificationPending,
+    verdictUntrusted: params.verdictUntrusted,
+    deviceFirstSeenAt: params.deviceFirstSeenAt,
+    now: params.now,
+  });
+
+  if (signals.length > 0) {
+    logger.info("[MobileToken] 本次轮换命中风险信号，已把下一次轮换提前", {
+      userId: params.doc.userId,
+      deviceId: params.doc.deviceId,
+      lineageId: lineageIdOf(params.doc),
+      rotationIndex: (params.doc.rotationIndex ?? 0) + 1,
+      signals,
+      previousIpLocation: previousIpLocation || undefined,
+      deviceFirstSeenAt: new Date(params.deviceFirstSeenAt).toISOString(),
+    });
+  }
+
+  return signals;
 }
 
 /**

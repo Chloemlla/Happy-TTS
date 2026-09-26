@@ -19,6 +19,10 @@ type FakeDoc = {
   rotatedFrom?: string | null;
   lineageId?: string;
   rotationIndex?: number;
+  deviceFingerprint?: string;
+  deviceFirstSeenAt?: number;
+  verificationPending?: boolean;
+  riskSignals?: string[];
 };
 
 type Filter = Record<string, unknown>;
@@ -59,14 +63,21 @@ jest.mock("../models/mobileClientTokenModel", () => {
   };
 
   const model = {
-    findOne: jest.fn((filter: Filter) => ({
-      lean: async () => {
+    findOne: jest.fn((filter: Filter) => {
+      const result = () => {
         for (const doc of docs.values()) {
           if (matches(doc, filter)) return { ...doc };
         }
         return null;
-      },
-    })),
+      };
+      // P3 查"这台设备最早什么时候出现过"用到了 sort/select，替身照抄这几个链式调用。
+      const chain = {
+        sort: () => chain,
+        select: () => chain,
+        lean: async () => result(),
+      };
+      return chain;
+    }),
     find: jest.fn((filter: Filter) => ({
       select: () => ({
         lean: async () =>
@@ -111,6 +122,7 @@ jest.mock("../services/authSessionService", () => ({
   revokeAuthSessionsByClientTokenHashes: jest.fn(),
   touchAuthSession: jest.fn(),
   getAuthSessionMetadata: jest.fn(),
+  getAuthSessionIpLocation: jest.fn(),
 }));
 
 jest.mock("../utils/userStorage", () => ({
@@ -130,11 +142,25 @@ jest.mock("../services/mobileIntegrityService", () => ({
   issueIntegrityNonce: jest.fn(),
 }));
 
+// 风险分级（P3）的判定逻辑另有 mobileTokenRiskService.test.ts 覆盖；
+// 这里同样只关心"命中信号以后轮换响应变成什么样"。
+jest.mock("../services/mobileTokenRiskService", () => ({
+  isRotationRiskEnabled: jest.fn(() => false),
+  deviceFingerprintOf: jest.fn(
+    (deviceId?: string, deviceName?: string) => (deviceId ? `fp-${deviceId}-${deviceName ?? ""}` : undefined),
+  ),
+  collectRotationRiskSignals: jest.fn(() => []),
+  resolveRotationInterval: jest.fn((signals: string[], defaultIntervalMs: number) =>
+    signals.length > 0 ? 60 * 60 * 1000 : defaultIntervalMs,
+  ),
+}));
+
 import crypto from "node:crypto";
-import { MobileTokenError, rotateClientLoginToken } from "../services/mobileLoginService";
+import { MobileTokenError, issueClientLoginToken, rotateClientLoginToken } from "../services/mobileLoginService";
 import { MobileClientTokenModel } from "../models/mobileClientTokenModel";
 import * as authSession from "../services/authSessionService";
 import * as integrity from "../services/mobileIntegrityService";
+import * as rotationRisk from "../services/mobileTokenRiskService";
 import { UserStorage } from "../utils/userStorage";
 
 const model = MobileClientTokenModel as unknown as { __docs: Map<string, FakeDoc> };
@@ -188,6 +214,9 @@ beforeEach(() => {
   asMock(integrity.shouldDowngradeForVerdict).mockReturnValue(false);
   asMock(integrity.downgradedTtlMs).mockReturnValue(DAY_MS);
   asMock(integrity.logIntegrityVerdict).mockReturnValue(undefined);
+  asMock(rotationRisk.isRotationRiskEnabled).mockReturnValue(false);
+  asMock(rotationRisk.collectRotationRiskSignals).mockReturnValue([]);
+  asMock(authSession.getAuthSessionIpLocation).mockResolvedValue(null);
 });
 
 describe("rotateClientLoginToken", () => {
@@ -347,5 +376,186 @@ describe("设备证明判定与轮换节奏（P2）", () => {
 
     expect((error as MobileTokenError).errorCode).toBe("MOBILE_TOKEN_ROTATION_QUOTA");
     expect(integrity.verifyClientIntegrity).not.toHaveBeenCalled();
+  });
+});
+
+describe("签发时写下的风险字段（P3）", () => {
+  const USER = { id: USER_ID, username: "u", email: "u@e.com", role: "user" };
+
+  it("新设备首次登录：记下首见时间与设备指纹，判定没过就带上待验证标记", async () => {
+    asMock(rotationRisk.isRotationRiskEnabled).mockReturnValue(true);
+    asMock(integrity.verifyClientIntegrity).mockResolvedValue({
+      evaluated: true,
+      trusted: false,
+      level: "NONE",
+      reasons: ["APP_NOT_PLAY_RECOGNIZED"],
+    });
+
+    const result = await issueClientLoginToken({
+      user: USER as never,
+      deviceId: DEVICE_ID,
+      deviceName: "Synapse Android",
+    });
+
+    const doc = model.__docs.get(hashOf(result.clientLoginToken));
+    expect(doc?.rotationIndex).toBe(0);
+    expect(doc?.lineageId).toBe(hashOf(result.clientLoginToken));
+    expect(doc?.deviceFingerprint).toBe(`fp-${DEVICE_ID}-Synapse Android`);
+    expect(doc?.deviceFirstSeenAt).toBeGreaterThan(Date.now() - 5000);
+    expect(doc?.verificationPending).toBe(true);
+  });
+
+  it("已知设备的首见时间继承历史，不会被重新登录刷成新的", async () => {
+    const seenAt = Date.now() - 3 * DAY_MS;
+    await MobileClientTokenModel.create({
+      tokenHash: "seen-before",
+      userId: USER_ID,
+      deviceId: DEVICE_ID,
+      deviceName: "Synapse Android",
+      createdAt: seenAt,
+      expiresAt: seenAt + 90 * DAY_MS,
+      deviceFingerprint: `fp-${DEVICE_ID}-Synapse Android`,
+      deviceFirstSeenAt: seenAt,
+      rotationIndex: 0,
+      lineageId: "seen-before",
+    } as never);
+    asMock(rotationRisk.isRotationRiskEnabled).mockReturnValue(true);
+
+    const result = await issueClientLoginToken({
+      user: USER as never,
+      deviceId: DEVICE_ID,
+      deviceName: "Synapse Android",
+    });
+
+    expect(model.__docs.get(hashOf(result.clientLoginToken))?.deviceFirstSeenAt).toBe(seenAt);
+  });
+
+  it("本层没开时不打这次历史查询，首见时间就记现在", async () => {
+    const seenAt = Date.now() - 3 * DAY_MS;
+    await MobileClientTokenModel.create({
+      tokenHash: "seen-before",
+      userId: USER_ID,
+      deviceId: DEVICE_ID,
+      deviceName: "Synapse Android",
+      createdAt: seenAt,
+      expiresAt: seenAt + 90 * DAY_MS,
+      deviceFingerprint: `fp-${DEVICE_ID}-Synapse Android`,
+      deviceFirstSeenAt: seenAt,
+      rotationIndex: 0,
+      lineageId: "seen-before",
+    } as never);
+    const findOneCallsBefore = asMock(MobileClientTokenModel.findOne).mock.calls.length;
+
+    const result = await issueClientLoginToken({
+      user: USER as never,
+      deviceId: DEVICE_ID,
+      deviceName: "Synapse Android",
+    });
+
+    expect(asMock(MobileClientTokenModel.findOne).mock.calls.length).toBe(findOneCallsBefore);
+    expect(model.__docs.get(hashOf(result.clientLoginToken))?.deviceFirstSeenAt).toBeGreaterThan(Date.now() - 5000);
+  });
+});
+
+describe("风险分级轮换（P3）", () => {
+  it("本层没开时不上报 escalated，也不去查上一代属地", async () => {
+    const { token } = await seed();
+
+    const result = await rotateClientLoginToken({ clientLoginToken: token, deviceId: DEVICE_ID, ip: "203.0.113.9" });
+
+    expect(result.escalated).toBe(false);
+    expect(result.rotateIntervalMs).toBe(DAY_MS);
+    expect(rotationRisk.collectRotationRiskSignals).not.toHaveBeenCalled();
+    expect(authSession.getAuthSessionIpLocation).not.toHaveBeenCalled();
+  });
+
+  it("命中信号时把下一次轮换提前到 1 小时，并回 escalated", async () => {
+    const { token, doc } = await seed();
+    asMock(rotationRisk.isRotationRiskEnabled).mockReturnValue(true);
+    asMock(rotationRisk.collectRotationRiskSignals).mockReturnValue(["GEO_JUMP"]);
+    asMock(authSession.getAuthSessionIpLocation).mockResolvedValue("中国, 北京, 北京 运营商: 中国联通");
+    asMock(authSession.createAuthSession).mockImplementation(async (input: unknown) => ({
+      ...(input as Record<string, unknown>),
+      ipLocation: "日本, 东京, 东京 运营商: NTT",
+    }));
+
+    const result = await rotateClientLoginToken({ clientLoginToken: token, deviceId: DEVICE_ID, ip: "203.0.113.9" });
+
+    expect(result.escalated).toBe(true);
+    expect(result.requiresVerification).toBe(false); // 提级节奏不等于降级
+    expect(result.rotateIntervalMs).toBe(60 * 60 * 1000);
+    expect(new Date(result.nextRotationAt).getTime() - new Date(result.rotatedAt).getTime()).toBe(60 * 60 * 1000);
+    const next = model.__docs.get(hashOf(result.clientLoginToken));
+    expect(next!.expiresAt - next!.createdAt).toBe(90 * DAY_MS); // 单代有效期不受影响
+    // 上一代的属地取自它自己的会话，这一代的属地取自刚建好的会话。
+    expect(authSession.getAuthSessionIpLocation).toHaveBeenCalledWith(USER_ID, doc.tokenHash);
+    expect(rotationRisk.collectRotationRiskSignals).toHaveBeenCalledWith(
+      expect.objectContaining({
+        previousIpLocation: "中国, 北京, 北京 运营商: 中国联通",
+        currentIpLocation: "日本, 东京, 东京 运营商: NTT",
+      }),
+    );
+    // 命中的信号记在旧代文档上备查。
+    expect(model.__docs.get(doc.tokenHash)?.riskSignals).toEqual(["GEO_JUMP"]);
+  });
+
+  it("判定没过时把“待重新验证”写进新一代，判定通过则清掉", async () => {
+    const { token } = await seed();
+    asMock(rotationRisk.isRotationRiskEnabled).mockReturnValue(true);
+    asMock(integrity.verifyClientIntegrity).mockResolvedValue({
+      evaluated: true,
+      trusted: false,
+      level: "BASIC",
+      reasons: ["DEVICE_INTEGRITY_TOO_LOW"],
+    });
+
+    const failed = await rotateClientLoginToken({ clientLoginToken: token, deviceId: DEVICE_ID });
+    const failedDoc = model.__docs.get(hashOf(failed.clientLoginToken));
+    expect(failedDoc?.verificationPending).toBe(true);
+
+    await seed({ tokenHash: hashOf(failed.clientLoginToken), lineageId: failedDoc!.lineageId, createdAt: Date.now() - 10 * 60 * 1000 });
+    asMock(integrity.verifyClientIntegrity).mockResolvedValue({
+      evaluated: true,
+      trusted: true,
+      level: "DEVICE",
+      reasons: [],
+    });
+
+    const passed = await rotateClientLoginToken({ clientLoginToken: failed.clientLoginToken, deviceId: DEVICE_ID });
+    expect(model.__docs.get(hashOf(passed.clientLoginToken))?.verificationPending).toBe(false);
+  });
+
+  it("设备证明这一层没判定时，上一代的待验证标记继续往下传", async () => {
+    const { token } = await seed({ verificationPending: true });
+    asMock(rotationRisk.isRotationRiskEnabled).mockReturnValue(true);
+
+    const result = await rotateClientLoginToken({ clientLoginToken: token, deviceId: DEVICE_ID });
+
+    expect(model.__docs.get(hashOf(result.clientLoginToken))?.verificationPending).toBe(true);
+  });
+
+  it("新设备取到的是这台设备的历史首见时间，而不是本次", async () => {
+    const { token, doc } = await seed({ createdAt: Date.now() - 60 * 60 * 1000 });
+    const seenAt = Date.now() - 3 * DAY_MS;
+    await MobileClientTokenModel.create({
+      tokenHash: "earlier-hash",
+      userId: USER_ID,
+      deviceId: DEVICE_ID,
+      deviceName: "Synapse Android",
+      createdAt: seenAt,
+      expiresAt: seenAt + 90 * DAY_MS,
+      deviceFingerprint: `fp-${DEVICE_ID}-Synapse Android`,
+      deviceFirstSeenAt: seenAt,
+      rotationIndex: 0,
+      lineageId: "earlier-lineage",
+    } as never);
+    asMock(rotationRisk.isRotationRiskEnabled).mockReturnValue(true);
+
+    const result = await rotateClientLoginToken({ clientLoginToken: token, deviceId: DEVICE_ID });
+
+    const next = model.__docs.get(hashOf(result.clientLoginToken));
+    expect(next?.deviceFirstSeenAt).toBe(seenAt);
+    expect(next?.deviceFingerprint).toBe(`fp-${DEVICE_ID}-Synapse Android`);
+    expect(model.__docs.get(doc.tokenHash)?.deviceFingerprint ?? null).toBeNull();
   });
 });

@@ -418,6 +418,23 @@ router.delete(
   auditLog({ module: "security", action: "security.mobile-token-integrity.delete" }),
   adminController.deleteMobileTokenIntegritySetting,
 );
+// 风险分级轮换（MOBILE_TOKEN_ROTATION_RISK）。阈值配置，无机密字段，
+// 保存后立即生效（多实例 ≤ 10s 收敛）；重置回退到默认的关闭状态。
+router.get("/mobile-token-rotation-risk/setting", adminController.getMobileTokenRotationRiskSetting);
+router.post(
+  "/mobile-token-rotation-risk/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
+  authenticateSuperAdmin,
+  auditLog({ module: "security", action: "security.mobile-token-rotation-risk.set", captureBody: false }),
+  adminController.setMobileTokenRotationRiskSetting,
+);
+router.delete(
+  "/mobile-token-rotation-risk/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
+  authenticateSuperAdmin,
+  auditLog({ module: "security", action: "security.mobile-token-rotation-risk.delete" }),
+  adminController.deleteMobileTokenRotationRiskSetting,
+);
 router.get("/cdict-signing/setting", adminController.getCdictSigningSetting);
 router.post(
   "/cdict-signing/setting",

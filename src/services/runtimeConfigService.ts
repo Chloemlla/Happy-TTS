@@ -11,6 +11,7 @@ import {
   type LinuxDoRuntimeConfig,
   type LumenRuntimeConfig,
   type MobileTokenIntegrityRuntimeConfig,
+  type MobileTokenRotationRiskRuntimeConfig,
   type NexaiRuntimeConfig,
   type NexaiSigningRuntimeConfig,
   type ProxycheckRuntimeConfig,
@@ -454,6 +455,7 @@ const RUNTIME_CONFIG_KEY_TO_PROP: Partial<Record<RuntimeConfigKey, keyof Runtime
   REGISTRATION_INVITE: "registrationInvite",
   FIRST_VISIT_VERIFICATION: "firstVisitVerification",
   MOBILE_TOKEN_INTEGRITY: "mobileTokenIntegrity",
+  MOBILE_TOKEN_ROTATION_RISK: "mobileTokenRotationRisk",
   LUMEN: "lumen",
   NEXAI: "nexai",
 };
@@ -766,6 +768,38 @@ function normalizeStoredMobileTokenIntegrityConfig(
   };
 }
 
+const ROTATION_RISK_GEO_SCOPES = ["country", "region"] as const;
+
+function normalizeStoredMobileTokenRotationRiskConfig(
+  value: unknown,
+  defaults = runtimeConfigDefaults.mobileTokenRotationRisk,
+): MobileTokenRotationRiskRuntimeConfig {
+  const raw = asObject(value);
+  const scope =
+    typeof raw.geoJumpScope === "string" &&
+    (ROTATION_RISK_GEO_SCOPES as readonly string[]).includes(raw.geoJumpScope.trim().toLowerCase())
+      ? (raw.geoJumpScope.trim().toLowerCase() as MobileTokenRotationRiskRuntimeConfig["geoJumpScope"])
+      : defaults.geoJumpScope;
+
+  return {
+    enabled: normalizeBoolean(raw.enabled, defaults.enabled),
+    // 上限 24 小时：再长就没有"提级"的意义了。
+    elevatedIntervalMinutes: normalizeInteger(
+      raw.elevatedIntervalMinutes,
+      defaults.elevatedIntervalMinutes,
+      5,
+      1440,
+    ),
+    geoJumpEnabled: normalizeBoolean(raw.geoJumpEnabled, defaults.geoJumpEnabled),
+    geoJumpScope: scope,
+    newDeviceTrustHours: normalizeInteger(raw.newDeviceTrustHours, defaults.newDeviceTrustHours, 1, 720),
+    carryOverVerificationPending: normalizeBoolean(
+      raw.carryOverVerificationPending,
+      defaults.carryOverVerificationPending,
+    ),
+  };
+}
+
 // G5-37: 纯函数——只写传入的 target 缓存，不在遍历中改在用的 runtimeConfigCache。
 function applyCacheForKey(target: RuntimeConfigDefaults, key: RuntimeConfigKey, value: unknown): void {
   switch (key) {
@@ -817,6 +851,9 @@ function applyCacheForKey(target: RuntimeConfigDefaults, key: RuntimeConfigKey, 
     case "MOBILE_TOKEN_INTEGRITY":
       target.mobileTokenIntegrity = normalizeStoredMobileTokenIntegrityConfig(value);
       return;
+    case "MOBILE_TOKEN_ROTATION_RISK":
+      target.mobileTokenRotationRisk = normalizeStoredMobileTokenRotationRiskConfig(value);
+      return;
     case "LUMEN": {
       const config = normalizeStoredLumenConfig(value, target.lumen);
       target.lumen = config;
@@ -852,6 +889,7 @@ const RUNTIME_CONFIG_KEYS: readonly RuntimeConfigKey[] = [
   "REGISTRATION_INVITE",
   "FIRST_VISIT_VERIFICATION",
   "MOBILE_TOKEN_INTEGRITY",
+  "MOBILE_TOKEN_ROTATION_RISK",
 ];
 
 // G5-03: 周期刷新定时器——多实例部署下每个实例每 ~10s 重载一次 DB 配置，
@@ -929,6 +967,9 @@ export class RuntimeConfigService {
     }
     if (!loadedKeys.has("MOBILE_TOKEN_INTEGRITY")) {
       runtimeConfigCache.mobileTokenIntegrity = cloneRuntimeConfigDefaults(defaults).mobileTokenIntegrity;
+    }
+    if (!loadedKeys.has("MOBILE_TOKEN_ROTATION_RISK")) {
+      runtimeConfigCache.mobileTokenRotationRisk = cloneRuntimeConfigDefaults(defaults).mobileTokenRotationRisk;
     }
     if (!loadedKeys.has("LUMEN")) {
       runtimeConfigCache.lumen = cloneRuntimeConfigDefaults(defaults).lumen;
@@ -1831,6 +1872,67 @@ export class RuntimeConfigService {
     ).mobileTokenIntegrity;
     loadedKeys.delete("MOBILE_TOKEN_INTEGRITY");
     invalidateHotCache("MOBILE_TOKEN_INTEGRITY");
+  }
+
+  // 风险分级轮换（MOBILE_TOKEN_ROTATION_RISK）：全是阈值，没有机密字段，
+  // 保存后 ≤10s 在多实例收敛；关掉即回到 24 小时节奏。
+  static async getMobileTokenRotationRiskSetting(): Promise<{
+    setting: {
+      config: MobileTokenRotationRiskRuntimeConfig;
+      updatedAt?: string;
+    };
+  }> {
+    const doc = await readRuntimeConfigDoc("MOBILE_TOKEN_ROTATION_RISK");
+    const config = doc
+      ? normalizeStoredMobileTokenRotationRiskConfig(doc.value)
+      : runtimeConfigDefaults.mobileTokenRotationRisk;
+    runtimeConfigCache.mobileTokenRotationRisk = config;
+
+    return {
+      setting: {
+        config: { ...config },
+        updatedAt: doc?.updatedAt?.toISOString(),
+      },
+    };
+  }
+
+  static async setMobileTokenRotationRiskSetting(
+    input: Partial<MobileTokenRotationRiskRuntimeConfig> | Record<string, unknown>,
+  ): Promise<{ updatedAt: string }> {
+    const currentDoc = await readRuntimeConfigDoc("MOBILE_TOKEN_ROTATION_RISK");
+    const current = currentDoc
+      ? normalizeStoredMobileTokenRotationRiskConfig(currentDoc.value)
+      : runtimeConfigCache.mobileTokenRotationRisk;
+    const raw = asObject(input);
+
+    const nextConfig = normalizeStoredMobileTokenRotationRiskConfig(raw, current);
+
+    if (nextConfig.enabled && nextConfig.elevatedIntervalMinutes >= 24 * 60) {
+      // 提级间隔不小于默认节奏，开了等于没开，直接拒绝而不是静默接受。
+      throw new Error("提级轮换间隔必须小于 1440 分钟（默认节奏），否则开关没有意义");
+    }
+
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "MOBILE_TOKEN_ROTATION_RISK",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
+
+    runtimeConfigCache.mobileTokenRotationRisk = nextConfig;
+    loadedKeys.add("MOBILE_TOKEN_ROTATION_RISK");
+    invalidateHotCache("MOBILE_TOKEN_ROTATION_RISK");
+    initialized = true;
+
+    return { updatedAt: persistedAt.toISOString() };
+  }
+
+  static async deleteMobileTokenRotationRiskSetting(): Promise<void> {
+    await RuntimeConfigModel.deleteOne({ key: "MOBILE_TOKEN_ROTATION_RISK" }).exec();
+    runtimeConfigCache.mobileTokenRotationRisk = cloneRuntimeConfigDefaults(
+      runtimeConfigDefaults,
+    ).mobileTokenRotationRisk;
+    loadedKeys.delete("MOBILE_TOKEN_ROTATION_RISK");
+    invalidateHotCache("MOBILE_TOKEN_ROTATION_RISK");
   }
 
   static async getCdictSigningSetting(): Promise<{

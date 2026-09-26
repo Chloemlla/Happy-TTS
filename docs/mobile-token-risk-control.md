@@ -41,6 +41,10 @@
 | `supersededAt` | 本代被下一代顶替的时间戳；非空即"已不是当前钥匙" |
 | `supersededTo` | 接棒令牌 hash |
 | `rotatedIp` / `rotatedFingerprint` | 轮换发生时的来源 IP / 指纹，取证用 |
+| `deviceFingerprint` | `deviceId` + `deviceName` 的哈希，标识"这台设备"（P3） |
+| `deviceFirstSeenAt` | 该设备首次出现在这个账号上的时间，跨代、跨血缘继承（P3） |
+| `verificationPending` | 本代是在设备证明未通过时签发的，还没等到一次通过的证明（P3） |
+| `riskSignals` | 本代被轮换掉时命中的风险信号，仅审计用（P3） |
 
 字段上线前的存量令牌没有 `lineageId`：判定时回退用自身 hash 当链根，因此"旧代 + 它之后的后代"仍在同一条链上。
 
@@ -62,12 +66,16 @@ Body: { clientLoginToken: string, deviceId: string, reason?: "scheduled" | "manu
   "clientLoginToken": "sml_…",
   "expiresAt": "…", "rotatedAt": "…", "nextRotationAt": "…",
   "rotationIndex": 7, "rotateIntervalMs": 86400000, "graceMs": 300000,
-  "requiresVerification": false
+  "requiresVerification": false,
+  "escalated": false
 }
 ```
 
 `requiresVerification` 是 P2 设备证明的降级标记（见 §4）：`true` 时 `rotateIntervalMs` 为 1 小时、
 `expiresAt` 为降级后的短有效期，客户端应提示用户重新完成一次设备验证，而不是把它当错误。
+
+`escalated` 是 P3 风险分级的标记（见 §5）：`true` 表示这次轮换命中了风险信号，`nextRotationAt`
+被压到提级间隔。它只是一个布尔值 —— 命中了哪几路信号只进服务端日志，不下发。
 
 错误一律带 `errorCode`（控制器不再用"文案里有没有某个词"猜状态码）：
 
@@ -92,7 +100,9 @@ Body: { clientLoginToken: string, deviceId: string, reason?: "scheduled" | "manu
 7. 设备证明判定（P2，仅在启用时；见 §4），只决定"是否降级"，不拒绝；
 8. 铸新一代（同 `userId` / `deviceId` / `deviceName`，`expiresAt = now + 90d`，降级时为 `now + downgradedTtlHours`）；
 9. 旧代打 `supersededAt / supersededTo / rotatedIp`，**不写 `revokedAt`**；
-10. 为新令牌建 `client-token` 会话。
+10. 为新令牌建 `client-token` 会话；
+11. 风险分级（P3，见 §5）：拿新建会话的属地与上一代比，命中信号就把响应里的下次轮换提前。
+    它只改响应节奏，另外把命中的信号记到旧代文档的 `riskSignals` 备查，不影响任何令牌的可用性。
 
 设备证明放在第 7 步而不是最前面：被前 6 步拒绝的请求不该先花掉一次 Google 调用与一个 nonce。
 
@@ -125,6 +135,12 @@ Body: { clientLoginToken: string, deviceId: string, reason?: "scheduled" | "manu
 | `ROTATION_DAILY_LIMIT` | 8 次 / 24h / 血缘 | 配额，正常使用量是 1 次/天 |
 | `ROTATION_SUPERSEDED_GRACE_MS` | 5 分钟 | 旧代在途宽限，超期即断链 |
 | `ROTATION_ELEVATED_INTERVAL_MS` | 1 小时 | 设备证明降级后的节奏，替代上面那条 24 小时 |
+
+### 3.7 轮换响应里的两个"提前"标记
+
+`requiresVerification`（§4）与 `escalated`（§5）互不替代，但都只做同一件事：**把下一次轮换提前**。
+两者任一为 `true` 时，`nextRotationAt` / `rotateIntervalMs` 都会从 24 小时压到 1 小时；
+`requiresVerification` 还会同时缩短单代有效期，`escalated` 不会。
 
 ## 4. 设备证明（Play Integrity，P2）
 
@@ -200,7 +216,52 @@ Play Integrity **不提供设备唯一标识**，它证明的是"应用与设备
 `DEVICE_INTEGRITY_TOO_LOW` / `ACCOUNT_NOT_LICENSED` / `DECODE_FAILED` / `NONCE_UNKNOWN` / `TOKEN_MISSING`），
 供后台聚合，不直接展示给用户。
 
-## 5. 客户端契约（`Synapse-Client`）
+## 5. 风险分级轮换（P3）
+
+P2 只处理一件事：设备证明没过就降级。P3 处理的是"这一代看起来不太对劲"，手段只有一种 ——
+**把下一次轮换提前**（24 小时 → 1 小时），既不缩短单代有效期，也不拒绝任何请求。
+
+把它和 P2 分开的理由：`MOBILE_TOKEN_INTEGRITY.mode` 放在 `observe` 时，P2 只记日志、不下发降级；
+P3 正好是把那些观察结果变成实际动作的地方 —— 判定没过就一小时后再证明一次，而不是干等 24 小时。
+
+### 5.1 三路信号
+
+| 信号 | 含义 | 数据来源 |
+|---|---|---|
+| `GEO_JUMP` | 这次轮换的 IP 属地与上一代签发时不是同一个地方 | 上一代取自会话台账的 `ipLocation`，这一代取自新建会话的 `ipLocation` |
+| `VERIFICATION_PENDING` | 上一代是在设备证明未通过的情况下签发的，还没等到一次通过的证明 | 令牌文档上的 `verificationPending`，跨代继承，判定通过即清除 |
+| `NEW_DEVICE` | 这台设备在该账号上还很新（首次出现后的 `newDeviceTrustHours` 内） | 令牌文档上的 `deviceFirstSeenAt`，跨代、跨血缘继承 |
+
+几个刻意的取舍：
+
+- **属地判定宁可漏报**：属地形如 `"中国, 北京, 北京 运营商: 中国联通"`，取逗号切段后的第一段（国家），
+  `geoJumpScope = region` 时连第二段（省/州）一起看。任一侧取不到有意义的值（`未知` / 空）就不判 ——
+  不能拿"查不到"当"换了个国家"。同一个国家内省份未知也不判。
+- **设备标识是 `deviceId` + `deviceName` 的哈希**（`deviceFingerprint`）：只看 `deviceId` 挡不住
+  "自报原 deviceId 但换一台机器名重放"。`deviceFirstSeenAt` 跨血缘继承，所以同一台设备登出再登录
+  不会被反复当成新设备。
+- **不额外发归属地查询**：判定放在建完新会话之后，这一代的属地直接取那条会话已经算好的值。
+
+### 5.2 运行时配置（`MOBILE_TOKEN_ROTATION_RISK`）
+
+| 字段 | 默认 | 说明 |
+|---|---|---|
+| `enabled` | `false` | 总开关；不开时轮换节奏与 P2 完全一致 |
+| `elevatedIntervalMinutes` | `60` | 命中任一信号后的轮换间隔；必须小于 1440，否则保存被拒 |
+| `geoJumpEnabled` / `geoJumpScope` | `true` / `country` | 是否启用属地判定，以及比对粒度（`country` / `region`） |
+| `newDeviceTrustHours` | `24` | 新设备在多长时间内算"新" |
+| `carryOverVerificationPending` | `true` | 是否把"待重新验证"这个标记继续压在提级节奏上 |
+
+没有机密字段，因此读要管理员、写要超管，与 §4.3 那一组一致；保存后 ≤10s 在多实例收敛。
+
+### 5.3 边界
+
+- 命中信号**只影响节奏**：不动 `expiresAt`，不动登录状态，不清任何令牌；
+- 整体没开（`enabled = false`）时连"上一代属地"那一次查询都不发；
+- 命中的信号会写进旧代令牌文档的 `riskSignals` 字段，只作审计与后台聚合，
+  响应里只回一个 `escalated: true`。
+
+## 6. 客户端契约（`Synapse-Client`）
 
 1. 持久化 `nextRotationAt` / `rotatedAt` / `rotationIndex`，**到期才自动轮换**；不自己推算节奏。
 2. 触发点：① App 启动后凭据就绪时后台跑一次；② 静默登录成功后做一次非阻塞到期检查；③ 用户在「本地会话」手动点「立即轮换」。
@@ -213,13 +274,16 @@ Play Integrity **不提供设备唯一标识**，它证明的是"应用与设备
 6. 设备证明（P2）：轮换/首次签发前先取一次挑战；`required: false` 时直接跳过，不要报错也不要重试。
    Play Integrity 拿不到证明（设备不支持、无 Play 服务、用户离线）时**照常提交轮换**，由服务端决定降级——
    客户端不做本地否决。响应里 `requiresVerification: true` 时只提示，不阻塞。
+7. 风险分级（P3）：响应里的 `escalated` **不需要客户端做任何事** —— 它只意味着这次的
+   `nextRotationAt` 比平时近，客户端照样只认服务端下发的时间。不要用 `escalated` 去推断风险，
+   更不要据此提示用户"账号异常"。
 
-## 6. 后续阶段
+## 7. 后续阶段
 
 | 阶段 | 内容 |
 |---|---|
 | ~~P2~~ | ~~Play Integrity 设备证明~~ —— **已落地**，见 §4 |
-| P3 | 风险分级轮换：IP 属地突变、`requiresVerification` 命中、新设备登录时把节奏压到 1 小时 |
+| ~~P3~~ | ~~风险分级轮换：IP 属地突变、设备证明未通过、新设备登录时把节奏压到 1 小时~~ —— **已落地**，见 §5 |
 | P4 | 后台可视化：血缘时间线、`MOBILE_TOKEN_REUSED` 事件看板、按用户/设备查询代次 |
 | P5 | 存量令牌回填 `lineageId` 的迁移脚本 + 代次数上限告警 |
 

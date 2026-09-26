@@ -32,6 +32,20 @@ export interface MobileClientTokenDoc {
   /** 发生轮换时的来源 IP / 指纹，仅做取证。 */
   rotatedIp?: string;
   rotatedFingerprint?: string;
+  /**
+   * 设备标识（`deviceId`+`deviceName` 的哈希）。用来判断"这台设备在该账号上有多新"，
+   * 光看 `deviceId` 挡不住"自报原 deviceId 但换机器名"的重放。
+   */
+  deviceFingerprint?: string;
+  /** 该设备首次出现在这个账号上的时间戳（跨代继承）。 */
+  deviceFirstSeenAt?: number;
+  /**
+   * 本代是在设备证明未通过的情况下签发的，还没有等到一次通过的证明。
+   * P3 据此把后续几代留在提级节奏上。
+   */
+  verificationPending?: boolean;
+  /** 本代被轮换掉时命中的风险信号，仅做审计与后台聚合。 */
+  riskSignals?: string[];
 }
 
 const mobileClientTokenSchema = new mongoose.Schema<MobileClientTokenDoc>(
@@ -52,6 +66,10 @@ const mobileClientTokenSchema = new mongoose.Schema<MobileClientTokenDoc>(
     supersededTo: { type: String },
     rotatedIp: { type: String },
     rotatedFingerprint: { type: String },
+    deviceFingerprint: { type: String },
+    deviceFirstSeenAt: { type: Number },
+    verificationPending: { type: Boolean },
+    riskSignals: { type: [String] },
   },
   { collection: "mobile_client_tokens" },
 );
@@ -66,6 +84,8 @@ mobileClientTokenSchema.index({ userId: 1, revokedAt: 1 });
 // 整链吊销与“24 小时内轮换次数”统计走这两个索引。
 mobileClientTokenSchema.index({ userId: 1, lineageId: 1, createdAt: -1 });
 mobileClientTokenSchema.index({ supersededTo: 1 });
+// 风险分级轮换要问"这台设备在该账号上最早出现在什么时候"，走这个索引。
+mobileClientTokenSchema.index({ userId: 1, deviceFingerprint: 1, createdAt: 1 });
 
 export const MobileClientTokenModel =
   (mongoose.models.MobileClientToken as mongoose.Model<MobileClientTokenDoc & { ttlExpireAt?: Date }>) ||
