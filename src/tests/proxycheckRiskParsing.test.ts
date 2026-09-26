@@ -99,7 +99,7 @@ describe("parseV3Result 的 risk 与 level", () => {
     expect(parsed.detectionsRaw).toEqual({ vpn: "yes", proxy: false, hosting: "no", risk: 70, confidence: 80 });
   });
 
-  it("risk=100 且没中 vpn/proxy/tor 时，闸门照样必须要求验证（旧实现会放行）", () => {
+  it("risk=100 且没中 vpn/proxy/tor 时，闸门仍必须拦人（旧实现会当成低风险放行）", () => {
     const parsed = parseV3Result(
       IP,
       {
@@ -112,10 +112,15 @@ describe("parseV3Result 的 risk 与 level", () => {
 
     expect(decision.risk).toBe(100);
     expect(decision.level).toBe("critical");
-    // 阈值可配，这里只钉相对关系：100 分必然不低于被夹到 0..100 的阈值。
     expect(decision.risk).toBeGreaterThanOrEqual(decision.threshold);
     expect(decision.shouldChallenge).toBe(true);
-    expect(decision.action).toBe("challenge");
+    // cfbb90b2 之后多了第三档：risk 达 blockRiskScore 且 caller 是首访闸门时直接封禁。
+    // blockRiskScore 被 toScore 夹在 0..100，所以 risk=100 必然走到这一档；
+    // 本用例的职责是“不能当成低风险放行”，challenge 与 block 都算拦住，
+    // 但 allow / report / fail_open 个不能出现。
+    expect(decision.risk).toBeGreaterThanOrEqual(decision.blockThreshold);
+    expect(decision.shouldBlock).toBe(true);
+    expect(decision.action).toBe("block");
     expect(decision.reason).toBe("proxycheck_risk_critical");
   });
 });

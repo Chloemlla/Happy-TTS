@@ -56,9 +56,15 @@ jest.mock("../../middleware/tamperProtection", () => ({
  * 保留 requireActual 列：warmupBanCache / isIPBannedFromCache 等会被其他模块引用。
  */
 jest.mock("../../middleware/ipBanCheck", () => ({
-  ...jest.requireActual("../../middleware/ipBanCheck"),
-  ipBanCheckMiddleware: mockPassThrough,
+  // 只给 app 真正导入的三个名字（securityPipeline 用 ipBanCheckWithRateLimit、wsService 用
+  // isIPBannedFromCache、turnstile/ipBan 用 clearIPBanCache）。
+  // 不能用 jest.requireActual 兑：真模块会顺带拖进 securityPolicy → routes/index → 整棵路由树，
+  // 在 jest 的模块表里形成新的 CJS 循环，表现为 barrel 里的值在求值时刻还是 undefined
+  // （authController 套件就是因此报 "Cannot read properties of undefined (reading 'register')"）。
   ipBanCheckWithRateLimit: [mockPassThrough],
+  ipBanCheckMiddleware: mockPassThrough,
+  isIPBannedFromCache: () => ({ banned: false }),
+  clearIPBanCache: jest.fn(),
 }));
 
 jest.mock("../../middleware/routeLimiters", () =>
