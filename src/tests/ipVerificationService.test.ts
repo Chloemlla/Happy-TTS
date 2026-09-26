@@ -37,9 +37,32 @@ jest.mock("../services/mongoService", () => {
   // 真正的数据库访问全部由下面的 model 逐个 mock 拦掉了，这里不需要假 Schema。
   const actual = jest.requireActual("../services/mongoService");
   const fakeConnection = { readyState: 1 };
+  // 真 Schema（model 文件 import 期就要它），但 model() 必须继续拦下来：
+  // 真 model() 会走到 Model.compile → connection.collection(...)，而这里并没有真连接，
+  // 只给一个带 readyState 的假 connection 会直接 TypeError: connection.collection is not a function。
+  // 兼用的链式替身：任何方法（create/findOne/countDocuments...）都返回“可 await、
+  // 可继续 .lean()/.exec()/.session()”的对象，await 结果统一是 null，不会卡在驱动缓冲上。
+  const chainable = (): any => {
+    const fn: any = () => chainable();
+    fn.then = (onFulfilled?: unknown, onRejected?: unknown) =>
+      Promise.resolve(null).then(onFulfilled as never, onRejected as never);
+    fn.catch = (onRejected?: unknown) => Promise.resolve(null).catch(onRejected as never);
+    fn.finally = (cb?: unknown) => Promise.resolve(null).finally(cb as never);
+    return new Proxy(fn, {
+      apply: () => chainable(),
+      get: (target, prop) => {
+        if (prop === "then" || prop === "catch" || prop === "finally") return target[prop];
+        return chainable();
+      },
+    });
+  };
   const mongooseStub = new Proxy(actual.mongoose as object, {
-    get: (target, prop) =>
-      prop === "connection" ? fakeConnection : Reflect.get(target, prop as string | symbol, target),
+    get: (target, prop) => {
+      if (prop === "model") return () => chainable();
+      if (prop === "models") return {};
+      if (prop === "connection") return fakeConnection;
+      return Reflect.get(target, prop as string | symbol, target);
+    },
   });
   return {
     ...actual,

@@ -27,8 +27,23 @@ describe("cookie-only browser login storage", () => {
     const fs = require("node:fs");
     const useAuth = fs.readFileSync(useAuthPath, "utf8");
     const authSession = fs.readFileSync(authSessionPath, "utf8");
-    // Browser login path should clear token storage rather than setAuthToken(loginToken)
-    expect(useAuth).toMatch(/clearAuthToken\(\);\s*\n\s*saveAccount\(user, ''\)/);
-    expect(authSession).toMatch(/Browser sessions are cookie-only|cookie-only/);
+
+    // 旧断言钉的是调用点形状：`clearAuthToken();\n saveAccount(user, '')`。
+    // 那个形状在 useAuth 重构给 Zustand 后就没了，于是 CI 只会在“改了代码形状”时红，
+    // 而在“真的把 token 写进存储”时未必红 —— 保护不了任何东西（方法论 §五-11）。
+    // 现在钉真正的不变量：落盘的唯一出口 writeSavedAccounts 必须把 token 剥掉。
+    const writerBody = authSession.slice(
+      authSession.indexOf("export function writeSavedAccounts"),
+      authSession.indexOf("export function clearSavedAccounts"),
+    );
+    expect(writerBody).toBeTruthy();
+    expect(writerBody).toMatch(/setItem\(ACCOUNTS_KEY/);
+    expect(writerBody).not.toMatch(/\btoken\b/);
+
+    // useAuth 里也不允许存在“直接把 token 写迥 storage”的路径。
+    expect(useAuth).not.toMatch(/(localStorage|sessionStorage)\.setItem\([^)]*token/i);
+    // 浏览器登录分支仍然得声明自己是 cookie-only（不靠 JS 存令牌）。
+    expect(useAuth).toMatch(/HttpOnly-cookie only|cookie-only/i);
+    expect(authSession).toMatch(/Browser sessions are cookie-only|identity metadata only|cookie-only/);
   });
 });

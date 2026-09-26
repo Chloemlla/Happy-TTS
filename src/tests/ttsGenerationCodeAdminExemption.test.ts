@@ -16,11 +16,33 @@
  * 只抹掉 connection.readyState。
  */
 jest.mock("../services/mongoService", () => {
+  // 真 mongoose + 只干掉两件小事：不连库（connectMongo 空实现）、把 readyState 抹成 1。
+  // 但 model() 必须继续拦下：真 model() 会走 Model.compile → connection.collection(...)，
+  // 没有真连接时直接 TypeError: connection.collection is not a function。
+  // Schema / Types / 索引定义这些用真的：model 文件在 import 期就要它们。
   const actual = jest.requireActual("../services/mongoService");
   const fakeConnection = { readyState: 1 };
+  const chainable = (): any => {
+    const fn: any = () => chainable();
+    fn.then = (onFulfilled?: unknown, onRejected?: unknown) =>
+      Promise.resolve(null).then(onFulfilled as never, onRejected as never);
+    fn.catch = (onRejected?: unknown) => Promise.resolve(null).catch(onRejected as never);
+    fn.finally = (cb?: unknown) => Promise.resolve(null).finally(cb as never);
+    return new Proxy(fn, {
+      apply: () => chainable(),
+      get: (target, prop) => {
+        if (prop === "then" || prop === "catch" || prop === "finally") return target[prop];
+        return chainable();
+      },
+    });
+  };
   const mongooseStub = new Proxy(actual.mongoose as object, {
-    get: (target, prop) =>
-      prop === "connection" ? fakeConnection : Reflect.get(target, prop as string | symbol, target),
+    get: (target, prop) => {
+      if (prop === "model") return () => chainable();
+      if (prop === "models") return {};
+      if (prop === "connection") return fakeConnection;
+      return Reflect.get(target, prop as string | symbol, target);
+    },
   });
   return {
     ...actual,
