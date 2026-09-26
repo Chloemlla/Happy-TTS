@@ -142,40 +142,50 @@ const Footer: React.FC = () => {
       <div>
         Copyright ©{year} Synapse. All rights reserved.
       </div>
-      {/* 四块信息不再死板地一列堆叠：按可用宽度自动 1 / 2 / 4 列重排（窄屏竖排，宽屏横排）。 */}
-      <div className="grid w-full max-w-5xl grid-cols-1 items-stretch justify-center gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="px-2 py-1 bg-amber-50 border border-amber-200 rounded text-amber-700 text-xs">
-          <FaExclamationTriangle className="inline mr-1" /> 本站为个人独立开发项目，与 OpenAI 官方无任何隶属或合作关系。请勿将本站内容视为 OpenAI 官方服务。
+      {/* 四块信息不再死板地一列堆叠：按可用宽度自动 1 / 2 / 4 列重排（窄屏竖排，宽屏横排）。
+          每块都是「拉伸等高 + 内容居中」：内容包一层单一子节点，
+          否则 flex 会把行内图标/文本拆成多个子项而打乱排版。 */}
+      <div className="grid w-full max-w-5xl grid-cols-1 items-stretch gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="flex items-center justify-center rounded border border-amber-200 bg-amber-50 px-2 py-1 text-amber-700 text-xs">
+          <div className="text-center">
+            <FaExclamationTriangle className="inline mr-1" /> 本站为个人独立开发项目，与 OpenAI 官方无任何隶属或合作关系。请勿将本站内容视为 OpenAI 官方服务。
+          </div>
         </div>
-        <div className="px-2 py-1 bg-emerald-50 border border-emerald-200 rounded text-emerald-700 text-xs">
-          <FaRocket className="inline mr-1" /> 自 2025年6月15日 9:30 以来，本站已稳定运行{' '}
-          <span className="font-bold text-emerald-800">
-            {uptime.days} 天 {uptime.hours} 小时 {uptime.minutes} 分钟 {uptime.seconds} 秒
-          </span>
+        <div className="flex items-center justify-center rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-700 text-xs">
+          <div className="text-center">
+            <FaRocket className="inline mr-1" /> 自 2025年6月15日 9:30 以来，本站已稳定运行{' '}
+            <span className="font-bold text-emerald-800">
+              {uptime.days} 天 {uptime.hours} 小时 {uptime.minutes} 分钟 {uptime.seconds} 秒
+            </span>
+          </div>
         </div>
-        <div className="px-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-700 text-xs">
-          <FaGlobe className="inline mr-1" /> 您的网络信息：
-          {ipLoading ? (
-            <span className="font-mono font-bold text-slate-800">获取中...</span>
-          ) : ipInfo ? (
-            <div className="mt-1 space-y-0.5">
-              <div className="font-mono font-bold text-slate-800">
-                IP: {ipInfo.ip}
+        <div className="flex items-center justify-center rounded border border-slate-200 bg-slate-50 px-2 py-1 text-slate-700 text-xs">
+          <div className="text-center">
+            <FaGlobe className="inline mr-1" /> 您的网络信息：
+            {ipLoading ? (
+              <span className="font-mono font-bold text-slate-800">获取中...</span>
+            ) : ipInfo ? (
+              <div className="mt-1 space-y-0.5">
+                <div className="font-mono font-bold text-slate-800">
+                  IP: {ipInfo.ip}
+                </div>
+                <div className="text-slate-600">
+                  <FaMapMarkerAlt className="inline mr-1" /> {ipInfo.country} {ipInfo.region} {ipInfo.city}
+                </div>
+                <div className="text-slate-600">
+                  <FaGlobe className="inline mr-1" /> {ipInfo.isp}
+                </div>
               </div>
-              <div className="text-slate-600">
-                <FaMapMarkerAlt className="inline mr-1" /> {ipInfo.country} {ipInfo.region} {ipInfo.city}
-              </div>
-              <div className="text-slate-600">
-                <FaGlobe className="inline mr-1" /> {ipInfo.isp}
-              </div>
-            </div>
-          ) : (
-            <span className="font-mono font-bold text-rose-600">获取失败</span>
-          )}
+            ) : (
+              <span className="font-mono font-bold text-rose-600">获取失败</span>
+            )}
+          </div>
         </div>
-        <div className="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-slate-600 text-xs font-mono leading-relaxed">
-          <div>前端 v{buildInfo.frontendVersion} ({buildInfo.shortSha})</div>
-          <div>后端 v{backendBuild.version} ({backendBuild.shortSha})</div>
+        <div className="flex items-center justify-center rounded border border-slate-200 bg-slate-100 px-2 py-1 text-slate-600 text-xs font-mono leading-relaxed">
+          <div className="text-center">
+            <div>前端 v{buildInfo.frontendVersion} ({buildInfo.shortSha})</div>
+            <div>后端 v{backendBuild.version} ({backendBuild.shortSha})</div>
+          </div>
         </div>
       </div>
     </footer>
