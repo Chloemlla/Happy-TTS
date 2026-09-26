@@ -105,6 +105,37 @@ function cookiesArgs(opts: BiliOptions): string[] {
   return ["--cookies", cf];
 }
 
+/**
+ * 配了 cookies 路径但文件读不到时必须开场就报错。
+ *
+ * 否则静默降级成游客请求，B 站侧表现为「Downloading webpage: HTTP Error 412」风控页，
+ * 看上去完全像 UA/网络问题 —— 而真实成因往往是容器没挂持久卷，cookies 文件在重新部署后静默消失。
+ */
+export function assertCookiesUsable(opts: BiliOptions): void {
+  const cf = (opts.cookiesFile || "").trim();
+  if (!cf) return; // 未配置：按游客下载，由日志/健康检查提示负责说明
+  if (!fs.existsSync(cf)) {
+    throw new Error(
+      `cookies 文件不存在: ${cf}\n`
+        + "设置页填的是【容器内路径】；镜像未挂载持久卷时，重新部署后该文件会消失。\n"
+        + "要么把 cookies 放到挂载卷/重新上传，要么留空按游客下载（游客易撞 B 站 412 风控）。",
+    );
+  }
+}
+
+/**
+ * B 站 412 的现场成因：风控页（“出错啦!”）会顶替视频网页，UA/Referer/Origin 都挡不住。
+ * 已实测：buvid3/buvid4（finger/spi 可取）单独用也不能绕过，需真登录 Cookie 或 CN 出口。
+ */
+const BILI_412_HINT =
+  "｜B 站风控 412：本机出口 IP 被当成爬虫，视频网页/游客接口直接拒。"
+  + "解法：设置页配浏览器导出的 Netscape cookies（含 SESSDATA/buvid3），或给容器换 CN 出口/代理。";
+
+function describeToolFailure(code: number | null, tail: string): string {
+  const base = `yt-dlp 退出码=${code}${tail ? `: ${tail.slice(0, 300)}` : ""}`;
+  return /412|Precondition Failed/.test(tail) ? `${base} ${BILI_412_HINT}` : base;
+}
+
 /** 合集/多分P 链接 → 逐集 { index, url }。flat-playlist 只抓页面不下载,快。失败返回空,由调用方整条处理。 */
 export function expandPlaylist(opts: BiliOptions, url: string): Array<{ index: number; url: string }> {
   try {
@@ -339,11 +370,7 @@ async function downloadItem(
         resolve({ ok: true, label, saved: saved ?? undefined });
       } else {
         const tail = stderrBuf.trim().split(/\r?\n/).slice(-3).join(" | ");
-        resolve({
-          ok: false,
-          label,
-          error: `yt-dlp 退出码=${code}${tail ? `: ${tail.slice(0, 300)}` : ""}`,
-        });
+        resolve({ ok: false, label, error: describeToolFailure(code, tail) });
       }
     });
 
@@ -387,6 +414,7 @@ export async function downloadBatch(
   if (!isBareCommand(bin) && !fs.existsSync(bin)) {
     throw new Error(`yt-dlp 不存在: ${bin}(设置页可改路径)`);
   }
+  assertCookiesUsable(opts);
   const raw = (rawInputs || []).filter((x) => String(x).trim());
   if (raw.length === 0) throw new Error("没有输入任何下载项");
   const items = resolveItems(opts, raw);

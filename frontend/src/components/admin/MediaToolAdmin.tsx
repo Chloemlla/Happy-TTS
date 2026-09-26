@@ -189,7 +189,7 @@ export const MediaToolAdmin: React.FC = () => {
         { label: '工作目录', value: health.runtime.workDir || '(默认)' },
         { label: 'yt-dlp', value: health.runtime.ytDlp.ok ? (health.runtime.ytDlp.version ?? '可用') : '缺失' },
         { label: 'ffprobe', value: health.runtime.ffprobe.ok ? '可用' : '缺失' },
-        { label: 'cookies', value: health.runtime.cookies.ok ? (health.runtime.cookies.path ?? '已配置') : '无' },
+        { label: 'cookies', value: health.runtime.cookies.configured ? (health.runtime.cookies.ok ? (health.runtime.cookies.path ?? '已配置') : '文件缺失') : '未配置' },
         { label: '账号凭据', value: health.runtime.lasrConfigured ? '已配置' : '未配置' },
         { label: '排队任务', value: String(health.runtime.queuedJobs) },
       ]

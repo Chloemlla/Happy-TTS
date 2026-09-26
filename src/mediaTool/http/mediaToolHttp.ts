@@ -56,6 +56,11 @@ export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router
       }
       const ytRes = runTool(resolveYtDlpBin(settings.bili.ytDlpPath), ["--version"], { maxBuffer: 1024 * 1024 });
       const ffRes = runTool("ffprobe", ["-version"], { maxBuffer: 1024 * 1024 });
+      // 「没配 cookies」不能报成「已配置」：B 站游客请求会被风控直接拒(表现为下载网页 HTTP 412)，
+      // 健康检查把 ok 置 true 只会让人去查 UA/网络。配了路径但文件不存在也要说出来
+      // （容器没挂持久卷时，写在 workDir 里的 cookies 文件每次重新部署都会没）。
+      const cookiesFile = (settings.bili.cookiesFile || "").trim();
+      const cookiesExists = cookiesFile ? fs.existsSync(cookiesFile) : false;
       res.json({
         ok: true,
         mode: deps.mode,
@@ -75,7 +80,19 @@ export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router
           })(),
           ytDlp: ytRes.status === 0 ? { ok: true, version: ytRes.stdout.trim().split("\n")[0] || null } : { ok: false, hint: (ytRes.stderr || ytRes.stdout || "无法启动").slice(0, 200) },
           ffprobe: ffRes.status === 0 ? { ok: true } : { ok: false, hint: "PATH 中未找到 ffprobe,音频时长取不到(不影响转写,服务器可能自动测) " },
-          cookies: settings.bili.cookiesFile ? { ok: fs.existsSync(settings.bili.cookiesFile), path: settings.bili.cookiesFile } : { ok: true, path: null },
+          cookies: cookiesFile
+            ? {
+                configured: true,
+                ok: cookiesExists,
+                path: cookiesFile,
+                hint: cookiesExists ? undefined : "文件不存在（容器无持久卷时重新部署会丢）",
+              }
+            : {
+                configured: false,
+                ok: false,
+                path: null,
+                hint: "未配置：B 站按游客请求处理，很容易撞风控 412",
+              },
           lasrConfigured: Boolean(settings.lasr.appId && settings.lasr.appKey && settings.lasr.serverUrl),
           queuedJobs: runner.getQueuedCount(),
         },

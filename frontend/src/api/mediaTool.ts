@@ -193,7 +193,7 @@ export interface MediaToolHealth {
     workDirWritable: boolean;
     ytDlp: { ok: boolean; version?: string | null; hint?: string };
     ffprobe: { ok: boolean; hint?: string };
-    cookies: { ok: boolean; path?: string | null };
+    cookies: { ok: boolean; configured?: boolean; path?: string | null; hint?: string };
     lasrConfigured: boolean;
     queuedJobs: number;
   };
