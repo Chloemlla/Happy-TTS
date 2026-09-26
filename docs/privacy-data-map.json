@@ -371,8 +371,8 @@
     {
       "id": "mobile-client-tokens",
       "collection": "mobile_client_tokens",
-      "fields": ["tokenHash", "userId", "deviceId", "deviceName", "createdAt", "expiresAt", "lastUsedAt", "lastUsedIp", "revokedAt", "ttlExpireAt", "lineageId", "rotationIndex", "rotatedFrom", "supersededAt", "supersededTo", "rotatedIp", "rotatedFingerprint", "deviceFingerprint", "deviceFirstSeenAt", "verificationPending", "riskSignals"],
-      "purpose": "Rotating long-lived client login tokens (sml_) for mobile clients: only the SHA-256 hash of the token is stored, plus the device binding and the rotation lineage that lets a leaked token family be revoked as a unit",
+      "fields": ["tokenHash", "userId", "deviceId", "deviceName", "createdAt", "expiresAt", "lastUsedAt", "lastUsedIp", "revokedAt", "ttlExpireAt", "lineageId", "rotationIndex", "rotatedFrom", "supersededAt", "supersededTo", "rotatedIp", "rotatedFingerprint", "deviceFingerprint", "deviceFirstSeenAt", "verificationPending", "riskSignals", "reusedAt", "reusedIp"],
+      "purpose": "Rotating long-lived client login tokens (sml_) for mobile clients: only the SHA-256 hash of the token is stored, plus the device binding and the rotation lineage that lets a leaked token family be revoked as a unit. `reusedAt`/`reusedIp` mark the superseded generation whose replay tripped the lineage revocation, for the admin lineage board",
       "legalBasis": "security_and_service_integrity",
       "retention": {
         "type": "ttl",

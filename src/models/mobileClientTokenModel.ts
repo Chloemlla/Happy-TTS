@@ -46,6 +46,13 @@ export interface MobileClientTokenDoc {
   verificationPending?: boolean;
   /** 本代被轮换掉时命中的风险信号，仅做审计与后台聚合。 */
   riskSignals?: string[];
+  /**
+   * 这一代（已被顶替的旧代）超宽限期后又被拿来用、触发整链吊销的时间戳。
+   * 非空 = 一次 `MOBILE_TOKEN_REUSED` 事件，后台复用看板据此查询（P4）。
+   */
+  reusedAt?: number;
+  /** 触发复用断链时那次请求的来源 IP，取证用（后台按段掩码展示）。 */
+  reusedIp?: string;
 }
 
 const mobileClientTokenSchema = new mongoose.Schema<MobileClientTokenDoc>(
@@ -70,6 +77,8 @@ const mobileClientTokenSchema = new mongoose.Schema<MobileClientTokenDoc>(
     deviceFirstSeenAt: { type: Number },
     verificationPending: { type: Boolean },
     riskSignals: { type: [String] },
+    reusedAt: { type: Number },
+    reusedIp: { type: String },
   },
   { collection: "mobile_client_tokens" },
 );
@@ -86,6 +95,8 @@ mobileClientTokenSchema.index({ userId: 1, lineageId: 1, createdAt: -1 });
 mobileClientTokenSchema.index({ supersededTo: 1 });
 // 风险分级轮换要问"这台设备在该账号上最早出现在什么时候"，走这个索引。
 mobileClientTokenSchema.index({ userId: 1, deviceFingerprint: 1, createdAt: 1 });
+// 复用断链看板按时间倒序翻 reusedAt 非空的文档（稀疏，只有真出事的令牌才有值）。
+mobileClientTokenSchema.index({ reusedAt: -1 }, { sparse: true });
 
 export const MobileClientTokenModel =
   (mongoose.models.MobileClientToken as mongoose.Model<MobileClientTokenDoc & { ttlExpireAt?: Date }>) ||

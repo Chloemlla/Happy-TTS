@@ -77,6 +77,7 @@ export const ADMIN_MODULE_LOADERS = {
   system: () => import('@/components/SystemManager'),
   'bilibili-sync': () => import('@/components/BilibiliSyncAdmin'),
   'ip-risk-logs': () => import('@/components/admin/IpRiskLogPanel'),
+  'mobile-token-lineage': () => import('@/components/admin/MobileTokenLineagePanel'),
 } as const;
 
 export type AdminModuleKey = keyof typeof ADMIN_MODULE_LOADERS;

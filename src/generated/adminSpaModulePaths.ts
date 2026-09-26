@@ -36,6 +36,7 @@ export const ADMIN_SPA_MODULE_PATHS = [
   "/admin/mail-system",
   "/admin/markdown-articles",
   "/admin/media-tool",
+  "/admin/mobile-token-lineage",
   "/admin/oauth",
   "/admin/outemail",
   "/admin/qq-guard",

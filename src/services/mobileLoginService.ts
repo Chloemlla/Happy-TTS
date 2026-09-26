@@ -449,6 +449,12 @@ async function assertTokenNotSuperseded(doc: MobileClientTokenDoc, ip: string): 
     { tokenHash: doc.tokenHash, revokedAt: null },
     { $set: { revokedAt: Date.now() } },
   );
+  // 在触发断链的这一张上打复用标记，供后台复用看板按 reusedAt 查询（P4）。
+  // 与 revokedAt 分开写：整链吊销已经把 revokedAt 占了，这里只补取证字段。
+  await MobileClientTokenModel.updateOne(
+    { tokenHash: doc.tokenHash },
+    { $set: { reusedAt: Date.now(), reusedIp: ip } },
+  );
   await revokeAuthSessionsByClientTokenHashes(doc.userId, [doc.tokenHash]);
   logger.warn("[MobileToken] 旧令牌超宽限期后被重复使用，已吊销整条血缘", {
     userId: doc.userId,

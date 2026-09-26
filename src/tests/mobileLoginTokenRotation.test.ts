@@ -23,6 +23,8 @@ type FakeDoc = {
   deviceFirstSeenAt?: number;
   verificationPending?: boolean;
   riskSignals?: string[];
+  reusedAt?: number;
+  reusedIp?: string;
 };
 
 type Filter = Record<string, unknown>;
@@ -266,6 +268,10 @@ describe("rotateClientLoginToken", () => {
     expect((error as MobileTokenError).errorCode).toBe("MOBILE_TOKEN_REUSED");
     expect(typeof model.__docs.get(doc.tokenHash)?.revokedAt).toBe("number");
     expect(typeof model.__docs.get(next.doc.tokenHash)?.revokedAt).toBe("number");
+    // P4：触发复用的那一张要留下可查询的复用标记，供后台看板取数。
+    expect(typeof model.__docs.get(doc.tokenHash)?.reusedAt).toBe("number");
+    expect(model.__docs.get(doc.tokenHash)?.reusedIp).toBe("unknown");
+    expect(model.__docs.get(next.doc.tokenHash)?.reusedAt).toBeUndefined();
     expect(authSession.revokeAuthSessionsByClientTokenHashes).toHaveBeenCalledWith(
       USER_ID,
       expect.arrayContaining([doc.tokenHash, next.doc.tokenHash]),

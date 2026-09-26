@@ -28,6 +28,7 @@ import {
   FaList,
   FaMicrophone,
   FaPaperPlane,
+  FaProjectDiagram,
   FaSearch,
   FaShareAlt,
   FaShieldAlt,
@@ -542,6 +543,12 @@ export function getAdminNavGroups(ctx: NavVisibilityContext): NavGroup[] {
             requiredRole: 'superadmin',
           },
           {
+            title: '登录令牌血缘',
+            url: '/admin/mobile-token-lineage',
+            icon: FaProjectDiagram as IconType,
+            requiredRole: 'superadmin',
+          },
+          {
             title: '系统管理',
             url: '/admin/system',
             icon: FaBars as IconType,
@@ -613,6 +620,7 @@ export const ADMIN_TAB_TO_PATH: Record<string, string> = {
   'ip-ban': '/admin/ip-ban',
   fingerprint: '/admin/fingerprint',
   'ip-risk-logs': '/admin/ip-risk-logs',
+  'mobile-token-lineage': '/admin/mobile-token-lineage',
   broadcast: '/admin/broadcast',
   oauth: '/admin/oauth',
   apikeys: '/admin/apikeys',
