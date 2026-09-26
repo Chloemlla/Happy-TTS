@@ -227,8 +227,11 @@ describe("userGenerationStorage/file", () => {
     const returned = await fileAdd({ userId: "u3", text: "新纪录" });
 
     expect(returned).toEqual({ userId: "u3", text: "新纪录" });
-    const [, body, indent] = mockWriteFileSync.mock.calls[0] as [string, string, number];
-    expect(indent).toBe(2);
+    const [target, body] = mockWriteFileSync.mock.calls[0] as [string, string];
+    expect(String(target).replace(/\\/g, "/")).toContain("data/user_generations.json");
+    // 缩进来自 JSON.stringify(arr, null, 2)：元素 2 空格、字段 4 空格
+    expect(String(body).split("\n")[1]).toBe("  {");
+    expect(String(body)).toContain('\n    "userId"');
     expect(String(body)).toContain('"timestamp"');
     const written = JSON.parse(String(body)) as Array<Record<string, unknown>>;
     expect(written).toHaveLength(3);
@@ -298,39 +301,22 @@ describe("userGenerationStorage/mysql", () => {
 });
 
 describe("userGenerationStorage/index 按环境变量挑选实现", () => {
-  interface Loaded {
-    mod: any;
-    model: { findOne: jest.Mock; create: jest.Mock };
-    conn: { execute: jest.Mock; end: jest.Mock };
-    fsMock: { existsSync: jest.Mock; readFileSync: jest.Mock; writeFileSync: jest.Mock };
-    error?: unknown;
-  }
-
-  function loadWithStorage(storage?: string, mysqlUri?: string): Loaded {
-    const model = {
-      findOne: jest.fn(() => ({ lean: () => Promise.resolve(null) })),
-      create: jest.fn().mockResolvedValue({}),
-    };
-    const conn = { execute: jest.fn().mockResolvedValue([[]]), end: jest.fn().mockResolvedValue(undefined) };
-    const fsMock = {
-      existsSync: jest.fn().mockReturnValue(false),
-      readFileSync: jest.fn().mockReturnValue("[]"),
-      writeFileSync: jest.fn(),
-    };
-    let mod: any;
+  /**
+   * index.ts 在 import 期就按 USER_GENERATION_STORAGE 定下实现，所以必须隔离模块注册表重新
+   * require。断言看的是「barrel 导出的三个函数与某个实现模块是否同一批函数」，而不是「哪个
+   * 替身被调了」：隔离子注册表会重跑 mock 工厂，替身身份跨注册表拿不到。
+   */
+  function loadBarrel(
+    storage: string | undefined,
+    picked: "mongo" | "file" | "mysql",
+    mysqlUri?: string,
+  ): { same: boolean; other: boolean; error?: unknown } {
+    let same = false;
+    let other = false;
     let error: unknown;
+    const notPicked = picked === "mongo" ? "file" : "mongo";
 
     jest.isolateModules(() => {
-      jest.doMock("../services/mongoService", () => ({
-        connectMongo: jest.fn(),
-        mongoose: { Schema: class {}, models: {}, model: () => model },
-      }));
-      jest.doMock("../services/userService", () => ({ getUserById: jest.fn() }));
-      jest.doMock("node:fs", () => ({ __esModule: true, default: fsMock }));
-      jest.doMock("mysql2/promise", () => ({
-        __esModule: true,
-        default: { createConnection: jest.fn().mockResolvedValue(conn) },
-      }));
       if (storage === undefined) {
         delete process.env.USER_GENERATION_STORAGE;
       } else {
@@ -338,49 +324,51 @@ describe("userGenerationStorage/index 按环境变量挑选实现", () => {
       }
       if (mysqlUri !== undefined) process.env.MYSQL_URI = mysqlUri;
       try {
-        mod = require("../services/userGenerationStorage/index");
+        const barrel = require("../services/userGenerationStorage/index");
+        const impl = require(`../services/userGenerationStorage/${picked}`);
+        const otherImpl = require(`../services/userGenerationStorage/${notPicked}`);
+        same =
+          barrel.findDuplicateGeneration === impl.findDuplicateGeneration &&
+          barrel.addGenerationRecord === impl.addGenerationRecord &&
+          barrel.isAdminUser === impl.isAdminUser;
+        other = barrel.addGenerationRecord !== otherImpl.addGenerationRecord;
       } catch (e) {
         error = e;
       }
     });
 
-    return { mod, model, conn, fsMock, error };
+    return { same, other, error };
   }
 
-  it("未设置变量时默认 mongo 实现", async () => {
-    const { mod, model, fsMock } = loadWithStorage(undefined);
-    await mod.findDuplicateGeneration(record);
-    expect(model.findOne).toHaveBeenCalled();
-    expect(fsMock.existsSync).not.toHaveBeenCalled();
-    expect(typeof mod.isAdminUser).toBe("function");
+  it("未设置变量时选 mongo 实现", () => {
+    const { same, other, error } = loadBarrel(undefined, "mongo");
+    expect(error).toBeUndefined();
+    expect(same).toBe(true);
+    expect(other).toBe(true);
   });
 
-  it("大小写不敏感：FILE 选择文件实现", async () => {
-    const { mod, model, fsMock } = loadWithStorage("FILE");
-    await mod.findDuplicateGeneration(record);
-    expect(fsMock.existsSync).toHaveBeenCalled();
-    expect(model.findOne).not.toHaveBeenCalled();
+  it("显式 mongo 与未知取值都回落到 mongo 而不是崩溃", () => {
+    expect(loadBarrel("mongo", "mongo").same).toBe(true);
+    expect(loadBarrel("postgres-ish", "mongo").same).toBe(true);
   });
 
-  it("mysql 选择 MySQL 实现，并在导入期就校验 URI", async () => {
-    const { mod, conn } = loadWithStorage("mysql", GOOD_MYSQL_URI);
-    await mod.addGenerationRecord(record);
-    expect(conn.execute).toHaveBeenCalled();
+  it("大小写不敏感：FILE 选文件实现", () => {
+    const { same, other } = loadBarrel("FILE", "file");
+    expect(same).toBe(true);
+    expect(other).toBe(true);
+  });
+
+  it("mysql + 合法 URI 选 MySQL 实现", () => {
+    expect(loadBarrel("mysql", "mysql", GOOD_MYSQL_URI).same).toBe(true);
   });
 
   it("mysql + 弱 URI 在 import 期就 fail fast", () => {
-    const { error } = loadWithStorage("mysql", weakMysqlUri("test", "test", "x"));
+    const { error } = loadBarrel("mysql", "mysql", weakMysqlUri("test", "test", "x"));
     expect((error as Error).message).toMatch(/weak\/default credentials/);
   });
 
   it("mysql + 缺失 URI 在 import 期就 fail fast", () => {
-    const { error } = loadWithStorage("mysql", "");
+    const { error } = loadBarrel("mysql", "mysql", "");
     expect((error as Error).message).toMatch(/MYSQL_URI is required/);
-  });
-
-  it("未知取值回落到 mongo 而不是崩溃", async () => {
-    const { mod, model } = loadWithStorage("postgres-ish");
-    await mod.addGenerationRecord(record);
-    expect(model.create).toHaveBeenCalled();
   });
 });
