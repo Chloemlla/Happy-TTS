@@ -1317,6 +1317,7 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
                 {lastErrorCode === 'ABUSE_BANNED' && isBanned && (
                   <PenaltyAppealActions
                     compact
+                    mailOnly
                     kind="abuse_ban"
                     reason={error || '检测到滥用，已暂时封禁'}
                     remainingText={`${remainingBanSec}s`}

@@ -5,7 +5,7 @@ import { config } from "../config/config";
 import { IpBanModel } from "../models/ipBanModel";
 import { redisService } from "../services/redisService.js";
 import { MAX_VIOLATIONS } from "../services/turnstile/constants";
-import { renderIpBlockPage } from "../security/ipBlockPage";
+import { sendIpBlockResponse } from "../security/ipBlockPage";
 import { securityBypassPolicy } from "../security/securityPolicy";
 import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
@@ -438,46 +438,18 @@ function isWhitelistedPath(path: string): boolean {
 }
 
 /**
- * 浏览器地址栏导航（而非 fetch/XHR 或静态资源）：这类请求期望 HTML，回 JSON 只会让用户
- * 看到一串花括号。判断依据是 Accept 含 text/html 且不是 /api/ 下的接口调用。
- */
-function wantsHtmlDocument(req: Request): boolean {
-  if (req.method !== "GET" && req.method !== "HEAD") return false;
-  if (req.path.startsWith("/api/")) return false;
-  const accept = req.headers.accept;
-  return typeof accept === "string" && accept.includes("text/html");
-}
-
-/**
- * 封禁响应的唯一出口：导航请求回阻断页（与首访验闸同一套设计语言），其余回 JSON。
- * JSON 里额外带 banned / errorCode，前端不靠比对中文文案就能认出这是封禁。
+ * 封禁响应：导航请求回阻断页，其余回 JSON（实现在 security/ipBlockPage，
+ * 与 tamperProtection 共用同一套页面与载荷形状）。
  */
 function sendBanResponse(
   req: Request,
   res: Response,
   options: { reason?: string; expiresAt?: Date | string | number },
 ): void {
-  const ip = getClientIPFromRequest(req);
-
-  if (wantsHtmlDocument(req)) {
-    res
-      .status(403)
-      .type("html")
-      .set("Cache-Control", "no-store")
-      .send(renderIpBlockPage({ reason: options.reason, expiresAt: options.expiresAt, ip }));
-    return;
-  }
-
-  res.status(403).json({
-    banned: true,
-    errorCode: "IP_BANNED",
-    // error 用短文案：前端多处（fingerprint.ts / ipVerification.ts）以
-    // `error === "IP已被封禁"` 判定「这是封禁而不是普通 403」，改成长句会逐个失配。
-    // 完整说明放 message。
-    error: "IP已被封禁",
-    message: "您的IP地址已被封禁，无法访问此服务",
+  sendIpBlockResponse(req, res, {
     reason: options.reason,
     expiresAt: options.expiresAt,
+    ip: getClientIPFromRequest(req),
   });
 }
 

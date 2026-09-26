@@ -99,7 +99,9 @@ export const PenaltyAppealHost: React.FC = () => {
             {!ticketEnabled ? (
               <div className="space-y-4">
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-                  工单权限当前不可用，请通过支持邮箱申诉。
+                  {payload.kind === 'ip_ban'
+                    ? '当前 IP 被限制访问，工单接口同样不可达，请通过支持邮箱申诉。'
+                    : '工单权限当前不可用，请通过支持邮箱申诉。'}
                 </div>
                 <a
                   href={mailHref}

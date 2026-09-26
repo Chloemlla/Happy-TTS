@@ -38,6 +38,11 @@ export interface PenaltyAppealActionsProps {
   defaultTicketDescription?: string;
   /** false when ticket creation is blocked for this user */
   ticketChannelEnabled?: boolean;
+  /**
+   * 只给邮件通道：被 IP 拦截时工单接口同样过不了 ipBanCheck，提交了也送不到，
+   * 再摆一个「提交工单申诉」按钮就是给用户一条走不通的路。
+   */
+  mailOnly?: boolean;
   autoOpen?: boolean;
 }
 
@@ -88,6 +93,7 @@ export const PenaltyAppealActions: React.FC<PenaltyAppealActionsProps> = ({
   defaultTicketTitle,
   defaultTicketDescription,
   ticketChannelEnabled = true,
+  mailOnly = false,
   autoOpen = false,
 }) => {
   const navigate = useNavigate();
@@ -117,9 +123,9 @@ export const PenaltyAppealActions: React.FC<PenaltyAppealActionsProps> = ({
   };
 
   useEffect(() => {
-    if (autoOpen) openModal();
+    if (autoOpen && !mailOnly) openModal();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoOpen]);
+  }, [autoOpen, mailOnly]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -198,9 +204,11 @@ export const PenaltyAppealActions: React.FC<PenaltyAppealActionsProps> = ({
           Appeal Options
         </div>
         <p className={cn(compact ? "text-[11px] leading-4 text-rose-800" : "text-sm leading-6 text-rose-900")}>
-          {kind === "ticket_permission_ban"
-            ? "如对本次处罚有异议，请优先发送邮件申诉；工单权限被封时系统可能暂时拒绝新建工单。"
-            : "如对本次处罚有异议，可通过邮件或工单申诉。"}
+          {mailOnly
+            ? "被限制期间工单接口同样不可达，请直接邮件联系管理员人工复核。"
+            : kind === "ticket_permission_ban"
+              ? "如对本次处罚有异议，请优先发送邮件申诉；工单权限被封时系统可能暂时拒绝新建工单。"
+              : "如对本次处罚有异议，可通过邮件或工单申诉。"}
         </p>
         <div className={cn("mt-3 flex flex-wrap gap-2", compact && "mt-2")}>
           <a
@@ -214,23 +222,24 @@ export const PenaltyAppealActions: React.FC<PenaltyAppealActionsProps> = ({
             <FiMail />
             {SUPPORT_EMAIL}
           </a>
-          {ticketChannelEnabled && kind !== "ticket_permission_ban" ? (
-            <button
-              type="button"
-              onClick={openModal}
-              className={cn(
-                studioPrimaryButtonClassName,
-                compact ? "px-3 py-2 text-xs" : "px-4 py-2.5 text-sm",
-              )}
-            >
-              <FiMessageSquare />
-              提交工单申诉
-            </button>
-          ) : (
-            <span className={cn(compact ? "text-[11px] text-rose-700" : "text-sm text-rose-700")}>
-              工单通道不可用，请使用邮箱申诉
-            </span>
-          )}
+          {!mailOnly &&
+            (ticketChannelEnabled && kind !== "ticket_permission_ban" ? (
+              <button
+                type="button"
+                onClick={openModal}
+                className={cn(
+                  studioPrimaryButtonClassName,
+                  compact ? "px-3 py-2 text-xs" : "px-4 py-2.5 text-sm",
+                )}
+              >
+                <FiMessageSquare />
+                提交工单申诉
+              </button>
+            ) : (
+              <span className={cn(compact ? "text-[11px] text-rose-700" : "text-sm text-rose-700")}>
+                工单通道不可用，请使用邮箱申诉
+              </span>
+            ))}
         </div>
       </div>
 

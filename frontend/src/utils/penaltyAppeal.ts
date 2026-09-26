@@ -25,6 +25,26 @@ function joinDetails(...parts: Array<string | undefined>): string | undefined {
   return lines.length > 0 ? lines.join('\n') : undefined;
 }
 
+export function isIpBanError(data: PenaltyLikeData, errorText = ''): boolean {
+  const error =
+    errorText || asText(data?.error) || asText(data?.message) || asText(data?.errorMessage);
+  const code = asText(data?.code) || asText(data?.errorCode);
+  return (
+    code === 'IP_BANNED' ||
+    data?.banned === true ||
+    error === 'IP已被封禁' ||
+    error.includes('IP地址已被封禁')
+  );
+}
+
+/** 封禁到期时间 → 可读文本；非法值返回 undefined。 */
+function formatExpiresAt(value: unknown): string | undefined {
+  if (typeof value !== 'string' && typeof value !== 'number') return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toLocaleString();
+}
+
 export function isTicketPermissionBanError(data: PenaltyLikeData, errorText = ''): boolean {
   const error = errorText || asText(data?.error) || asText(data?.message);
   const punishment = asText(data?.punishment);
@@ -59,6 +79,24 @@ export function classifyPenaltyAppeal(
     if (!isAccountSuspendedError(data, errorText) && !isTicketPermissionBanError(data, errorText)) {
       return null;
     }
+  }
+
+  // IP 封禁必须先判：它跟「工单权限被封」共用「封禁」二字，而 isTicketPermissionBanError
+  // 的兵底条件很宽（含封禁 + punishment 含封禁），放到后面会被误判成工单权限问题，
+  // 于是又给出一条提交不了的工单入口。
+  if (isIpBanError(data, errorText)) {
+    const expires = formatExpiresAt(data?.expiresAt);
+    return {
+      kind: 'ip_ban',
+      title: 'IP 访问受限',
+      reason: asText(data?.reason) || errorText || '当前 IP 已被临时限制访问。',
+      details: joinDetails(expires ? `解封时间: ${expires}` : undefined, `申诉邮箱: ${SUPPORT_EMAIL}`),
+      remainingText: expires,
+      // 被拦期间工单接口同样过不了 ipBanCheck，提交了也送不到，只保留邮件通道。
+      ticketChannelEnabled: false,
+      supportEmail: asText(data?.supportEmail) || SUPPORT_EMAIL,
+      source: options.source,
+    };
   }
 
   if (isTicketPermissionBanError(data, errorText)) {

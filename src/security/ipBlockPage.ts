@@ -9,6 +9,7 @@
  * 注意：本文件只做字符串拼接，所有插入值都必须先 escapeHtml，reason 来自数据库（可能含
  * 管理员手填的文本）与风险服务。
  */
+import type { Request, Response } from "express";
 
 export interface IpBlockPageOptions {
   reason?: string;
@@ -90,4 +91,46 @@ a{color:#e0562b;font-weight:600}
 </main>
 </body>
 </html>`;
+}
+
+/**
+ * 浏览器地址栏导航（而非 fetch/XHR 或静态资源）：这类请求期望 HTML，回 JSON 只会让用户
+ * 看到一串花括号。判断依据是 Accept 含 text/html 且不是 /api/ 下的接口调用。
+ */
+export function wantsHtmlDocument(req: Pick<Request, "method" | "path" | "headers">): boolean {
+  if (req.method !== "GET" && req.method !== "HEAD") return false;
+  if (req.path.startsWith("/api/")) return false;
+  const accept = req.headers.accept;
+  return typeof accept === "string" && accept.includes("text/html");
+}
+
+/**
+ * 封禁响应的唯一出口：导航请求回阻断页（与首访验闸同一套设计语言），其余回 JSON。
+ *
+ * JSON 里额外带 banned / errorCode，前端不靠比对中文文案就能认出这是封禁；error 用短
+ * 文案是因为前端多处（fingerprint.ts / ipVerification.ts / penaltyAppeal.ts）按
+ * `error === "IP已被封禁"` 判定封禁，改成长句会逐个失配，完整说明放 message。
+ */
+export function sendIpBlockResponse(
+  req: Pick<Request, "method" | "path" | "headers">,
+  res: Response,
+  options: IpBlockPageOptions,
+): void {
+  if (wantsHtmlDocument(req)) {
+    res
+      .status(403)
+      .type("html")
+      .set("Cache-Control", "no-store")
+      .send(renderIpBlockPage(options));
+    return;
+  }
+
+  res.status(403).json({
+    banned: true,
+    errorCode: "IP_BANNED",
+    error: "IP已被封禁",
+    message: "您的IP地址已被封禁，无法访问此服务",
+    reason: options.reason,
+    expiresAt: options.expiresAt,
+  });
 }

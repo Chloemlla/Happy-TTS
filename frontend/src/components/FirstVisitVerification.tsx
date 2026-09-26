@@ -17,7 +17,7 @@ import { completeIpVerification } from '../utils/ipVerification';
 import { useSecureCaptchaSelection } from '../hooks/useSecureCaptchaSelection';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useNotification } from './Notification';
-import { SUPPORT_EMAIL } from './PenaltyAppealActions';
+import { PenaltyAppealActions } from './PenaltyAppealActions';
 
 const TurnstileWidget = lazy(() =>
   import('./TurnstileWidget').then((module) => ({ default: module.TurnstileWidget })),
@@ -324,19 +324,6 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   );
 
   if (banState.isBanned) {
-    // 被拦截期间工单接口同样过不了 ipBanCheck，提交工单只会拿到 403；
-    // 所以这里不给工单入口，只把管理员支持邮箱直接写出来。
-    const appealSubject = encodeURIComponent('申诉：IP 访问限制');
-    const appealBody = encodeURIComponent(
-      [
-        `拦截原因：${banState.reason || '未知'}`,
-        banState.expiresAt ? `解封时间：${banState.expiresAt.toLocaleString()}` : '',
-        clientIP && clientIP !== 'unknown' ? `IP：${clientIP}` : '',
-      ]
-        .filter(Boolean)
-        .join('\n'),
-    );
-
     return shell(
       <m.div
         initial={{ opacity: 0, y: 14 }}
@@ -371,21 +358,14 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
               <p className="font-mono text-xs text-[#334155]">{clientIP}</p>
             </MetaRow>
           )}
-          <div className="rounded-2xl border border-[#e7ecf3] bg-[#f8fafc] px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8b97a6]">
-              申诉方式
-            </p>
-            <p className="mt-2 leading-6 text-[#2c3948]">
-              被拦截期间工单接口同样会被拦下，提交工单无法送达。如认为这是误判，请把上方 IP 与时间发送到{' '}
-              <a
-                className="font-mono font-semibold text-[#e0562b] underline decoration-[#ffd0b4] underline-offset-2"
-                href={`mailto:${SUPPORT_EMAIL}?subject=${appealSubject}&body=${appealBody}`}
-              >
-                {SUPPORT_EMAIL}
-              </a>
-              ，管理员会人工核查后解封。
-            </p>
-          </div>
+          {/* mailOnly：被拦截期间工单接口同样不可达，只给管理员支持邮箱（组件内带 mailto 预填）。 */}
+          <PenaltyAppealActions
+            kind="ip_ban"
+            mailOnly
+            reason={banState.reason}
+            remainingText={banState.expiresAt ? banState.expiresAt.toLocaleString() : undefined}
+            details={clientIP && clientIP !== 'unknown' ? `IP: ${clientIP}` : undefined}
+          />
         </div>
       </m.div>,
     );
