@@ -177,6 +177,51 @@ const OverviewTab: React.FC<{
           tone={counts && counts.reuse24h > 0 ? 'rose' : 'slate'}
         />
       </div>
+      {overview && overview.lineageAlerts.length > 0 ? (
+        <InfoPanel compact>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 py-3">
+            <FaExclamationTriangle className="text-rose-500" />
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              代次数越线告警
+            </span>
+            <span className="text-xs text-slate-500">
+              上限 {formatCount(overview.lineageAlertThreshold)} 代；正常一条链一天推进一代，越线基本只能是脚本在刷
+            </span>
+          </div>
+          <TableWrap minWidth="min-w-[620px]">
+            <thead>
+              <tr>
+                <Th>用户 ID</Th>
+                <Th>血缘（掩码）</Th>
+                <Th>已达代次</Th>
+                <Th>设备</Th>
+                <Th>最新一代签发时间</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {overview.lineageAlerts.map((alert, index) => (
+                <tr key={`${alert.userId}-${alert.lineageId}-${index}`}>
+                  <Td>
+                    <Mono value={alert.userId} />
+                  </Td>
+                  <Td>
+                    <Mono value={alert.lineageId} />
+                  </Td>
+                  <Td>
+                    <span className="font-medium text-rose-600">
+                      第 {formatCount(alert.generationCount)} 代
+                    </span>
+                  </Td>
+                  <Td>
+                    <DeviceCell row={alert} />
+                  </Td>
+                  <Td className="whitespace-nowrap text-slate-700">{formatIso(alert.createdAt)}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </TableWrap>
+        </InfoPanel>
+      ) : null}
       <InfoPanel compact>
         <div className="px-4 py-3">
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">最近复用事件</div>

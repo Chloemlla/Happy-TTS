@@ -29,6 +29,19 @@ type FakeDoc = {
 
 type Filter = Record<string, unknown>;
 
+/** P5-② 的告警出口：真判定（isLineageOverGenerationCap）保留，只把记录动作换成探针。 */
+const mockReportCap = jest.fn();
+
+jest.mock("../services/mobileTokenLineageAlertService", () => {
+  const actual = jest.requireActual<typeof import("../services/mobileTokenLineageAlertService")>(
+    "../services/mobileTokenLineageAlertService",
+  );
+  return {
+    ...actual,
+    reportLineageOverGenerationCap: (...args: unknown[]) => mockReportCap(...args),
+  };
+});
+
 jest.mock("../models/mobileClientTokenModel", () => {
   const docs = new Map<string, FakeDoc>();
 
@@ -163,6 +176,7 @@ import { MobileClientTokenModel } from "../models/mobileClientTokenModel";
 import * as authSession from "../services/authSessionService";
 import * as integrity from "../services/mobileIntegrityService";
 import * as rotationRisk from "../services/mobileTokenRiskService";
+import { LINEAGE_MAX_GENERATIONS } from "../services/mobileTokenLineageAlertService";
 import { UserStorage } from "../utils/userStorage";
 
 const model = MobileClientTokenModel as unknown as { __docs: Map<string, FakeDoc> };
@@ -199,6 +213,7 @@ function asMock(value: unknown): jest.Mock {
 
 beforeEach(() => {
   model.__docs.clear();
+  mockReportCap.mockClear();
   asMock(authSession.assertActiveAuthSession).mockResolvedValue({ sessionId: "as_1" });
   asMock(authSession.createAuthSession).mockImplementation(async (input: unknown) => input);
   asMock(authSession.issueTrackedLoginToken).mockResolvedValue("jwt-value");
@@ -317,6 +332,35 @@ describe("rotateClientLoginToken", () => {
 
     expect((error as MobileTokenError).status).toBe(429);
     expect((error as MobileTokenError).errorCode).toBe("MOBILE_TOKEN_ROTATION_QUOTA");
+  });
+
+  it("代次数越线时记一条告警，但照常换票（P5-②）", async () => {
+    // 这一代是第 LINEAGE_MAX_GENERATIONS-1 代，轮换后正好顶到上限。
+    const { token, doc } = await seed({ rotationIndex: LINEAGE_MAX_GENERATIONS - 2 });
+
+    const result = await rotateClientLoginToken({ clientLoginToken: token, deviceId: DEVICE_ID, ip: "203.0.113.9" });
+
+    expect(result.rotationIndex).toBe(LINEAGE_MAX_GENERATIONS - 1);
+    expect(mockReportCap).toHaveBeenCalledTimes(1);
+    expect(mockReportCap).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: USER_ID,
+        lineageId: doc.lineageId,
+        rotationIndex: LINEAGE_MAX_GENERATIONS - 1,
+        ip: "203.0.113.9",
+      }),
+    );
+    // 告警只是观测：新一代照样铸出来，旧代照样只打 superseded。
+    expect(model.__docs.get(doc.tokenHash)?.revokedAt).toBeNull();
+    expect(typeof model.__docs.get(doc.tokenHash)?.supersededAt).toBe("number");
+  });
+
+  it("正常代次轮换不产生告警（P5-②）", async () => {
+    const { token } = await seed({ rotationIndex: 7 });
+
+    await rotateClientLoginToken({ clientLoginToken: token, deviceId: DEVICE_ID });
+
+    expect(mockReportCap).not.toHaveBeenCalled();
   });
 });
 

@@ -42,6 +42,7 @@
     "migrate:user-passwords": "ts-node --transpile-only scripts/migrations/migrate-user-passwords.ts",
     "migrate:admin-to-superadmin": "node scripts/migrations/migrate-admin-to-superadmin.js",
     "migrate:lumen-ttl": "node scripts/migrations/backfill-lumen-ttl.js",
+    "migrate:mobile-token-lineage": "node scripts/migrations/backfill-mobile-token-lineage.js",
     "check:openapi-drift": "node scripts/governance/check-openapi-drift.js",
     "check:admin-spa-paths": "node scripts/generate-admin-spa-paths.js --check",
     "smoke:obfuscated": "node scripts/governance/smoke-obfuscated-artifact.js",

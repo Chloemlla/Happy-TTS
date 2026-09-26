@@ -379,7 +379,7 @@
         "ttlField": "ttlExpireAt",
         "expireAfterSeconds": 0,
         "typicalLifetime": "90d per token generation",
-        "description": "Mongo TTL index on ttlExpireAt drops the document once the generation expires; rotation only marks the previous generation superseded (it does not set revokedAt), and replaying that generation after the grace window revokes the whole lineage"
+        "description": "Mongo TTL index on ttlExpireAt drops the document once the generation expires; rotation only marks the previous generation superseded (it does not set revokedAt), and replaying that generation after the grace window revokes the whole lineage. Field-level retention is shorter for the routine IP fields: a generation that has been superseded for more than 30 days has lastUsedIp/rotatedIp unset by a periodic sweep, while reusedIp is kept as the incident record for the reuse board"
       },
       "delete": {
         "onUserDelete": "retain_until_ttl",

@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { AuthSessionModel } from "../models/authSessionModel";
 import { MobileClientTokenModel } from "../models/mobileClientTokenModel";
+import { LINEAGE_MAX_GENERATIONS } from "../services/mobileTokenLineageAlertService";
 import { mongoose } from "../services/mongoService";
 
 /**
@@ -197,6 +198,32 @@ export class MobileTokenAdminController {
         reusedIp: maskIp(doc.reusedIp),
       }));
 
+      // P5-②：代次数越线的血缘。正常一条链一天一代，越线基本只能是脚本在刷，
+      // 或是一条被反复轮换却从没人管的链——两种都值得摆到面板最上面。
+      const overCapDocs = toLooseDocs(
+        await MobileClientTokenModel.find({ rotationIndex: { $gte: LINEAGE_MAX_GENERATIONS - 1 } })
+          .select("userId lineageId tokenHash rotationIndex deviceId deviceName createdAt")
+          .sort({ rotationIndex: -1 })
+          .limit(50)
+          .lean()
+          .exec(),
+      );
+      const alertsByLineage = new Map<string, Record<string, unknown>>();
+      for (const doc of overCapDocs) {
+        const key = readString(doc.lineageId) || readString(doc.tokenHash);
+        if (alertsByLineage.has(key)) continue; // 已按 rotationIndex 倒序，首条即该链最高代
+        const rotationIndex = readNumber(doc.rotationIndex) ?? 0;
+        alertsByLineage.set(key, {
+          userId: readString(doc.userId),
+          lineageId: maskHash(key),
+          rotationIndex,
+          generationCount: rotationIndex + 1,
+          deviceId: maskDeviceId(doc.deviceId),
+          deviceName: readString(doc.deviceName) || null,
+          createdAt: toIso(doc.createdAt),
+        });
+      }
+
       res.setHeader("Cache-Control", "no-store");
       res.json({
         success: true,
@@ -210,6 +237,8 @@ export class MobileTokenAdminController {
           reuse24h,
         },
         recentReuse,
+        lineageAlerts: [...alertsByLineage.values()],
+        lineageAlertThreshold: LINEAGE_MAX_GENERATIONS,
       });
     } catch (error) {
       next(error);

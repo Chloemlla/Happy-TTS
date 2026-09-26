@@ -63,6 +63,21 @@ export interface OverviewResponse {
   success: boolean;
   counts: MobileTokenOverviewCounts;
   recentReuse: ReuseEventRow[];
+  /** 代次数越线的血缘（P5-②），按最高代倒序，最多 50 条。 */
+  lineageAlerts: LineageAlertRow[];
+  lineageAlertThreshold: number;
+}
+
+/** 一条代次数已达上限的血缘；字段与代次行同源，只是只回该链最高的一代。 */
+export interface LineageAlertRow {
+  userId: string;
+  lineageId: string | null;
+  rotationIndex: number;
+  generationCount: number;
+  deviceId: string | null;
+  deviceName: string | null;
+  createdAt: string | null;
+  [key: string]: unknown;
 }
 
 export interface LineageParams {

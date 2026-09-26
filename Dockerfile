@@ -184,6 +184,7 @@ COPY --from=backend-builder /app/scripts/profiling/run-load-profile-report.js ./
 COPY --from=backend-builder /app/scripts/profiling/README.md ./scripts/profiling/README.md
 COPY --from=backend-builder /app/scripts/migrations/migrate-admin-to-superadmin.js ./scripts/migrations/migrate-admin-to-superadmin.js
 COPY --from=backend-builder /app/scripts/migrations/backfill-lumen-ttl.js ./scripts/migrations/backfill-lumen-ttl.js
+COPY --from=backend-builder /app/scripts/migrations/backfill-mobile-token-lineage.js ./scripts/migrations/backfill-mobile-token-lineage.js
 # 前端由后端 Express 提供：frontend/dist 命中 registerStaticRoutes 的候选路径。
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 

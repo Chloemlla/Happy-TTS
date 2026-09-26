@@ -97,6 +97,8 @@ mobileClientTokenSchema.index({ supersededTo: 1 });
 mobileClientTokenSchema.index({ userId: 1, deviceFingerprint: 1, createdAt: 1 });
 // 复用断链看板按时间倒序翻 reusedAt 非空的文档（稀疏，只有真出事的令牌才有值）。
 mobileClientTokenSchema.index({ reusedAt: -1 }, { sparse: true });
+// 被顶替代次的来源 IP 保留期清理按 supersededAt 取范围（稀疏，当前代次没有这个字段）。
+mobileClientTokenSchema.index({ supersededAt: 1 }, { sparse: true });
 
 export const MobileClientTokenModel =
   (mongoose.models.MobileClientToken as mongoose.Model<MobileClientTokenDoc & { ttlExpireAt?: Date }>) ||

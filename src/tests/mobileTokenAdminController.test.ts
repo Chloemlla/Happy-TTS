@@ -34,6 +34,7 @@ jest.mock("../models/authSessionModel", () => ({
 }));
 
 import { MobileTokenAdminController } from "../controllers/mobileTokenAdminController";
+import { LINEAGE_MAX_GENERATIONS } from "../services/mobileTokenLineageAlertService";
 
 type Chain = Record<string, jest.Mock>;
 
@@ -123,9 +124,11 @@ describe("概览", () => {
       .mockReturnValueOnce(chain(2)) // reuseTotal
       .mockReturnValueOnce(chain(1)); // reuse24h
     mockTokenQuery.distinct.mockReturnValueOnce(chain(["l-1", "l-2", "l-3"]));
-    mockTokenQuery.find.mockReturnValueOnce(
-      chain([{ userId: "user-1", lineageId: "lineage-hash-value-000000", rotationIndex: 6, deviceId: REUSED_DOC.deviceId, deviceName: "Pixel 8 Pro", reusedAt: REUSED_DOC.reusedAt, reusedIp: "198.51.100.23" }]),
-    );
+    mockTokenQuery.find
+      .mockReturnValueOnce(
+        chain([{ userId: "user-1", lineageId: "lineage-hash-value-000000", rotationIndex: 6, deviceId: REUSED_DOC.deviceId, deviceName: "Pixel 8 Pro", reusedAt: REUSED_DOC.reusedAt, reusedIp: "198.51.100.23" }]),
+      )
+      .mockReturnValueOnce(chain([])); // P5：代次数越线查询，这里没有越线血缘
 
     const res = makeRes();
     await MobileTokenAdminController.getOverview({} as Request, res as unknown as Response, passThrough);
@@ -140,6 +143,36 @@ describe("概览", () => {
     expect(JSON.stringify(body)).not.toContain("lineage-hash-value-000000");
     expect(event.reusedIp).toBe("198.51.*.*");
     expect(event.deviceId).toBe("0f8e…a0");
+
+    expect(body.lineageAlerts).toEqual([]);
+    expect(body.lineageAlertThreshold).toBe(LINEAGE_MAX_GENERATIONS);
+  });
+
+  it("代次数越线的血缘按链去重后置顶告警，只保留该链最高的一代", async () => {
+    mockTokenQuery.countDocuments.mockReturnValue(chain(0));
+    mockTokenQuery.distinct.mockReturnValueOnce(chain([]));
+    mockTokenQuery.find
+      .mockReturnValueOnce(chain([]))
+      .mockReturnValueOnce(
+        chain([
+          { userId: "user-1", lineageId: "lineage-hash-value-000000", tokenHash: "aaa", rotationIndex: 412, deviceId: REUSED_DOC.deviceId, deviceName: "Pixel 8 Pro", createdAt: REUSED_DOC.createdAt },
+          { userId: "user-1", lineageId: "lineage-hash-value-000000", tokenHash: "bbb", rotationIndex: 405, deviceId: REUSED_DOC.deviceId, deviceName: "Pixel 8 Pro", createdAt: REUSED_DOC.createdAt },
+        ]),
+      );
+
+    const res = makeRes();
+    await MobileTokenAdminController.getOverview({} as Request, res as unknown as Response, passThrough);
+
+    expect(mockTokenQuery.find).toHaveBeenLastCalledWith({
+      rotationIndex: { $gte: LINEAGE_MAX_GENERATIONS - 1 },
+    });
+
+    const body = res.body as Record<string, any>;
+    expect(body.lineageAlerts).toHaveLength(1);
+    expect(body.lineageAlerts[0].rotationIndex).toBe(412);
+    expect(body.lineageAlerts[0].generationCount).toBe(413);
+    expect(body.lineageAlerts[0].lineageId).toBe("lineage-ha…");
+    expect(JSON.stringify(body)).not.toContain("lineage-hash-value-000000");
   });
 });
 

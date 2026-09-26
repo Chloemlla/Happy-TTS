@@ -5,6 +5,7 @@ import type { Express } from "express";
 import { compileTimeConfig, config, startupConfig } from "../config/config";
 import { runStartupDiagnostics } from "../config/startupDiagnostics";
 import { startApiKeyBillingReconciliation } from "../services/apiKeyBillingService";
+import { startMobileTokenIpRetention } from "../services/mobileTokenIpRetentionService";
 import { connectMongo } from "../services/mongoService";
 import { schedulerService } from "../services/schedulerService";
 import { serviceRegistry } from "../services/serviceRegistry";
@@ -157,6 +158,14 @@ export async function startServer(app: Express): Promise<void> {
   });
   UserStorage.initializeMongoListener();
   startApiKeyBillingReconciliation();
+  // P5-③：被顶替代次上的来源 IP 到期清理（幂等，Mongo 未就绪时自行跳过）。
+  try {
+    startMobileTokenIpRetention();
+  } catch (error) {
+    logger.warn("[启动] 被顶代替换令牌 IP 清理任务启动失败，继续启动", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   try {
     schedulerService.start();

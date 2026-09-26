@@ -28,6 +28,10 @@ import {
   resolveRotationInterval,
   type RotationRiskSignal,
 } from "./mobileTokenRiskService";
+import {
+  isLineageOverGenerationCap,
+  reportLineageOverGenerationCap,
+} from "./mobileTokenLineageAlertService";
 import type { Request } from "express";
 
 const CHALLENGE_TTL_MS = 3 * 60 * 1000;
@@ -608,6 +612,17 @@ export async function rotateClientLoginToken(params: {
     { tokenHash: doc.tokenHash },
     { $set: supersedeSet },
   );
+
+  // P5-②：代次数越线只告警，不放慢也不拒绝——节流仍由 ROTATION_DAILY_LIMIT 负责。
+  if (isLineageOverGenerationCap(rotationIndex)) {
+    reportLineageOverGenerationCap({
+      userId: doc.userId,
+      lineageId,
+      rotationIndex,
+      deviceId: doc.deviceId,
+      ip,
+    });
+  }
 
   const session = await createAuthSession({
     userId: doc.userId,

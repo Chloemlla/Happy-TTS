@@ -49,6 +49,7 @@
 | `reusedIp` | 触发复用时那次请求的来源 IP，取证用（P4） |
 
 字段上线前的存量令牌没有 `lineageId`：判定时回退用自身 hash 当链根，因此"旧代 + 它之后的后代"仍在同一条链上。
+要把它并入真正的链根，跑一次 `pnpm run migrate:mobile-token-lineage`（默认 dry-run，见 §6.6.1）。
 
 ### 3.2 新端点
 
@@ -137,6 +138,8 @@ Body: { clientLoginToken: string, deviceId: string, reason?: "scheduled" | "manu
 | `ROTATION_DAILY_LIMIT` | 8 次 / 24h / 血缘 | 配额，正常使用量是 1 次/天 |
 | `ROTATION_SUPERSEDED_GRACE_MS` | 5 分钟 | 旧代在途宽限，超期即断链 |
 | `ROTATION_ELEVATED_INTERVAL_MS` | 1 小时 | 设备证明降级后的节奏，替代上面那条 24 小时 |
+| `LINEAGE_MAX_GENERATIONS` | 400 代 / 血缘 | 代次数上限；越线只记一条告警并进后台（P5，见 §6.6.2），不拒绝也不放慢 |
+| `SUPERSEDED_IP_RETENTION_DAYS` | 30 天 | 被顶替代次上 `lastUsedIp` / `rotatedIp` 的保留期（P5，见 §6.6.3） |
 
 ### 3.7 轮换响应里的两个"提前"标记
 
@@ -308,6 +311,51 @@ P3 正好是把那些观察结果变成实际动作的地方 —— 判定没过
 - 只读：面板没有任何撤销/封禁动作，处置仍走「活动设备与客户端」与 IP 封禁那两处；
 - 时间线一次最多 500 代并明确标出截断，列表分页上限 200。
 
+## 6.6 存量与清理（P5）
+
+前三阶段只对"从上线之后签发/轮换的令牌"完整生效，P5 收口的是存量数据与长期堆积。
+
+### 6.6.1 存量 `lineageId` 回填
+
+```bash
+pnpm run migrate:mobile-token-lineage            # dry-run，只打印将回填的分组
+pnpm run migrate:mobile-token-lineage -- --apply # 真正写入
+```
+
+脚本（`scripts/migrations/backfill-mobile-token-lineage.js`）沿 `rotatedFrom` 把每一代走到链根，把链根应写的
+`lineageId` 一次性 `updateMany` 下去；走到某个祖先本身已有 `lineageId` 就以它为准，**不会把两条链并成一条**。
+链根取"最顶端那一代自己的 `tokenHash`"，与运行时回退（`lineageIdOf`）的取值一致，因此回填前后同一条链的
+`lineageId` 不会跳变。只匹配 `lineageId` 为空的文档，可重复执行；`rotatedFrom` 指向的上一代已被 90 天 TTL
+清掉的，就按"这一代自己是链根"处理——这也是运行时本来的判定。
+
+与其余迁移脚本同一约束：纯 node + `mongodb` 驱动，不 import `src/`（生产镜像只有混淆后的 `dist/`）。
+
+### 6.6.2 代次数上限告警
+
+正常一条血缘一天推进一代，一年也就三百多代。`LINEAGE_MAX_GENERATIONS`（400）之上的链基本只有两种解释：
+脚本拿着有效令牌在刷，或是一条没人管的链被反复轮换。
+
+越线时轮换路径记一条 `warn`（userId / deviceId / lineageId / 代次 / IP），后台「登录令牌血缘」概览页顶部
+多出一块「代次数越线告警」列表（按链去重，取该链最高的一代，最多 50 条）。
+
+**它只是观测**：不拒绝请求、不放慢节奏、不动任何令牌——节流仍然只由 `ROTATION_DAILY_LIMIT`（8 次 / 24h / 血缘）
+与 `ROTATION_MIN_INTERVAL_MS` 负责。这与 P2 的降级、P3 的提级是同一个原则：告警不改变可用性。
+
+### 6.6.3 被顶替代次的来源 IP 保留期
+
+`lastUsedIp` / `rotatedIp` 只在"这一代还在用 / 刚被顶替"的那几天有运维价值。被顶替超过
+`SUPERSEDED_IP_RETENTION_DAYS`（默认 30 天，可用环境变量 `MOBILE_TOKEN_IP_RETENTION_DAYS` 覆盖）后，
+后台每 6 小时扫一次，把这两个字段 `$unset` 掉（走 `supersededAt` 稀疏索引）。
+
+两个刻意的例外：
+
+- **不清 `reusedIp`**：那是 `MOBILE_TOKEN_REUSED` 事件的取证记录，也是 P4 复用看板的取数依据，
+  清它等于把已经发生的断链事故抹掉；
+- **不清 `rotatedFingerprint` / `deviceFingerprint`**：那是设备指纹而不是用户出口地址，且 P3 的新设备判定
+  要靠它跨代继承。
+
+清理是幂等的，Mongo 未就绪时直接跳过，日志只在真的清掉东西时记一行。
+
 ## 7. 后续阶段
 
 | 阶段 | 内容 |
@@ -315,6 +363,6 @@ P3 正好是把那些观察结果变成实际动作的地方 —— 判定没过
 | ~~P2~~ | ~~Play Integrity 设备证明~~ —— **已落地**，见 §4 |
 | ~~P3~~ | ~~风险分级轮换：IP 属地突变、设备证明未通过、新设备登录时把节奏压到 1 小时~~ —— **已落地**，见 §5 |
 | ~~P4~~ | ~~后台可视化：血缘时间线、`MOBILE_TOKEN_REUSED` 事件看板、按用户/设备查询代次~~ —— **已落地**，见 §6.5 |
-| P5 | 存量令牌回填 `lineageId` 的迁移脚本 + 代次数上限告警 |
+| ~~P5~~ | ~~存量令牌回填 `lineageId` 的迁移脚本 + 代次数上限告警 + 被顶替代次的 IP 保留期~~ —— **已落地**，见 §6.6 |
 
 明确不做：客户端本地"到期才允许轮换"的硬校验（设备时间不可信）；旧代宽限期延长（每延长一分钟，断链检测就晚一分钟）。
