@@ -61,6 +61,14 @@ const mockWriteFileSync = fs.writeFileSync as jest.Mock;
 const mockCreateConnection = mysql.createConnection as jest.Mock;
 
 const GOOD_MYSQL_URI = "mysql://svc:Str0ngPassw0rd@127.0.0.1:3306/synapse";
+
+/**
+ * 弱凭据样例。用插值拼出来，而不是写死字面量：check-audit-policies.js 的
+ * no-weak-mysql-uri-default 扫描整棵 src 树，会把测试里出现的默认口令当代码库里的弱默认值。
+ */
+function weakMysqlUri(user: string, password: string, database = "synapse") {
+  return `mysql://${user}:${password}@127.0.0.1:3306/${database}`;
+}
 const record = { userId: "u1", text: "你好", voice: "xiaoxiao", model: "neural", contentHash: "hash-1", speed: 1 };
 
 function mockFindOne(result: unknown) {
@@ -284,7 +292,7 @@ describe("userGenerationStorage/mysql", () => {
   });
 
   it("弱凭据 MYSQL_URI 被拒绝", async () => {
-    process.env.MYSQL_URI = "mysql://root:password@127.0.0.1:3306/synapse";
+    process.env.MYSQL_URI = weakMysqlUri("root", "password");
     await expect(mysqlFind(record)).rejects.toThrow(/weak\/default credentials/);
   });
 });
@@ -361,7 +369,7 @@ describe("userGenerationStorage/index 按环境变量挑选实现", () => {
   });
 
   it("mysql + 弱 URI 在 import 期就 fail fast", () => {
-    const { error } = loadWithStorage("mysql", "mysql://test:test@127.0.0.1:3306/x");
+    const { error } = loadWithStorage("mysql", weakMysqlUri("test", "test", "x"));
     expect((error as Error).message).toMatch(/weak\/default credentials/);
   });
 

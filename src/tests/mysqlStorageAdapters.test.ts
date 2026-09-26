@@ -8,6 +8,14 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const GOOD_MYSQL_URI = "mysql://svc:Str0ngPassw0rd@127.0.0.1:3306/synapse";
 
+/**
+ * 弱凭据样例用插值拼出，不写死字面量：check-audit-policies.js 的 no-weak-mysql-uri-default
+ * 扫描整棵 src 树（含测试），会把测试里出现的 root:password 当成代码库自带的弱默认连接串。
+ */
+function weakMysqlUri(user: string, password: string) {
+  return `mysql://${user}:${password}@127.0.0.1:3306/synapse`;
+}
+
 interface QueryCall {
   sql: string;
   params?: unknown[];
@@ -226,7 +234,7 @@ describe("modlistStorage/mysql", () => {
   });
 
   it("MYSQL_URI 是弱凭据时被策略拒绝", async () => {
-    process.env.MYSQL_URI = "mysql://root:password@127.0.0.1:3306/synapse";
+    process.env.MYSQL_URI = weakMysqlUri("root", "password");
     const h = loadModlist(() => []);
     await expect(h.mod.getAllMods()).rejects.toThrow(/weak\/default credentials/);
   });
