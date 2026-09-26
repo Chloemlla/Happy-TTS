@@ -50,6 +50,7 @@ describe("NetworkService - 随机驾考题目", () => {
       expect(result.data).toEqual(mockResponse.data);
       expect(mockedAxios.get).toHaveBeenCalledWith("https://v2.xxapi.cn/api/jiakao?subject=1", {
         timeout: 15000,
+        maxContentLength: 2 * 1024 * 1024,
         maxRedirects: 3,
       });
     });
@@ -81,6 +82,7 @@ describe("NetworkService - 随机驾考题目", () => {
       expect(result.data).toEqual(mockResponse.data);
       expect(mockedAxios.get).toHaveBeenCalledWith("https://v2.xxapi.cn/api/jiakao?subject=4", {
         timeout: 15000,
+        maxContentLength: 2 * 1024 * 1024,
         maxRedirects: 3,
       });
     });

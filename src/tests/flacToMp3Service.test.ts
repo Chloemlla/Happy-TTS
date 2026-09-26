@@ -46,6 +46,7 @@ describe("NetworkService - FLAC to MP3", () => {
         "https://v2.xxapi.cn/api/flactomp3?url=https%3A%2F%2Fexample.com%2Faudio.flac&return=json",
         {
           timeout: 60000,
+          maxContentLength: 2 * 1024 * 1024,
           maxRedirects: 5,
         },
       );
@@ -66,6 +67,7 @@ describe("NetworkService - FLAC to MP3", () => {
         "https://v2.xxapi.cn/api/flactomp3?url=https%3A%2F%2Fexample.com%2Faudio.flac&return=302",
         {
           timeout: 60000,
+          maxContentLength: 2 * 1024 * 1024,
           maxRedirects: 5,
         },
       );
@@ -149,6 +151,7 @@ describe("NetworkService - FLAC to MP3", () => {
         "https://v2.xxapi.cn/api/flactomp3?url=https%3A%2F%2Fexample.com%2Faudio.flac&return=json",
         {
           timeout: 60000,
+          maxContentLength: 2 * 1024 * 1024,
           maxRedirects: 5,
         },
       );

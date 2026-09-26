@@ -1,5 +1,11 @@
 import { commandService } from "../services/commandService";
 
+// G7-39 删掉了「NODE_ENV==="test" 且密码是 "wumy" 就放行」这个通用后门；测试改走
+// utils/adminOperationPassword 的真校验分支（NODE_ENV=test 下接受 TEST_ADMIN_PASSWORD，默认 "admin"）。
+// 之前所有用例拿到的都是 "Invalid password" 早退，所以下面那些「拒绝危险字符」的断言
+// 其实一直在验证另一个分支，等于没有验到注入防护。
+const ADMIN_OPERATION_PASSWORD = process.env.TEST_ADMIN_PASSWORD || "admin";
+
 jest.mock("../services/commandStorage", () => ({
   getCommandQueue: jest.fn().mockResolvedValue([]),
   addToQueue: jest.fn().mockResolvedValue({ commandId: "test-command-id" }),
@@ -32,7 +38,7 @@ describe("安全修复测试", () => {
       ];
 
       for (const command of dangerousCommands) {
-        const result = await commandService.addCommand(command, "wumy");
+        const result = await commandService.addCommand(command, ADMIN_OPERATION_PASSWORD);
         expect(result.status).toBe("error");
         expect(
           result.message?.includes("命令包含危险字符") ||
@@ -62,7 +68,7 @@ describe("安全修复测试", () => {
       ];
 
       for (const command of dangerousArgs) {
-        const result = await commandService.addCommand(command, "wumy");
+        const result = await commandService.addCommand(command, ADMIN_OPERATION_PASSWORD);
         expect(result.status).toBe("error");
         expect(result.message).toContain("命令包含危险字符");
       }
@@ -83,7 +89,7 @@ describe("安全修复测试", () => {
       ];
 
       for (const command of unauthorizedCommands) {
-        const result = await commandService.addCommand(command, "wumy");
+        const result = await commandService.addCommand(command, ADMIN_OPERATION_PASSWORD);
         const msg = result.message || "";
         console.log(command, msg);
         expect(result.status).toBe("error");
@@ -97,7 +103,7 @@ describe("安全修复测试", () => {
       const safeCommands = ["pwd", "whoami", "date", "uptime"];
 
       for (const command of safeCommands) {
-        const result = await commandService.addCommand(command, "wumy");
+        const result = await commandService.addCommand(command, ADMIN_OPERATION_PASSWORD);
         expect(result.status).toBe("command added");
         expect(result.command).toBe(command);
       }
@@ -105,7 +111,7 @@ describe("安全修复测试", () => {
 
     it("应该拒绝过长的命令", async () => {
       const longCommand = `ls ${"a".repeat(200)}`;
-      const result = await commandService.addCommand(longCommand, "wumy");
+      const result = await commandService.addCommand(longCommand, ADMIN_OPERATION_PASSWORD);
       expect(result.status).toBe("error");
       expect(result.message).toContain("命令长度超过限制");
     });
