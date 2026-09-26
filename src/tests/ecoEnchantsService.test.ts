@@ -184,7 +184,10 @@ describe("EcoEnchantsService.verifyLicense", () => {
     mockedLicenseModel.findOne.mockResolvedValue(createLicense({ status: "trial" }));
     mockedActivationModel.findOne.mockResolvedValue(null);
     mockedActivationModel.countDocuments.mockReturnValue(countQuery(0));
-    mockedActivationModel.create.mockResolvedValue(createdActivation);
+    // 生产侧是数组式 create（create([doc], session ? { session } : undefined) 后取 docs[0]），
+    // 替身必须回数组：回单对象会让 docs[0] 是 undefined，服务把“没拿到文档”当成配额满，
+    // 于是报 activation_limit_exceeded（假失败）。
+    mockedActivationModel.create.mockResolvedValue([createdActivation] as never);
 
     const result = await EcoEnchantsService.verifyLicense(
       {

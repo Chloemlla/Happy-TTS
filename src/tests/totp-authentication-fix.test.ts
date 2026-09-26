@@ -29,7 +29,9 @@ describe("TOTP认证修复测试", () => {
     }
 
     // 创建测试用户
-    testUser = await UserStorage.createUser("testuser_totp_fix", "test@example.com", "password123");
+    // 夹具口令不能用 "password123"：密码强度策略把 /password/i 归为常见弱口令模式（score 直接归 0），
+    // createUser 会抛 InputValidationError，整个套件在 beforeEach 就死。换一个不含黑名单模式的强口令。
+    testUser = await UserStorage.createUser("testuser_totp_fix", "test@example.com", "TotpFix!Unit-7");
     if (!testUser) {
       throw new Error("创建测试用户失败");
     }

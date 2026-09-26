@@ -67,6 +67,52 @@ const mockUserService = {
   getAllUsersAuth: jest.fn(async () => Array.from(mockUsers.values()).map((user) => mockCloneUser(user))),
   getUserById: jest.fn(async (id: string) => mockCloneUser(mockUsers.get(id))),
   getUserAuthById: jest.fn(async (id: string) => mockCloneUser(mockUsers.get(id))),
+  /**
+   * 下面四个是 G2-22 / G2-13 加到真服务上的，替身始终没跟上：
+   * mongoUserStorageProvider 会把调用转发给 userService，缺函数就是 TypeError（passkey 套件），
+   * 而 totp 的备份码读取走 getUserSecretsById，缺它就是一句 500（backupCodes 套件）。
+   * 语义跟真实现对齐，而不是只把它“补上”：
+   */
+  // 真实现会拒绝非法 id，这条契约也被上位调用方依赖，这里保留。
+  getUserSecretsById: jest.fn(async (id: string) => {
+    if (typeof id !== "string" || !/^[a-zA-Z0-9_-]+$/.test(id)) {
+      throw new Error("非法的用户ID");
+    }
+    return mockCloneUser(mockUsers.get(id));
+  }),
+  // 只有 pendingChallenge 与期望值对得上才消费（并摸掉两个字段），否则回 null。
+  consumePendingChallenge: jest.fn(async (id: string, expectedChallenge: string) => {
+    const user = mockUsers.get(id);
+    if (!user || !expectedChallenge || user.pendingChallenge !== expectedChallenge) {
+      return null;
+    }
+    delete user.pendingChallenge;
+    delete user.pendingChallengeExpiresAt;
+    return mockCloneUser(user);
+  }),
+  // 原子消费：counter 必须严格大于已记录值，否则视为重放，返回 false。
+  consumeTotpCounter: jest.fn(async (id: string, counter: number) => {
+    const user = mockUsers.get(id);
+    if (!user) return false;
+    const last = Number(user.lastTotpCounter);
+    if (Number.isFinite(last) && last >= counter) return false;
+    user.lastTotpCounter = counter;
+    return true;
+  }),
+  getUsersByIds: jest.fn(async (ids: string[]) =>
+    (Array.isArray(ids) ? ids : [])
+      .map((id) => mockCloneUser(mockUsers.get(id)))
+      .filter((user): user is MockUser => Boolean(user)),
+  ),
+  bulkUpdateUsers: jest.fn(async (ops: Array<{ updateOne: { filter: { id?: string }; update: MockUser } }>) => {
+    for (const op of Array.isArray(ops) ? ops : []) {
+      const id = op?.updateOne?.filter?.id;
+      if (!id) continue;
+      const existing = mockUsers.get(id);
+      if (!existing) continue;
+      mockUsers.set(id, { ...existing, ...(op.updateOne.update || {}) });
+    }
+  }),
   getUserByUsername: jest.fn(async (username: string) => mockCloneUser(mockFindByUsername(username))),
   getUserAuthByUsername: jest.fn(async (username: string) => mockCloneUser(mockFindByUsername(username))),
   getUserByEmail: jest.fn(async (email: string) => mockCloneUser(mockFindByEmail(email))),
