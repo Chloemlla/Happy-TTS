@@ -22,7 +22,6 @@ import http from "node:http";
 import https from "node:https";
 import tls from "node:tls";
 import type { Duplex } from "node:stream";
-import { SocksProxyAgent } from "socks-proxy-agent";
 import { resolveCookiesFile } from "./biliCookies";
 import { BILI_WEB_REFERER, resolveBiliUserAgent } from "./runtime";
 import type { BiliOptions } from "./types";
@@ -143,15 +142,23 @@ async function signedQuery(opts: BiliOptions, params: Record<string, string | nu
  * HTTP 报文解析（状态行/分块/超时）全部交给 node 自带的 https 客户端，不手写解析。
  * 这里用赋值而不是子类 + override，是为了避开 Agent.createConnection 的签名变换问题。
  */
+/** CONNECT 隧道里 createConnection 实际会被喂进来的字段（不依赖 @types/node 的具体命名空间）。 */
+interface TunnelConnectOptions {
+  host?: string | null;
+  port?: number | string | null;
+  servername?: string;
+}
+
 function tunnelAgent(proxy: URL): https.Agent {
   const agent = new https.Agent({ keepAlive: false });
   const basicAuth = proxy.username
     ? `Basic ${Buffer.from(`${decodeURIComponent(proxy.username)}:${decodeURIComponent(proxy.password || "")}`).toString("base64")}`
     : "";
 
-  agent.createConnection = ((options: https.ConnectionOptions, callback: (err: Error | null, stream: Duplex) => void) => {
+  agent.createConnection = ((options: TunnelConnectOptions, callback: (err: Error | null, stream: Duplex) => void) => {
     const targetHost = String(options.servername || options.host || "");
     const targetPort = Number(options.port) || 443;
+    const fail = (err: Error) => callback(err, null as unknown as Duplex);
     const connectReq = http.request(
       {
         host: proxy.hostname,
@@ -164,7 +171,7 @@ function tunnelAgent(proxy: URL): https.Agent {
       (res) => {
         if (res.statusCode !== 200 || !res.socket) {
           res.resume();
-          callback(new Error(`代理 CONNECT 失败: HTTP ${res.statusCode ?? "?"}（目标 ${targetHost}:${targetPort}）`), null as unknown as Duplex);
+          fail(new Error(`代理 CONNECT 失败: HTTP ${res.statusCode ?? "?"}（目标 ${targetHost}:${targetPort}）`));
           return;
         }
         // 目标站是 B 站官方证书链，隧道里依然照常校验，不然等于把凭据送人。
@@ -172,20 +179,35 @@ function tunnelAgent(proxy: URL): https.Agent {
           { socket: res.socket, servername: targetHost, ALPNProtocols: ["http/1.1"], rejectUnauthorized: true },
           () => callback(null, secured),
         );
-        secured.on("error", (err) => callback(err, null as unknown as Duplex));
+        secured.on("error", (err) => fail(err));
       },
     );
-    connectReq.on("error", (err) => callback(err, null as unknown as Duplex));
+    connectReq.on("error", (err) => fail(err));
     connectReq.end();
     // 连接结果一律经 callback 交回（Node 允许异步完成），返回值只是满足签名的占位。
     return undefined as unknown as Duplex;
-  }) as typeof agent.createConnection;
+  }) as unknown as typeof agent.createConnection;
 
   return agent;
 }
 
+/**
+ * socks-proxy-agent v10 是 ESM-only，而本文件编译产物是 CommonJS：
+ * 静态 import 会直接 TS1479（require 不进去），所以只能延迟到真要 socks 代理时动态 import。
+ * 不配 socks 代理时这个模块连加载都不会被加载。
+ */
+let socksModule: Promise<{ SocksProxyAgent: new (proxy: string) => unknown }> | null = null;
+function loadSocksAgent(): Promise<{ SocksProxyAgent: new (proxy: string) => unknown }> {
+  if (!socksModule) {
+    socksModule = import("socks-proxy-agent") as unknown as Promise<{
+      SocksProxyAgent: new (proxy: string) => unknown;
+    }>;
+  }
+  return socksModule;
+}
+
 /** 按代理协议选隧道实现；返回 undefined = 直连。 */
-function agentForProxy(proxyUrl: string): https.Agent | undefined {
+async function agentForProxy(proxyUrl: string): Promise<https.Agent | undefined> {
   const p = (proxyUrl || "").trim();
   if (!p) return undefined;
   let parsed: URL;
@@ -196,7 +218,8 @@ function agentForProxy(proxyUrl: string): https.Agent | undefined {
   }
   const scheme = parsed.protocol.replace(":", "").toLowerCase();
   if (scheme === "socks" || scheme === "socks4" || scheme === "socks4a" || scheme === "socks5" || scheme === "socks5h") {
-    return new SocksProxyAgent(p) as unknown as https.Agent;
+    const { SocksProxyAgent } = await loadSocksAgent();
+    return new SocksProxyAgent(p) as https.Agent;
   }
   if (scheme === "http" || scheme === "https") {
     return tunnelAgent(parsed);
@@ -225,26 +248,35 @@ async function httpsGet(
   }
   return new Promise<HttpResponse>((resolve, reject) => {
     const target = new URL(url);
-    const req = https.request(
-      {
-        hostname: target.hostname,
-        port: target.port || 443,
-        path: `${target.pathname}${target.search}`,
-        method: "GET",
-        headers,
-        agent: agentForProxy(proxyUrl),
-      },
-      (res) => {
-        let body = "";
-        res.setEncoding("utf8");
-        res.on("data", (chunk: string) => (body += chunk));
-        res.on("end", () => resolve({ status: res.statusCode ?? 0, body }));
-        res.on("error", (err) => reject(err));
-      },
-    );
-    req.setTimeout(timeoutMs, () => req.destroy(new Error(`请求超时 ${timeoutMs}ms`)));
-    req.on("error", (err) => reject(err));
-    req.end();
+    void (async () => {
+      let agent: https.Agent | undefined;
+      try {
+        agent = await agentForProxy(proxyUrl);
+      } catch (e) {
+        reject(e);
+        return;
+      }
+      const req = https.request(
+        {
+          hostname: target.hostname,
+          port: target.port || 443,
+          path: `${target.pathname}${target.search}`,
+          method: "GET",
+          headers,
+          agent,
+        },
+        (res) => {
+          let body = "";
+          res.setEncoding("utf8");
+          res.on("data", (chunk: string) => (body += chunk));
+          res.on("end", () => resolve({ status: res.statusCode ?? 0, body }));
+          res.on("error", (err) => reject(err));
+        },
+      );
+      req.setTimeout(timeoutMs, () => req.destroy(new Error(`请求超时 ${timeoutMs}ms`)));
+      req.on("error", (err) => reject(err));
+      req.end();
+    })();
   });
 }
 
