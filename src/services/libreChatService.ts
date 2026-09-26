@@ -739,7 +739,11 @@ class LibreChatService {
 
   private async fetchAndRecord() {
     try {
-      const url = "https://github.com/danny-avila/LibreChat/pkgs/container/librechat-dev";
+      // The upstream repository was transferred out of the `danny-avila` user
+      // account into the `LibreChat-AI` organisation. Repo URLs follow the 301,
+      // but a package page does not: the old path keeps answering 404, which
+      // made this scrape throw and the hourly check record nothing.
+      const url = "https://github.com/LibreChat-AI/LibreChat/pkgs/container/librechat-dev";
       // G7-32: this HTML scrape previously had no timeout and no response-size
       // limit; a slow/broken GitHub response would hang the periodic task.
       const response = await axios.get(url, {
