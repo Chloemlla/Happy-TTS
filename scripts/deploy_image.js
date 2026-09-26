@@ -427,10 +427,14 @@ function dockerRunFlag(flag, value) {
   return `${flag} ${shellQuote(value)}`;
 }
 
-// docker inspect 的 Config.Env 是「镜像 ENV + docker run -e」的合并结果，因此旧容器的
-// APP_GIT_SHA 等构建元数据也在里面。若全量继承成新容器的显式 -e，就会盖掉新镜像里的同名
-// ENV，页脚后端短 SHA 会永远停在首次部署那一版（且每次重建都自我复制）。
-// 构建元数据一律不继承，让新镜像自己说了算。
+// docker inspect 的 Config.Env 是「镜像自带 ENV + docker run -e」的合并结果，不能全量继承：
+// 旧镜像的默认值（APP_GIT_SHA / TZ / NODE_OPTIONS / FRONTEND_DIST_DIR …）一旦变成新容器的
+// 显式 -e，就会盖掉新镜像里的同名 ENV —— 短 SHA 曾因此永远停在首次部署那一版，同样地
+// 以后改 Dockerfile 里的 ENV 也不会生效。
+// 判据：拿「本容器创建时所用镜像的默认 Env」作差集，只继承真正的运行时覆盖。两份来源：
+//   1. 上一轮写在容器上的记账 label（首选：部署末尾 docker image prune -a -f 会把旧镜像
+//      删掉，只靠 image ID 下一轮就查不到）；
+//   2. 历史容器没有 label 时，回退去 inspect inspect 结果里的 Image（不可变 image ID）。
 const NON_INHERITED_ENV_KEYS = new Set([
   "APP_GIT_SHA",
   "VITE_GIT_SHA",
@@ -439,14 +443,82 @@ const NON_INHERITED_ENV_KEYS = new Set([
   "SOURCE_VERSION",
 ]);
 
-function shouldInheritEnv(env) {
-  const separator = env.indexOf("=");
-  const key = separator === -1 ? env : env.slice(0, separator);
-  // PATH/HOSTNAME 是容器运行时自带的，继承没有意义
+// 记账 label：本容器所用镜像的默认 Env（JSON 数组，元素形如 "K=V"）
+const IMAGE_ENV_LABEL_KEY = "io.synapse.image-env";
+
+// "K=V" → "K"（无 = 号的异常条目按整串处理）
+function envKeyOf(env) {
+  const str = String(env ?? "");
+  const separator = str.indexOf("=");
+  return separator === -1 ? str : str.slice(0, separator);
+}
+
+function envListToMap(list) {
+  return new Map(list.map((env) => [envKeyOf(env), String(env)]));
+}
+
+/**
+ * @param {string} env 形如 "K=V" 的条目
+ * @param {Map<string,string>|null} imageEnvMap 本容器所用镜像的默认 Env（key → 原始 "K=V"）；
+ *        null 表示取不到，保守回退为「全部视为用户覆盖」（与修正前行为一致，
+ *        避免默默丢掉 ADMIN_PASSWORD 这类真正的运行时覆盖）
+ */
+function shouldInheritEnv(env, imageEnvMap = null) {
+  const key = envKeyOf(env);
+  // PATH/HOSTNAME 由容器运行时自己给出，继承没有意义
   if (key === "PATH" || key === "HOSTNAME") {
     return false;
   }
-  return !NON_INHERITED_ENV_KEYS.has(key);
+  // 构建元数据无论如何都不继承，防止 -e 盖掉新镜像 ENV
+  if (NON_INHERITED_ENV_KEYS.has(key)) {
+    return false;
+  }
+  if (!imageEnvMap) {
+    return true;
+  }
+  // 与镜像默认值完全相同 → 镜像带进来的，交给新镜像重新决定
+  return imageEnvMap.get(key) !== env;
+}
+
+/**
+ * 从容器 label 里读回记账的镜像默认 Env。没有/解析失败返回 null。
+ * @param {Object.<string,string>|undefined} labels docker inspect 的 Config.Labels
+ */
+function readImageEnvFromLabels(labels) {
+  const raw = labels ? labels[IMAGE_ENV_LABEL_KEY] : undefined;
+  if (typeof raw !== "string" || raw.length === 0) {
+    return null;
+  }
+  try {
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? envListToMap(list) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 取镜像自带的默认环境变量（key → 原始 "K=V"）。失败返回 null，由调用方回退。
+ * @param {Client} ssh
+ * @param {string} imageRef 镜像 tag 或 image ID
+ */
+async function fetchImageEnvMap(ssh, imageRef) {
+  if (!imageRef) {
+    return null;
+  }
+  try {
+    const result = await execSSHCommand(
+      ssh,
+      `docker image inspect ${shellQuote(imageRef)} --format '{{json .Config.Env}}'`,
+    );
+    if (result.code !== 0) {
+      return null;
+    }
+    const list = JSON.parse((result.stdout || "").trim() || "null");
+    return Array.isArray(list) ? envListToMap(list) : null;
+  } catch {
+    return null;
+  }
 }
 
 function normalizeDockerCommand(command) {
@@ -725,6 +797,15 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
     const config = containerInfo[0].Config;
     const hostConfig = containerInfo[0].HostConfig || {};
     const networkSettings = containerInfo[0].NetworkSettings || {};
+
+    // 区分「用户 -e 覆盖」与「镜像自带默认值」：优先用上一轮写的记账 label（旧镜像已被
+    // docker image prune -a -f 删掉时唯一可靠来源），没有才回退 inspect 旧 image ID。
+    const oldImageEnvMap =
+      readImageEnvFromLabels(config.Labels) ??
+      (await fetchImageEnvMap(ssh, containerInfo[0].Image));
+    // 本轮新镜像的默认 Env，写回 label 供下一轮差集使用
+    const newImageEnvMap = await fetchImageEnvMap(ssh, newImageUrl);
+
     let createCommand = `docker run -d --name ${shellQuote(oldContainerName)} `;
 
     // === Config 部分继承 ===
@@ -756,13 +837,26 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
 
     // 继承是否分离模式（已在docker run -d中设置）
 
-    // 继承环境变量
+    // 继承环境变量：只继承真正的运行时覆盖，镜像默认值交给新镜像
     const envVars = config.Env || [];
+    if (!oldImageEnvMap) {
+      logWarning(
+        "未能确定本容器所用镜像的默认环境变量（无记账 label 且旧镜像已清理），本轮仅按静态清单过滤构建元数据",
+      );
+    }
+    const droppedImageDefaults = [];
     for (const env of envVars) {
-      // 跳过系统默认环境变量与构建元数据（见 shouldInheritEnv）
-      if (shouldInheritEnv(env)) {
+      if (shouldInheritEnv(env, oldImageEnvMap)) {
         createCommand += `${dockerRunFlag("-e", env)} `;
+      } else if (!env.startsWith("PATH=") && !env.startsWith("HOSTNAME=")) {
+        droppedImageDefaults.push(envKeyOf(env));
       }
+    }
+    if (droppedImageDefaults.length > 0) {
+      // 只记 key，不记值（运行时覆盖里可能含密钥）
+      logInfo(
+        `不继承镜像默认环境变量 ${droppedImageDefaults.length} 项，改用新镜像值：${droppedImageDefaults.join(", ")}`,
+      );
     }
 
     // 继承入口点；CMD 会在镜像名后追加，避免篡改原容器启动命令
@@ -778,17 +872,24 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
 
     // 继承暴露端口（通过PortBindings处理）
 
-    // 继承标签
+    // 继承标签（记账 label 不沿用旧值，由本轮重新写）
     if (config.Labels) {
       for (const [key, value] of Object.entries(config.Labels)) {
         // 跳过系统标签
         if (
+          key !== IMAGE_ENV_LABEL_KEY &&
           !key.startsWith("org.opencontainers") &&
           !key.startsWith("maintainer")
         ) {
           createCommand += `${dockerRunFlag("--label", `${key}=${value}`)} `;
         }
       }
+    }
+    if (newImageEnvMap) {
+      createCommand += `${dockerRunFlag(
+        "--label",
+        `${IMAGE_ENV_LABEL_KEY}=${JSON.stringify([...newImageEnvMap.values()])}`,
+      )} `;
     }
 
     // 继承停止信号
@@ -1400,10 +1501,12 @@ function generateDockerRunCommand(inspectData, overrideImage) {
   if (config.Tty) cmd += " --tty";
   if (config.OpenStdin) cmd += " --interactive";
 
-  // 环境变量
+  // 环境变量：离线 inspect 工具，拿不到镜像默认 Env 就只能从记账 label 读；
+  // label 也没有时按静态清单过滤（部署路径上的精确差集见 recreateContainer）。
   const envVars = config.Env || [];
+  const imageEnvMap = readImageEnvFromLabels(config.Labels);
   for (const env of envVars) {
-    if (shouldInheritEnv(env)) {
+    if (shouldInheritEnv(env, imageEnvMap)) {
       cmd += ` \\\n  -e ${shellQuote(env)}`;
     }
   }
@@ -1419,10 +1522,11 @@ function generateDockerRunCommand(inspectData, overrideImage) {
     cmd += ` \\\n  --workdir ${shellQuote(config.WorkingDir)}`;
   }
 
-  // 标签
+  // 标签（记账 label 由部署流程写入，这里不重复处理）
   if (config.Labels) {
     for (const [key, value] of Object.entries(config.Labels)) {
       if (
+        key !== IMAGE_ENV_LABEL_KEY &&
         !key.startsWith("org.opencontainers") &&
         !key.startsWith("maintainer")
       ) {

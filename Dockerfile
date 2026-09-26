@@ -201,9 +201,10 @@ RUN addgroup -S nodejs && adduser -S nodejs -G nodejs && \
 # 无法 git 读取（.dockerignore 排除 .git），由 CI 通过 GIT_SHA 构建参数固化。
 # 放在所有重层之后，避免每次 commit 都让 prod 依赖安装层失效。
 #
-# 同时落一份 /app/.build-sha：环境变量会被 scripts/deploy_image.js 从旧容器 inspect 里
-# 全量继承成新容器的显式 `-e`，而显式 -e 优先于新镜像的 ENV，页脚短 SHA 会永远停在
-# 首次部署那一版。文件不参与 env 继承，容器重建时随新镜像走（读取见 src/config/buildInfo.ts）。
+# 同时落一份 /app/.build-sha 作为保险：环境变量在 docker inspect 的 Config.Env 里与镜像自带
+# ENV 混在一起，部署脚本历史上把它当用户覆盖继承成新容器的显式 -e，而 -e 优先于新镜像 ENV
+# —— 页脚短 SHA 就是这样冻在首次部署那一版的（差集修复见 scripts/deploy_image.js
+# shouldInheritEnv）。文件不参与 env 继承，任何部署方式都只会随镜像走。
 ARG GIT_SHA=unknown
 ENV APP_GIT_SHA=$GIT_SHA
 RUN printf '%s' "$GIT_SHA" > /app/.build-sha && \
