@@ -30,7 +30,6 @@ import {
   ipRetentionCutoff,
   startMobileTokenIpRetention,
   stopMobileTokenIpRetention,
-  supersededIpCleanupFilter,
   supersededIpRetentionDays,
   sweepSupersededTokenIps,
 } from "../services/mobileTokenIpRetentionService";
@@ -75,9 +74,11 @@ describe("保留期配置", () => {
 });
 
 describe("清理范围", () => {
-  it("只挑早于截止时间被顶替、且还挂着 IP 的代次", () => {
-    const filter = supersededIpCleanupFilter(NOW) as Record<string, unknown>;
-    expect(filter.supersededAt).toEqual({ $lt: NOW });
+  it("只挑早于截止时间被顶替、且还挂着 IP 的代次", async () => {
+    await sweepSupersededTokenIps(NOW);
+
+    const [filter] = mockUpdateMany.mock.calls[0] as [Record<string, unknown>, unknown];
+    expect(filter.supersededAt).toEqual({ $lt: NOW - 30 * DAY_MS });
     expect(filter.$or).toEqual([
       { lastUsedIp: { $exists: true } },
       { rotatedIp: { $exists: true } },

@@ -37,23 +37,18 @@ export function ipRetentionCutoff(now: number, days: number = supersededIpRetent
   return now - days * DAY_MS;
 }
 
-/** 只挑"确实还挂着待清 IP"的文档，避免每轮都把全部历史代次写一遍。 */
-export function supersededIpCleanupFilter(
-  cutoff: number,
-): Parameters<typeof MobileClientTokenModel.updateMany>[0] {
-  return {
-    supersededAt: { $lt: cutoff },
-    $or: [{ lastUsedIp: { $exists: true } }, { rotatedIp: { $exists: true } }],
-  };
-}
-
 /** 返回本次清掉 IP 的代次数量；Mongo 未就绪时直接跳过，不发查询。 */
 export async function sweepSupersededTokenIps(now: number = Date.now()): Promise<number> {
   if (!isConnected()) return 0;
   const cutoff = ipRetentionCutoff(now);
-  const result = await MobileClientTokenModel.updateMany(supersededIpCleanupFilter(cutoff), {
-    $unset: { lastUsedIp: "", rotatedIp: "" },
-  });
+  const result = await MobileClientTokenModel.updateMany(
+    // 只挑"确实还挂着待清 IP"的文档，避免每轮都把全部历史代次写一遍。
+    {
+      supersededAt: { $lt: cutoff },
+      $or: [{ lastUsedIp: { $exists: true } }, { rotatedIp: { $exists: true } }],
+    },
+    { $unset: { lastUsedIp: "", rotatedIp: "" } },
+  );
   return result?.modifiedCount ?? 0;
 }
 
