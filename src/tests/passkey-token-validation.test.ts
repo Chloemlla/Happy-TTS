@@ -32,7 +32,9 @@ describe("Passkey Token 和用户ID验证测试", () => {
     }
 
     // 创建测试用户
-    const newUser = await UserStorage.createUser("testuser_passkey", "test@example.com", "password123");
+    // 夹具口令不能再用 "password123"：密码强度策略把 /password/i 这类常见模式判为弱口令（直接 score=0），
+    // createUser 会抛 InputValidationError，整个套件在 beforeEach 就死。换一个不含黑名单模式的强口令。
+    const newUser = await UserStorage.createUser("testuser_passkey", "test@example.com", "Passkey!Unit-7");
     if (!newUser) {
       throw new Error("创建测试用户失败");
     }
