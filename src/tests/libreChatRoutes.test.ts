@@ -13,6 +13,9 @@ jest.mock("../utils/userStorage", () => ({
 }));
 
 jest.mock("../services/authSessionService", () => ({
+  // 补上没被 stub 的纯函数 hashAuthCredential（authenticateToken 会调）：
+  // 替身缺它 → 抛错 → 401，看起来像「合法 token 被拒」。
+  ...jest.requireActual("../services/authSessionService"),
   assertActiveAuthSession: jest.fn().mockResolvedValue({ userAgent: "test-agent" }),
   touchAuthSession: jest.fn().mockResolvedValue(undefined),
 }));

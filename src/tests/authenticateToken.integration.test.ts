@@ -12,6 +12,10 @@ jest.mock("../utils/userStorage", () => ({
 }));
 
 jest.mock("../services/authSessionService", () => ({
+  // 必须带上没被 stub 的纯函数：authenticateToken 现在会调 hashAuthCredential(token)，
+  // 替身里没有它就是 undefined → 调用抛 TypeError → 被外层 catch 成 401「认证失败」。
+  // 这个套件的用例就是拿这个「401」当作中间件缺陷报的，实际是替身缺件。
+  ...jest.requireActual("../services/authSessionService"),
   assertActiveAuthSession: jest.fn().mockResolvedValue({ userAgent: "test-agent" }),
   touchAuthSession: jest.fn().mockResolvedValue(undefined),
 }));

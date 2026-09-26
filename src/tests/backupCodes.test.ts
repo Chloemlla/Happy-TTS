@@ -36,6 +36,15 @@ jest.mock("../utils/userStorage", () => ({
   },
 }));
 
+// 认证链上的会话服务也得替掉：authenticateToken 会走 assertActiveAuthSession/touchAuthSession，
+// 真实现要查库（本套件并没有起 Mongo），报错后被中间件的外层 catch 成 401，
+// 于是所有 “应该成功获取…” 的用例都只能看到 401。其他路由类套件早已这么做。
+jest.mock("../services/authSessionService", () => ({
+  ...jest.requireActual("../services/authSessionService"),
+  assertActiveAuthSession: jest.fn().mockResolvedValue({ userAgent: "test-agent" }),
+  touchAuthSession: jest.fn().mockResolvedValue(undefined),
+}));
+
 describe("备用恢复码功能测试", () => {
   beforeEach(() => {
     jest.clearAllMocks();

@@ -29,6 +29,10 @@ describe("SmartHumanCheckController", () => {
 
   beforeEach(() => {
     app = express();
+    // getClientIP() 读的是 req.ip，而 req.ip 只有在 trust proxy 开启后才会按 X-Forwarded-For 解代理链
+    // （生产在 src/app/assembly.ts 里 app.set("trust proxy", parseTrustProxySetting())）。
+    // 测试自建 app 不设就会退回 TCP 地址（127.0.0.1），X-Forwarded-For 那条用例永远对不上。
+    app.set("trust proxy", 1);
     app.use(express.json());
 
     // Lightweight rate limiter for tests to satisfy static analysis
