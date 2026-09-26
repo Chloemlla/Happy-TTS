@@ -81,29 +81,46 @@ describe("TOTPService", () => {
   });
 
   describe("verifyBackupCode", () => {
-    it("应该验证有效的恢复码", () => {
+    // G2-14 之后契约改了：async，返回 { matched, remainingHashes }，
+    // 并且**不修改入参**（报废靠调用方把 remainingHashes 写回用户文档）。
+    // 旧断言写的都是同步 boolean + “原数组长度减一”，那是在测一个已经不存在的行为。
+    it("应该验证有效的恢复码，并从副本里报出该码", async () => {
       const codes = ["ABCD1234", "EFGH5678", "IJKL9012"];
       const backupCodes = [...codes];
-      const result = TOTPService.verifyBackupCode("ABCD1234", backupCodes);
-      expect(result).toBe(true);
-      expect(backupCodes).toHaveLength(2); // 应该移除已使用的恢复码
+      const result = await TOTPService.verifyBackupCode("ABCD1234", backupCodes);
+      expect(result.matched).toBe(true);
+      expect(result.remainingHashes).toHaveLength(2);
+      // 入参负负责：调用方还得拿旧数组去做条件写回，这里不能被偷偷改掉。
+      expect(backupCodes).toEqual(codes);
     });
 
-    it("应该拒绝无效的恢复码", () => {
+    it("应该拒绝无效的恢复码，并保持数组完整", async () => {
       const codes = ["ABCD1234", "EFGH5678"];
-      const result = TOTPService.verifyBackupCode("INVALID", codes);
-      expect(result).toBe(false);
+      const result = await TOTPService.verifyBackupCode("INVALID", codes);
+      expect(result.matched).toBe(false);
+      expect(result.remainingHashes).toEqual(codes);
     });
 
-    it("应该处理空恢复码", () => {
+    it("应该处理空恢复码", async () => {
       const codes = ["ABCD1234"];
-      const result = TOTPService.verifyBackupCode("", codes);
-      expect(result).toBe(false);
+      const result = await TOTPService.verifyBackupCode("", codes);
+      expect(result.matched).toBe(false);
     });
 
-    it("应该处理空恢复码数组", () => {
-      const result = TOTPService.verifyBackupCode("ABCD1234", []);
-      expect(result).toBe(false);
+    it("应该处理空恢复码数组", async () => {
+      const result = await TOTPService.verifyBackupCode("ABCD1234", []);
+      expect(result.matched).toBe(false);
+    });
+
+    it("命中哈希条目时也走得通（落库形式）", async () => {
+      const plain = TOTPService.generateBackupCodes();
+      const hashed = await TOTPService.hashBackupCodes(plain);
+      const result = await TOTPService.verifyBackupCode(plain[0], hashed);
+      expect(result.matched).toBe(true);
+      expect(result.remainingHashes).toHaveLength(hashed.length - 1);
+      expect(await TOTPService.verifyBackupCode(plain[0], result.remainingHashes)).toMatchObject({
+        matched: false,
+      });
     });
   });
 });

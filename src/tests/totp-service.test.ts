@@ -73,24 +73,24 @@ describe("TOTP服务测试", () => {
     expect(isValid).toBe(true);
   });
 
-  test("生成备用恢复码", () => {
+  test("生成备用恢复码", async () => {
     const backupCodes = TOTPService.generateBackupCodes();
-
-    console.log("生成的备用恢复码:", backupCodes);
 
     expect(backupCodes).toBeDefined();
     expect(backupCodes.length).toBe(10);
     expect(backupCodes.every((code) => /^[A-Z0-9]{8}$/.test(code))).toBe(true);
 
-    // 测试验证备用恢复码
+    // G2-14：verifyBackupCode 是 async，返回 { matched, remainingHashes }，
+    // 报废的是返回里的副本，入参不变（旧明文条目走恒时比较的兼容分支）。
     const testCode = backupCodes[0];
-    const isValid = TOTPService.verifyBackupCode(testCode, backupCodes);
+    const result = await TOTPService.verifyBackupCode(testCode, backupCodes);
 
-    console.log("测试恢复码:", testCode);
-    console.log("恢复码验证结果:", isValid);
-    console.log("剩余恢复码数量:", backupCodes.length);
+    expect(result.matched).toBe(true);
+    expect(result.remainingHashes).toHaveLength(9);
+    expect(backupCodes).toHaveLength(10);
 
-    expect(isValid).toBe(true);
-    expect(backupCodes.length).toBe(9); // 使用后应该减少一个
+    // 从已报废的副本里再验证一次同一码，必须不命中。
+    const replay = await TOTPService.verifyBackupCode(testCode, result.remainingHashes);
+    expect(replay.matched).toBe(false);
   });
 });
