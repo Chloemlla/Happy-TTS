@@ -154,7 +154,11 @@ export function expandPlaylist(opts: BiliOptions, url: string): Array<{ index: n
  * 被风控时它会静默返回空，于是十个分P 只会被当成“一项”处理。
  * 接口拿不到（收藏夹/合集等非 BV 链）时仍回到 expandPlaylist 的老路。
  */
-export async function resolveItems(opts: BiliOptions, rawInputs: string[]): Promise<BiliItem[]> {
+export async function resolveItems(
+  opts: BiliOptions,
+  rawInputs: string[],
+  onReject?: (input: string) => void,
+): Promise<BiliItem[]> {
   const items: BiliItem[] = [];
   const seen = new Set<string>();
   const add = async (raw: string): Promise<void> => {
@@ -166,6 +170,13 @@ export async function resolveItems(opts: BiliOptions, rawInputs: string[]): Prom
     }
     const u = normalize(t);
     if (!u) return;
+    // 不是 http(s) 也不是 BV 号的行一律不收：从前把收件箱里的 .srt 路径当下载项递进来，
+    // 上面那段“本地文件=每行一项”会把它当 URL 清单逐行解析，最后交给 yt-dlp 一串乱码，
+    // 报错看上去像 B 站问题。现在开场就拒并说清该走哪个页。
+    if (!/^https?:\/\//i.test(u) && !/^BV[0-9A-Za-z]{8,}$/i.test(u)) {
+      onReject?.(t);
+      return;
+    }
     let pairs: Array<{ index: number; url: string }> = [];
     const bvid = biliBvid(u);
     if (bvid && opts.apiFallback !== false) {
@@ -511,7 +522,9 @@ export async function downloadBatch(
   assertCookiesUsable(opts);
   const raw = (rawInputs || []).filter((x) => String(x).trim());
   if (raw.length === 0) throw new Error("没有输入任何下载项");
-  const items = await resolveItems(opts, raw);
+  const items = await resolveItems(opts, raw, (bad) =>
+    log(`已忽略不是下载项的输入: ${bad}（下载只收 B 站链接 / BV 号；字幕、音频请走「语音转文本」）`),
+  );
   if (items.length === 0) throw new Error("没有解析出任何可下载项");
 
   return locked(async () => {

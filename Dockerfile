@@ -191,8 +191,15 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 # /app/data 是 media-tool 工作根（resolveRootDir 兜底 <cwd>/data/media-tool）、
 # tamper/modlist/userGeneration 等落盘目录的共同根。它必须在 chown -R 之前建出来，
 # 否则命名卷首次挂载时拿不到 nodejs 属主，非 root 进程写不进去。
-# 注意：docker-compose 用的是 bind mount（./data:/app/data），宿主机目录的属主会覆盖
-# 镜像里的设置，需要宿主自行 `chown 100:100 ./data`（或改用命名卷）。
+#
+# 这个目录必须挂在持久卷上，不能写在容器可写层：写层里的东西会随 `docker rm` 一起没，
+# 等于每次重新部署把下载产物、转写正文、上传收件箱全清掉。
+# 容器重建由 scripts/deploy_image.js 用 docker run 完成（不是 docker-compose），它会从旧容器
+# 继承 Mounts，但“第一次”无人可继承：需先建宿主目录并把属主给到容器里的 nodejs（uid=100 gid=101，
+# 宿主机上名字可能解析成别的用户，看数字就行）：
+#   mkdir -p /srv/tts-node/data && chown -R 100:101 /srv/tts-node/data
+#   docker run ... -v /srv/tts-node/data:/app/data ...
+# 之后每一轮部署都会自己把这条挂载带下去。
 RUN addgroup -S nodejs && adduser -S nodejs -G nodejs && \
     mkdir -p /app/data && \
     chown -R nodejs:nodejs /app

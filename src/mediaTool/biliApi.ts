@@ -13,8 +13,16 @@
 //
 // 签名还顺带解决画质问题：未签名的 /x/player/playurl 游客只给 qn=32，签名后给到 quality=64
 // 且 support_formats 含 112/80，音频 30280(192k) 也在。
+//
+// 代理：设了 bili.proxyUrl 时，这里的 JSON 接口请求也跟着走代理，否则会出现
+// 「下载走了代理、元信息直连」这种一半一半的出口 IP，B 站对同一会话换出口很容易风控。
 import crypto from "node:crypto";
 import fs from "node:fs";
+import http from "node:http";
+import https from "node:https";
+import tls from "node:tls";
+import type { Duplex } from "node:stream";
+import { SocksProxyAgent } from "socks-proxy-agent";
 import { resolveCookiesFile } from "./biliCookies";
 import { BILI_WEB_REFERER, resolveBiliUserAgent } from "./runtime";
 import type { BiliOptions } from "./types";
@@ -127,6 +135,119 @@ async function signedQuery(opts: BiliOptions, params: Record<string, string | nu
 // 请求封装
 // ---------------------------------------------------------------------------
 
+/**
+ * 通过 HTTP/HTTPS 代理建立 CONNECT 隧道后再套一层 TLS 的 agent。
+ *
+ * 为什么自己写：https-proxy-agent 不是本仓依赖，而 CI 用 --frozen-lockfile 装包，
+ * 不能为了这个开关新增依赖。隧道只负责「把 socket 打通并升级成 TLS」，
+ * HTTP 报文解析（状态行/分块/超时）全部交给 node 自带的 https 客户端，不手写解析。
+ * 这里用赋值而不是子类 + override，是为了避开 Agent.createConnection 的签名变换问题。
+ */
+function tunnelAgent(proxy: URL): https.Agent {
+  const agent = new https.Agent({ keepAlive: false });
+  const basicAuth = proxy.username
+    ? `Basic ${Buffer.from(`${decodeURIComponent(proxy.username)}:${decodeURIComponent(proxy.password || "")}`).toString("base64")}`
+    : "";
+
+  agent.createConnection = ((options: https.ConnectionOptions, callback: (err: Error | null, stream: Duplex) => void) => {
+    const targetHost = String(options.servername || options.host || "");
+    const targetPort = Number(options.port) || 443;
+    const connectReq = http.request(
+      {
+        host: proxy.hostname,
+        port: Number(proxy.port) || 80,
+        method: "CONNECT",
+        path: `${targetHost}:${targetPort}`,
+        headers: basicAuth ? { "Proxy-Authorization": basicAuth } : {},
+        agent: false,
+      },
+      (res) => {
+        if (res.statusCode !== 200 || !res.socket) {
+          res.resume();
+          callback(new Error(`代理 CONNECT 失败: HTTP ${res.statusCode ?? "?"}（目标 ${targetHost}:${targetPort}）`), null as unknown as Duplex);
+          return;
+        }
+        // 目标站是 B 站官方证书链，隧道里依然照常校验，不然等于把凭据送人。
+        const secured = tls.connect(
+          { socket: res.socket, servername: targetHost, ALPNProtocols: ["http/1.1"], rejectUnauthorized: true },
+          () => callback(null, secured),
+        );
+        secured.on("error", (err) => callback(err, null as unknown as Duplex));
+      },
+    );
+    connectReq.on("error", (err) => callback(err, null as unknown as Duplex));
+    connectReq.end();
+    // 连接结果一律经 callback 交回（Node 允许异步完成），返回值只是满足签名的占位。
+    return undefined as unknown as Duplex;
+  }) as typeof agent.createConnection;
+
+  return agent;
+}
+
+/** 按代理协议选隧道实现；返回 undefined = 直连。 */
+function agentForProxy(proxyUrl: string): https.Agent | undefined {
+  const p = (proxyUrl || "").trim();
+  if (!p) return undefined;
+  let parsed: URL;
+  try {
+    parsed = new URL(p);
+  } catch {
+    throw new Error(`代理地址无法解析: ${p}（形如 http://127.0.0.1:7890 或 socks5://127.0.0.1:1080）`);
+  }
+  const scheme = parsed.protocol.replace(":", "").toLowerCase();
+  if (scheme === "socks" || scheme === "socks4" || scheme === "socks4a" || scheme === "socks5" || scheme === "socks5h") {
+    return new SocksProxyAgent(p) as unknown as https.Agent;
+  }
+  if (scheme === "http" || scheme === "https") {
+    return tunnelAgent(parsed);
+  }
+  throw new Error(`不支持的代理协议 ${scheme}（可用 http / https / socks5 / socks4）`);
+}
+
+interface HttpResponse {
+  status: number;
+  body: string;
+}
+
+/**
+ * 一个只够用的 HTTPS GET：无代理时走全局 fetch（现场已验证），
+ * 配了代理时走 node https + 上面的 agent，两条路共用同一套头与超时。
+ */
+async function httpsGet(
+  url: string,
+  headers: Record<string, string>,
+  timeoutMs: number,
+  proxyUrl?: string,
+): Promise<HttpResponse> {
+  if (!proxyUrl || !proxyUrl.trim()) {
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
+    return { status: res.status, body: await res.text() };
+  }
+  return new Promise<HttpResponse>((resolve, reject) => {
+    const target = new URL(url);
+    const req = https.request(
+      {
+        hostname: target.hostname,
+        port: target.port || 443,
+        path: `${target.pathname}${target.search}`,
+        method: "GET",
+        headers,
+        agent: agentForProxy(proxyUrl),
+      },
+      (res) => {
+        let body = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk: string) => (body += chunk));
+        res.on("end", () => resolve({ status: res.statusCode ?? 0, body }));
+        res.on("error", (err) => reject(err));
+      },
+    );
+    req.setTimeout(timeoutMs, () => req.destroy(new Error(`请求超时 ${timeoutMs}ms`)));
+    req.on("error", (err) => reject(err));
+    req.end();
+  });
+}
+
 interface BiliEnvelope<T> {
   code: number;
   message?: string;
@@ -212,14 +333,14 @@ async function apiJson<T>(
   };
   if (cookie) headers.Cookie = cookie;
 
-  let res: Response;
+  let res: HttpResponse;
   try {
-    res = await fetch(url, { headers, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+    res = await httpsGet(url, headers, REQUEST_TIMEOUT_MS, opts.proxyUrl);
   } catch (e) {
     throw new Error(`B 站接口请求失败 ${url.split("?")[0]}: ${(e as Error).message}`);
   }
-  const text = await res.text();
-  if (!res.ok) {
+  const text = res.body;
+  if (res.status < 200 || res.status >= 300) {
     throw new Error(`B 站接口 HTTP ${res.status} ${url.split("?")[0]}: ${text.slice(0, 120)}`);
   }
   let json: BiliEnvelope<T>;
