@@ -61,6 +61,12 @@ module.exports = {
     '!src/**/__tests__/**',
     '!src/**/*.test.{ts,tsx}',
     '!src/**/*.spec.{ts,tsx}',
+    // 纯 interface/type 别名文件：消费方一律用 `import type`，编译后引用被完全擦除，
+    // 模块永不会被加载，所以只能永远是 0%——这是结构性噪声而不是测试欠账。
+    // 只个别排除（不用 `!src/**/types.ts` 通配）：userGenerationStorage/types.ts 等带
+    // isAdminUser() 运行时代码的同名文件必须继续计入。
+    '!src/services/turnstile/types.ts',
+    '!src/services/librechat/types.ts',
   ],
   coverageProvider: 'v8',
   coverageDirectory: 'coverage',
