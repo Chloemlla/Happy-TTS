@@ -103,7 +103,10 @@ describe("bilibiliSyncService", () => {
 
     await expect(updateBilibiliSettings("user-1", { theme: "dark" }, 1, true)).rejects.toMatchObject({
       code: "BILIBILI_SETTINGS_CONFLICT",
-      currentVersion: 2,
+      // currentVersion 不在错误对象顶层：BilibiliSyncError 的第 4 个构造参数是 details
+      // （bilibiliSyncService.ts:16-26），冲突信息整块装在 details 里（:378-382）。
+      // 原先的平铺断言其实从未被验证过 —— 它一直被上面的 .lean() TypeError 挡在断言之前。
+      details: expect.objectContaining({ currentVersion: 2 }),
     });
   });
 

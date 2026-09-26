@@ -142,6 +142,13 @@
   生产侧 `updateBilibiliSettings` 走 `findOneAndUpdate(...).lean()`（`bilibiliSyncService.ts:370`），
   `ensureDocument` 走直接 await（`:276`），两种用法都在。
 - **改法**：两次 Once 都改成 `mockReturnValueOnce(queryLike(...))`；第二次给 `queryLike(null)` 以触发版本冲突分支。
+- **连带发现（第二层缺陷）**：替身修好后用例才第一次跑到断言，报
+  `Expected {code, currentVersion: 2} / Received 只匹配到 code`。原断言把 `currentVersion`
+  当成错误对象的顶层属性，但 `BilibiliSyncError` 的第 4 个构造参数是 `details`
+  （`bilibiliSyncService.ts:16-26`），冲突信息整块装在 `details` 里（`:378-382`），
+  由控制器再平铺进响应体（`bilibiliSyncController.ts:27` 的 `...error.details`）。
+  这条断言自写下起就没被验证过，先被 `.lean()` 的 TypeError 挡在前面。
+  改成 `details: expect.objectContaining({ currentVersion: 2 })`，期望值仍是 2，不放宽判据。
 
 ## T-12 — bilibiliAccountService：updateOne 少了第三个实参
 
@@ -177,6 +184,6 @@
 | T-08 | passkey-token-validation | 夹具无效 | 替掉 simplewebauthn |
 | T-09 | cdictRequestSignature ×2 | **生产缺陷** | 改 getRawBodyString |
 | T-10 | ttsFishProvider | 夹具陈旧 | 换合法 MP3 头 |
-| T-11 | bilibiliSyncService | 替身缺陷 | Once 改 queryLike |
+| T-11 | bilibiliSyncService | 替身缺陷 + 断言取错层级 | Once 改 queryLike；currentVersion 改从 details 取 |
 | T-12 | bilibiliAccountService | 断言陈旧 | 补 `{upsert:true}` |
 | T-13 | linuxDoAuthService | 断言陈旧 | ticket 从 hash 读 |
