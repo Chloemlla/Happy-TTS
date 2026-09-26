@@ -455,7 +455,7 @@ function wantsHtmlDocument(req: Request): boolean {
 function sendBanResponse(
   req: Request,
   res: Response,
-  options: { reason?: string; expiresAt?: Date | string },
+  options: { reason?: string; expiresAt?: Date | string | number },
 ): void {
   const ip = getClientIPFromRequest(req);
 

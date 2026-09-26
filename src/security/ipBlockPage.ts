@@ -12,7 +12,8 @@
 
 export interface IpBlockPageOptions {
   reason?: string;
-  expiresAt?: Date | string;
+  /** 封禁到期时间。banCache 里存的是 Date | number（epoch ms），两边都要能吃。 */
+  expiresAt?: Date | string | number;
   ip?: string;
 }
 
@@ -26,8 +27,8 @@ function escapeHtml(value: string): string {
 }
 
 /** 统一成 UTC 可读时间；非法值返回 null（不展示这一行）。 */
-function formatExpiry(value?: Date | string): string | null {
-  if (!value) return null;
+function formatExpiry(value?: Date | string | number): string | null {
+  if (value === undefined || value === null || value === "") return null;
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return `${date.toISOString().replace("T", " ").slice(0, 19)} UTC`;
