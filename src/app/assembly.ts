@@ -250,6 +250,17 @@ export function registerCoreMiddleware(app: Express): void {
   app.options("/s/*path", corsPreflightHandler);
   app.use("/s/*path", corsHeadersMiddleware);
 
+  // 健康模块挂在 preParser 阶段，位于 globalCors（registerSecurityMiddleware）之前，
+  // 所以拿不到全局 CORS 头。而前端副本（Vercel: synapse.chloemlla.com）会跨源调用
+  // 其中的公开端点：POST /api/health/frontend-visit 带 X-Requested-With 与
+  // credentials:include，会先发 OPTIONS 预检 —— 不在这里补白名单 CORS，浏览器直接
+  // 报 “No 'Access-Control-Allow-Origin' header”，通知永远发不出去。
+  // 用 corsPreflightHandler + corsHeadersMiddleware（白名单）而不是 globalCors：
+  // 与 /s/*path、/api/shorturl/*path 一致，白名单外 Origin 只是拿不到头，不会被 500。
+  app.options("/api/health", corsPreflightHandler);
+  app.options("/api/health/*path", corsPreflightHandler);
+  app.use("/api/health", corsHeadersMiddleware);
+
   registerSecurityPipeline(app, "preBodyParser");
   registerRouteModules(app, preParserRouteModules);
 
