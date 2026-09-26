@@ -199,6 +199,12 @@ RUN addgroup -S nodejs && adduser -S nodejs -G nodejs && \
 
 USER nodejs
 
+# 页脚「后端版本 + 短 SHA」：版本由运行时读 /app/package.json 得到，短 SHA 在构建上下文里
+# 无法 git 读取（.dockerignore 排除 .git），由 CI 通过 GIT_SHA 构建参数固化进镜像环境变量。
+# 放在所有重层之后，避免每次 commit 都让 prod 依赖安装层失效。
+ARG GIT_SHA=unknown
+ENV APP_GIT_SHA=$GIT_SHA
+
 EXPOSE 3000
 
 # 存活探测：/health 由 src/routes/healthRoutes.ts 提供（含 Mongo/WebSocket 状态）。

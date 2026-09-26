@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { backendBuildInfo } from "../config/buildInfo";
 import { adminOnly } from "../middleware/adminOnly";
 import { apiKeyAuth } from "../middleware/apiKeyAuth";
 import { authMiddlewareV2 as authMiddleware } from "../middleware/auth";
@@ -42,7 +43,10 @@ router.get("/", statusLimiter, (_req, res) => {
     status: "ok",
     timestamp: new Date().toISOString(),
     service: "Synapse API",
-    version: "1.0.0",
+    // 版本号取自仓库根 package.json，短 SHA 由镜像构建参数 GIT_SHA 固化（见 config/buildInfo.ts）。
+    // 前端页脚每次刷新后查一次这里，展示的必须是当前真正在跑的后端，而不是前端构建时烤进去的那份。
+    version: backendBuildInfo.version,
+    shortSha: backendBuildInfo.shortSha,
   });
 });
 

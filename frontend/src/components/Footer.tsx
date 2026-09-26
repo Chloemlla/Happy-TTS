@@ -16,11 +16,22 @@ interface IPInfo {
   isp: string;
 }
 
+interface BackendBuildInfo {
+  version: string;
+  shortSha: string;
+}
+
 const Footer: React.FC = () => {
   const year = new Date().getFullYear();
   const [uptime, setUptime] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [ipInfo, setIpInfo] = useState<IPInfo | null>(null);
   const [ipLoading, setIpLoading] = useState(true);
+  // 后端版本/SHA 以「刷新后向后端询问一次」的结果为准；
+  // 初值用构建期注入的那份，查询失败时页脚不会出现空值。
+  const [backendBuild, setBackendBuild] = useState<BackendBuildInfo>({
+    version: buildInfo.backendVersion,
+    shortSha: buildInfo.shortSha
+  });
 
   useEffect(() => {
     const startDate = new Date('2025-06-15T09:30:00');
@@ -92,42 +103,80 @@ const Footer: React.FC = () => {
     fetchIPInfo();
   }, []);
 
+  useEffect(() => {
+    // 每次页面刷新只问一次：/api/status 是后端启动时算好的常量，公开、无鉴权。
+    const fetchBackendBuild = async () => {
+      try {
+        const url = `${getApiBaseUrl()}/api/status`;
+        const response = await fetch(url, {
+          headers: { 'Accept': 'application/json' }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const raw: any = await response.json();
+        const version = typeof raw?.version === 'string' ? raw.version.trim() : '';
+        const shortSha = typeof raw?.shortSha === 'string' ? raw.shortSha.trim() : '';
+
+        if (!version && !shortSha) {
+          throw new Error('后端版本信息数据格式无效');
+        }
+
+        setBackendBuild({
+          version: version || buildInfo.backendVersion,
+          shortSha: shortSha || buildInfo.shortSha
+        });
+      } catch (error) {
+        // 保留构建期注入的后端版本作为兜底，不把页脚打成空白。
+        console.warn('获取后端版本信息失败:', error);
+      }
+    };
+
+    fetchBackendBuild();
+  }, []);
+
   return (
-    <footer className="text-center text-slate-500 mt-8 mb-2 text-sm select-none flex flex-col items-center gap-1">
+    <footer className="text-center text-slate-500 mt-8 mb-2 text-sm select-none flex flex-col items-center gap-2">
       <div>
         Copyright ©{year} Synapse. All rights reserved.
       </div>
-      <div className="mt-1 w-full max-w-xs px-2 py-1 bg-amber-50 border border-amber-200 rounded text-amber-700 text-xs">
-        <FaExclamationTriangle className="inline mr-1" /> 本站为个人独立开发项目，与 OpenAI 官方无任何隶属或合作关系。请勿将本站内容视为 OpenAI 官方服务。
-      </div>
-      <div className="mt-1 w-full max-w-xs px-2 py-1 bg-emerald-50 border border-emerald-200 rounded text-emerald-700 text-xs">
-        <FaRocket className="inline mr-1" /> 自 2025年6月15日 9:30 以来，本站已稳定运行{' '}
-        <span className="font-bold text-emerald-800">
-          {uptime.days} 天 {uptime.hours} 小时 {uptime.minutes} 分钟 {uptime.seconds} 秒
-        </span>
-      </div>
-      <div className="mt-1 w-full max-w-xs px-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-700 text-xs">
-        <FaGlobe className="inline mr-1" /> 您的网络信息：
-        {ipLoading ? (
-          <span className="font-mono font-bold text-slate-800">获取中...</span>
-        ) : ipInfo ? (
-          <div className="mt-1 space-y-0.5">
-            <div className="font-mono font-bold text-slate-800">
-              IP: {ipInfo.ip}
+      {/* 四块信息不再死板地一列堆叠：按可用宽度自动 1 / 2 / 4 列重排（窄屏竖排，宽屏横排）。 */}
+      <div className="grid w-full max-w-5xl grid-cols-1 items-stretch justify-center gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="px-2 py-1 bg-amber-50 border border-amber-200 rounded text-amber-700 text-xs">
+          <FaExclamationTriangle className="inline mr-1" /> 本站为个人独立开发项目，与 OpenAI 官方无任何隶属或合作关系。请勿将本站内容视为 OpenAI 官方服务。
+        </div>
+        <div className="px-2 py-1 bg-emerald-50 border border-emerald-200 rounded text-emerald-700 text-xs">
+          <FaRocket className="inline mr-1" /> 自 2025年6月15日 9:30 以来，本站已稳定运行{' '}
+          <span className="font-bold text-emerald-800">
+            {uptime.days} 天 {uptime.hours} 小时 {uptime.minutes} 分钟 {uptime.seconds} 秒
+          </span>
+        </div>
+        <div className="px-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-700 text-xs">
+          <FaGlobe className="inline mr-1" /> 您的网络信息：
+          {ipLoading ? (
+            <span className="font-mono font-bold text-slate-800">获取中...</span>
+          ) : ipInfo ? (
+            <div className="mt-1 space-y-0.5">
+              <div className="font-mono font-bold text-slate-800">
+                IP: {ipInfo.ip}
+              </div>
+              <div className="text-slate-600">
+                <FaMapMarkerAlt className="inline mr-1" /> {ipInfo.country} {ipInfo.region} {ipInfo.city}
+              </div>
+              <div className="text-slate-600">
+                <FaGlobe className="inline mr-1" /> {ipInfo.isp}
+              </div>
             </div>
-            <div className="text-slate-600">
-              <FaMapMarkerAlt className="inline mr-1" /> {ipInfo.country} {ipInfo.region} {ipInfo.city}
-            </div>
-            <div className="text-slate-600">
-              <FaGlobe className="inline mr-1" /> {ipInfo.isp}
-            </div>
-          </div>
-        ) : (
-          <span className="font-mono font-bold text-rose-600">获取失败</span>
-        )}
-      </div>
-      <div className="mt-1 w-full max-w-xs px-2 py-1 bg-slate-100 border border-slate-200 rounded text-slate-600 text-xs font-mono">
-        前端 v{buildInfo.frontendVersion} ({buildInfo.shortSha}) · 后端 v{buildInfo.backendVersion} ({buildInfo.shortSha})
+          ) : (
+            <span className="font-mono font-bold text-rose-600">获取失败</span>
+          )}
+        </div>
+        <div className="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-slate-600 text-xs font-mono leading-relaxed">
+          <div>前端 v{buildInfo.frontendVersion} ({buildInfo.shortSha})</div>
+          <div>后端 v{backendBuild.version} ({backendBuild.shortSha})</div>
+        </div>
       </div>
     </footer>
   );
