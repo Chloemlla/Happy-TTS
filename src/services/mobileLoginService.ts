@@ -13,11 +13,48 @@ import {
   type AuthSessionMetadata,
 } from "./authSessionService";
 import { type User, UserStorage } from "../utils/userStorage";
+import logger from "../utils/logger";
 import type { Request } from "express";
 
 const CHALLENGE_TTL_MS = 3 * 60 * 1000;
 const CLIENT_TOKEN_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const MAX_CHALLENGES = 5000;
+
+/**
+ * 客户端登录令牌（sml_）轮换风控参数。
+ * 策略正文见 docs/mobile-token-risk-control.md，客户端只跟着响应里的
+ * nextRotationAt / graceMs 走，不自己算节奏。
+ */
+const ROTATION_INTERVAL_MS = 24 * 60 * 60 * 1000;
+/** 同一代令牌的最短寿命；手动连点、脚本刷链到不了下一步。 */
+const ROTATION_MIN_INTERVAL_MS = 5 * 60 * 1000;
+/** 一条血缘 24 小时内的轮换次数上限。 */
+const ROTATION_DAILY_LIMIT = 8;
+/** 旧令牌被顶替后还能用的窗口，给在途请求兜底；超过就当泄露处理。 */
+const ROTATION_SUPERSEDED_GRACE_MS = 5 * 60 * 1000;
+
+/** 带 HTTP 状态与错误码的令牌错误，控制器不再靠文案字串猜状态码。 */
+export class MobileTokenError extends Error {
+  readonly status: number;
+  readonly errorCode: string;
+  readonly retryAfterSeconds?: number;
+
+  constructor(message: string, status = 401, errorCode = "MOBILE_TOKEN_INVALID", retryAfterSeconds?: number) {
+    super(message);
+    this.name = "MobileTokenError";
+    this.status = status;
+    this.errorCode = errorCode;
+    if (retryAfterSeconds !== undefined) {
+      this.retryAfterSeconds = retryAfterSeconds;
+    }
+  }
+}
+
+function lineageIdOf(doc: Pick<MobileClientTokenDoc, "tokenHash" | "lineageId">): string {
+  // 字段上线前的存量令牌没有 lineageId，拿自己的 hash 当链根，
+  // 至少能保证“它自己 + 它轮换出来的后代”在同一条链上。
+  return doc.lineageId || doc.tokenHash;
+}
 
 type ChallengeStatus = "pending" | "scanned" | "approved" | "consumed" | "expired";
 
@@ -289,6 +326,9 @@ export async function issueClientLoginToken(params: {
     createdAt: now,
     expiresAt,
     ttlExpireAt: new Date(expiresAt),
+    // 一次“登录”开一条新血缘，之后的每日轮换在这条链上往后延。
+    lineageId: hashToken(token),
+    rotationIndex: 0,
   });
   await revokeAuthSessionsByClientTokenHashes(params.user.id, replacedTokenHashes);
   await createAuthSession({
@@ -308,6 +348,198 @@ export async function issueClientLoginToken(params: {
   };
 }
 
+async function loadActiveClientTokenDoc(token: string): Promise<MobileClientTokenDoc> {
+  if (!token.startsWith("sml_") || token.length < 32) {
+    throw new MobileTokenError("客户端登录令牌无效", 401, "MOBILE_TOKEN_INVALID");
+  }
+  const doc = (await MobileClientTokenModel.findOne({ tokenHash: hashToken(token) }).lean()) as
+    | MobileClientTokenDoc
+    | null;
+  if (!doc) {
+    throw new MobileTokenError("客户端登录令牌无效或已过期", 401, "MOBILE_TOKEN_INVALID");
+  }
+  if (doc.revokedAt) {
+    throw new MobileTokenError("客户端登录令牌已撤销，请重新登录", 401, "MOBILE_TOKEN_REVOKED");
+  }
+  if (isExpired(doc.expiresAt)) {
+    throw new MobileTokenError("客户端登录令牌已过期，请重新登录", 401, "MOBILE_TOKEN_EXPIRED");
+  }
+  return doc;
+}
+
+/**
+ * 已被顶替的令牌又回来用：宽限期内放行（在途请求），超期就是泄露/克隆，
+ * 整条血缘一次干掉。真机不会拿到旧代（换票后本地整体覆盖），误伤面极低。
+ */
+async function assertTokenNotSuperseded(doc: MobileClientTokenDoc, ip: string): Promise<void> {
+  const supersededAt = doc.supersededAt;
+  if (!supersededAt) return;
+  if (Date.now() - supersededAt <= ROTATION_SUPERSEDED_GRACE_MS) return;
+
+  await revokeClientTokenLineage({ userId: doc.userId, lineageId: lineageIdOf(doc) });
+  // 存量令牌可能没有 lineageId（上面按链吊销不到东西），把递上来的这一张单独摘掉。
+  await MobileClientTokenModel.updateOne(
+    { tokenHash: doc.tokenHash, revokedAt: null },
+    { $set: { revokedAt: Date.now() } },
+  );
+  await revokeAuthSessionsByClientTokenHashes(doc.userId, [doc.tokenHash]);
+  logger.warn("[MobileToken] 旧令牌超宽限期后被重复使用，已吊销整条血缘", {
+    userId: doc.userId,
+    deviceId: doc.deviceId,
+    lineageId: lineageIdOf(doc),
+    rotationIndex: doc.rotationIndex ?? 0,
+    supersededAt: new Date(supersededAt).toISOString(),
+    ip,
+  });
+  throw new MobileTokenError("客户端登录令牌已失效，请重新登录", 401, "MOBILE_TOKEN_REUSED");
+}
+
+/** 整链吊销：把这条血缘下尚未撤销的令牌连同它们的会话一次干掉。 */
+export async function revokeClientTokenLineage(params: { userId: string; lineageId: string }): Promise<number> {
+  const docs = (await MobileClientTokenModel.find({
+    userId: params.userId,
+    lineageId: params.lineageId,
+    revokedAt: null,
+  })
+    .select("tokenHash")
+    .lean()) as Array<{ tokenHash: string }>;
+
+  if (docs.length === 0) return 0;
+  const tokenHashes = docs.map((doc) => doc.tokenHash);
+  const now = Date.now();
+  await MobileClientTokenModel.updateMany(
+    { userId: params.userId, tokenHash: { $in: tokenHashes }, revokedAt: null },
+    { $set: { revokedAt: now } },
+  );
+  await revokeAuthSessionsByClientTokenHashes(params.userId, tokenHashes);
+  return tokenHashes.length;
+}
+
+/**
+ * 轮换一张客户端登录令牌：同一 userId / deviceId 下铸新一代，旧代只标记
+ * supersededAt（不提前撤销，给它留出在途请求的宽限期），并为新令牌新建一条
+ * client-token 会话。
+ *
+ * 已签发的 JWT 会话本来就挂在旧 hash 的 clientTokenHash 上，不因为轮换而被抹掉，
+ * 这就是“轮换但保留登录状态”的落地方式；只有整链吊销才会一次清空。
+ */
+export async function rotateClientLoginToken(params: {
+  clientLoginToken: string;
+  deviceId?: string;
+  ip?: string;
+  fingerprint?: string;
+  metadata?: AuthSessionMetadata;
+}) {
+  const now = Date.now();
+  const ip = params.ip || "unknown";
+  const token = typeof params.clientLoginToken === "string" ? params.clientLoginToken.trim() : "";
+  const doc = await loadActiveClientTokenDoc(token);
+
+  if (doc.deviceId && doc.deviceId !== params.deviceId) {
+    throw new MobileTokenError("客户端登录令牌与设备不匹配", 403, "MOBILE_TOKEN_DEVICE_MISMATCH");
+  }
+  await assertTokenNotSuperseded(doc, ip);
+  await assertClientTokenSession(doc.userId, token);
+
+  const sinceIssue = now - doc.createdAt;
+  if (sinceIssue < ROTATION_MIN_INTERVAL_MS) {
+    const retryAfterSeconds = Math.ceil((ROTATION_MIN_INTERVAL_MS - sinceIssue) / 1000);
+    throw new MobileTokenError(
+      "轮换过于频繁，请稍后再试",
+      429,
+      "MOBILE_TOKEN_ROTATION_THROTTLED",
+      retryAfterSeconds,
+    );
+  }
+
+  const lineageId = lineageIdOf(doc);
+  const rotationsLast24h = await MobileClientTokenModel.countDocuments({
+    userId: doc.userId,
+    lineageId,
+    createdAt: { $gte: now - 24 * 60 * 60 * 1000 },
+  });
+  if (rotationsLast24h >= ROTATION_DAILY_LIMIT) {
+    logger.warn("[MobileToken] 令牌轮换超出 24 小时配额", {
+      userId: doc.userId,
+      deviceId: doc.deviceId,
+      lineageId,
+      rotationsLast24h,
+      ip,
+    });
+    throw new MobileTokenError(
+      "今日令牌轮换次数已用完，请稍后再试",
+      429,
+      "MOBILE_TOKEN_ROTATION_QUOTA",
+      60 * 60,
+    );
+  }
+
+  const nextToken = `sml_${randomToken(40)}`;
+  const nextHash = hashToken(nextToken);
+  const expiresAt = now + CLIENT_TOKEN_TTL_MS;
+  const rotationIndex = (doc.rotationIndex ?? 0) + 1;
+
+  await MobileClientTokenModel.create({
+    tokenHash: nextHash,
+    userId: doc.userId,
+    deviceId: doc.deviceId,
+    deviceName: doc.deviceName,
+    createdAt: now,
+    expiresAt,
+    ttlExpireAt: new Date(expiresAt),
+    lineageId,
+    rotationIndex,
+    rotatedFrom: doc.tokenHash,
+  });
+
+  // 旧代先打 superseded 标记；不写 revokedAt，否则在途请求会当场失败。
+  const supersedeSet: Record<string, unknown> = {
+    supersededAt: now,
+    supersededTo: nextHash,
+    rotatedIp: ip,
+    lastUsedAt: now,
+    lastUsedIp: ip,
+  };
+  if (typeof params.fingerprint === "string" && params.fingerprint.trim()) {
+    supersedeSet.rotatedFingerprint = params.fingerprint.trim().slice(0, 128);
+  }
+  await MobileClientTokenModel.updateOne(
+    { tokenHash: doc.tokenHash },
+    { $set: supersedeSet },
+  );
+
+  await createAuthSession({
+    userId: doc.userId,
+    credential: nextToken,
+    credentialType: "client-token",
+    authKind: "client-token",
+    clientTokenHash: nextHash,
+    deviceId: doc.deviceId,
+    deviceName: doc.deviceName,
+    ...params.metadata,
+    ipAddress: ip,
+  });
+
+  logger.info("[MobileToken] 客户端登录令牌已轮换", {
+    userId: doc.userId,
+    deviceId: doc.deviceId,
+    lineageId,
+    rotationIndex,
+    rotationsLast24h: rotationsLast24h + 1,
+    ip,
+  });
+
+  return {
+    clientLoginToken: nextToken,
+    expiresAt: new Date(expiresAt).toISOString(),
+    rotatedAt: new Date(now).toISOString(),
+    nextRotationAt: new Date(now + ROTATION_INTERVAL_MS).toISOString(),
+    rotationIndex,
+    rotateIntervalMs: ROTATION_INTERVAL_MS,
+    graceMs: ROTATION_SUPERSEDED_GRACE_MS,
+  };
+}
+
 export async function exchangeClientLoginToken(params: {
   clientLoginToken: string;
   deviceId?: string;
@@ -315,27 +547,19 @@ export async function exchangeClientLoginToken(params: {
   metadata?: AuthSessionMetadata;
 }) {
   const token = typeof params.clientLoginToken === "string" ? params.clientLoginToken.trim() : "";
-  if (!token.startsWith("sml_") || token.length < 32) {
-    throw new Error("客户端登录令牌无效");
-  }
+  const doc = await loadActiveClientTokenDoc(token);
 
-  const tokenHash = hashToken(token);
-  // G2-18: 单文档原子读取，不再全量读文件。
-  const doc = (await MobileClientTokenModel.findOne({ tokenHash }).lean()) as MobileClientTokenDoc | null;
-  if (!doc || doc.revokedAt || isExpired(doc.expiresAt)) {
-    throw new Error("客户端登录令牌无效或已过期");
-  }
   if (doc.deviceId && doc.deviceId !== params.deviceId) {
-    throw new Error("客户端登录令牌与设备不匹配");
+    throw new MobileTokenError("客户端登录令牌与设备不匹配", 403, "MOBILE_TOKEN_DEVICE_MISMATCH");
   }
-
-  await assertActiveAuthSession(doc.userId, token);
+  await assertTokenNotSuperseded(doc, params.ip || "unknown");
+  await assertClientTokenSession(doc.userId, token);
 
   const user = await loadActiveUser(doc.userId);
   const updatedUser = await updateLoginAudit(user, params.ip || "unknown");
   const now = Date.now();
   await MobileClientTokenModel.updateOne(
-    { tokenHash, revokedAt: null },
+    { tokenHash: doc.tokenHash, revokedAt: null },
     { $set: { lastUsedAt: now, lastUsedIp: params.ip || "unknown" } },
   );
 
@@ -349,6 +573,19 @@ export async function exchangeClientLoginToken(params: {
   return toLoginPayload(updatedUser, metadata, doc.tokenHash);
 }
 
+/**
+ * 令牌对应的 client-token 会话必须还活着；被撤销过就当作需要重新登录，
+ * 不能拿一张“会话已被撤销”的令牌继续换 JWT。
+ */
+async function assertClientTokenSession(userId: string, token: string): Promise<void> {
+  try {
+    await assertActiveAuthSession(userId, token);
+  } catch (error) {
+    if (error instanceof MobileTokenError) throw error;
+    throw new MobileTokenError("登录会话已撤销，请重新登录", 401, "MOBILE_SESSION_REVOKED");
+  }
+}
+
 export async function revokeClientLoginToken(params: { clientLoginToken: string; userId: string }) {
   const token = params.clientLoginToken.trim();
   const tokenHash = hashToken(token);
@@ -358,6 +595,13 @@ export async function revokeClientLoginToken(params: { clientLoginToken: string;
     { $set: { revokedAt: Date.now() } },
   );
   await revokeAuthCredential(params.userId, token);
+  // 撤销必须覆盖整条血缘：留着上一代就等于留着一条还能换 JWT 的备用钥匙。
+  const doc = (await MobileClientTokenModel.findOne({ tokenHash, userId: params.userId }).lean()) as
+    | MobileClientTokenDoc
+    | null;
+  if (doc) {
+    await revokeClientTokenLineage({ userId: params.userId, lineageId: lineageIdOf(doc) });
+  }
   return { revoked: Number(result.modifiedCount || 0) > 0 };
 }
 

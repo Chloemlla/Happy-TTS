@@ -94,6 +94,16 @@ const authMobileLoginLimiter = createLimiter({
   max: 60,
   message: "扫码登录请求过于频繁，请稍后再试",
 });
+// 轮换走的是“持有 sml_ 令牌就能推进自己”的路径，所以 IP 维度要另外卡一道；
+// 服务端的令牌间隔/每日配额是第二层，两层不互通也不会失效。
+const authClientTokenRotateLimiter = createLimiter({
+  name: "authClientTokenRotate",
+  profile: "verification",
+  category: "auth",
+  windowMs: 60 * 60 * 1000,
+  max: 24,
+  message: "令牌轮换请求过于频繁，请稍后再试",
+});
 
 /**
  * @openapi
@@ -165,6 +175,47 @@ router.post(
   MobileLoginController.issueClientToken,
 );
 router.post("/mobile-login/client-token/exchange", authMobileLoginLimiter, MobileLoginController.exchangeClientToken);
+/**
+ * @openapi
+ * /auth/mobile-login/client-token/rotate:
+ *   post:
+ *     summary: 轮换客户端登录令牌
+ *     description: |
+ *       用当前持有的 sml_ 令牌换一张新一代令牌，登录会话不中断。
+ *       不要求 JWT；被顶替的旧代超过宽限期再次使用会触发整条血缘吊销。
+ *       策略正文见 docs/mobile-token-risk-control.md。
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               clientLoginToken:
+ *                 type: string
+ *               deviceId:
+ *                 type: string
+ *               reason:
+ *                 type: string
+ *                 enum:
+ *                   - scheduled
+ *                   - manual
+ *     responses:
+ *       200:
+ *         description: 轮换成功，返回新一代令牌与服务端节奏（nextRotationAt / graceMs）
+ *       401:
+ *         description: 令牌无效、已过期、已撤销，或旧代超宽限期被重复使用（MOBILE_TOKEN_REUSED）
+ *       403:
+ *         description: 令牌与 deviceId 不匹配
+ *       429:
+ *         description: 未活满最小轮换间隔或超出每日配额，附 retryAfterSeconds
+ */
+router.post(
+  "/mobile-login/client-token/rotate",
+  authMobileLoginLimiter,
+  authClientTokenRotateLimiter,
+  MobileLoginController.rotateClientToken,
+);
 router.post(
   "/mobile-login/client-token/revoke",
   authMobileLoginLimiter,

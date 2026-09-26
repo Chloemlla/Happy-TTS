@@ -5,9 +5,11 @@ import {
   exchangeClientLoginToken,
   issueClientLoginToken,
   markMobileLoginChallengeScanned,
+  MobileTokenError,
   pollMobileLoginChallenge,
   resolveMobileLoginUser,
   revokeClientLoginToken,
+  rotateClientLoginToken,
 } from "../services/mobileLoginService";
 import { getClientIP } from "../utils/ipUtils";
 import { getAuthSessionMetadata } from "../services/authSessionService";
@@ -30,6 +32,27 @@ function errorStatus(message: string): number {
   if (message.includes("过期") || message.includes("无效")) return 401;
   if (message.includes("不匹配")) return 403;
   return 400;
+}
+
+/**
+ * 令牌相关的失败带自己的 HTTP 状态、错误码与可选 retryAfterSeconds，
+ * 不再靠“文案里有没有某个词”猜状态码；其它错误回退到旧的文案判定。
+ */
+function respondError(res: Response, error: unknown, fallbackMessage: string) {
+  const message = error instanceof Error && error.message ? error.message : fallbackMessage;
+  if (error instanceof MobileTokenError) {
+    const body: Record<string, unknown> = { success: false, error: message, errorCode: error.errorCode };
+    if (error.retryAfterSeconds !== undefined) {
+      body.retryAfterSeconds = error.retryAfterSeconds;
+    }
+    return res.status(error.status).json(body);
+  }
+  return res.status(errorStatus(message)).json({ error: message });
+}
+
+function getFingerprint(req: Request): string | undefined {
+  const value = req.headers["x-fingerprint"];
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 export class MobileLoginController {
@@ -137,8 +160,36 @@ export class MobileLoginController {
       });
       return res.json({ success: true, ...result });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "签发客户端登录令牌失败";
-      return res.status(errorStatus(message)).json({ error: message });
+      return respondError(res, error, "签发客户端登录令牌失败");
+    }
+  }
+
+  /**
+   * 轮换客户端登录令牌（sml_）：用令牌本身作凭证，不要求 JWT；
+   * 频率由服务端的轮换间隔与每日配额控制，手动与定时走同一个入口径。
+   */
+  public static async rotateClientToken(req: Request, res: Response) {
+    try {
+      const clientLoginToken = typeof req.body?.clientLoginToken === "string" ? req.body.clientLoginToken : "";
+      if (!clientLoginToken.trim()) {
+        return res.status(400).json({ success: false, error: "缺少客户端登录令牌", errorCode: "MISSING_CLIENT_TOKEN" });
+      }
+
+      const result = await rotateClientLoginToken({
+        clientLoginToken,
+        deviceId: typeof req.body?.deviceId === "string" ? req.body.deviceId : undefined,
+        ip: getClientIP(req),
+        fingerprint: getFingerprint(req),
+        metadata: getAuthSessionMetadata(req, { ipAddress: getClientIP(req) }),
+      });
+      logger.info("[MobileLogin] 客户端令牌轮换完成", {
+        rotationIndex: result.rotationIndex,
+        ip: getClientIP(req),
+        reason: typeof req.body?.reason === "string" ? req.body.reason : "scheduled",
+      });
+      return res.json({ success: true, rotated: true, ...result });
+    } catch (error) {
+      return respondError(res, error, "客户端登录令牌轮换失败");
     }
   }
 
@@ -157,8 +208,7 @@ export class MobileLoginController {
       });
       return res.json({ success: true, ...payload });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "客户端登录令牌兑换失败";
-      return res.status(errorStatus(message)).json({ error: message });
+      return respondError(res, error, "客户端登录令牌兑换失败");
     }
   }
 
@@ -175,8 +225,7 @@ export class MobileLoginController {
       const result = await revokeClientLoginToken({ clientLoginToken, userId: user.id });
       return res.json({ success: true, ...result });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "撤销客户端登录令牌失败";
-      return res.status(errorStatus(message)).json({ error: message });
+      return respondError(res, error, "撤销客户端登录令牌失败");
     }
   }
 }
