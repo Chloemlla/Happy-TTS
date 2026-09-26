@@ -18,6 +18,7 @@ import {
   AdminTelemetry,
   AdminRelease,
   AdminSecurityAllowlist,
+  Session,
 } from "../../models/lumen/index.js";
 
 // ── Public API ──────────────────────────────────────────────────────────
@@ -43,6 +44,7 @@ export async function adminDashboardSnapshot() {
     allowlist,
     backups,
     devices,
+    sessions,
     visionSessions,
     lifecycleEvents,
     deviceControlPolicies,
@@ -98,6 +100,15 @@ export async function adminDashboardSnapshot() {
     // Device registrations (from User model)
     User.find({ deviceInstallationId: { $exists: true, $ne: null } })
       .sort({ updatedAt: -1 })
+      .limit(25)
+      .lean()
+      .exec(),
+
+    // Active sessions with the official-client identity recorded at login (S-02/S-03).
+    // Without clientType/platform the admin panel cannot tell a Project-Lumen device
+    // from an unknown client.
+    Session.find()
+      .sort({ lastActiveAt: -1, lastUsedAt: -1, createdAt: -1 })
       .limit(25)
       .lean()
       .exec(),
@@ -313,6 +324,23 @@ export async function adminDashboardSnapshot() {
       lastHeartbeatAt: s.lastHeartbeatAt ? new Date(s.lastHeartbeatAt).toISOString() : null,
       framesCaptured: s.framesCaptured,
       framesUploaded: s.framesUploaded,
+    })),
+    sessions: sessions.map((s) => ({
+      id: s._id,
+      userId: s.userId,
+      deviceInstallationId: s.deviceInstallationId ?? null,
+      deviceName: s.deviceName ?? null,
+      platform: s.platform ?? null,
+      clientType: s.clientType ?? null,
+      ipAddress: s.ipAddress ?? null,
+      lastActiveAt: s.lastActiveAt
+        ? new Date(s.lastActiveAt).toISOString()
+        : s.lastUsedAt
+          ? new Date(s.lastUsedAt).toISOString()
+          : s.createdAt
+            ? new Date(s.createdAt).toISOString()
+            : null,
+      expiresAt: s.expiresAt ? new Date(s.expiresAt).toISOString() : null,
     })),
     lifecycleEvents: lifecycleEvents.map((e) => ({
       id: e._id,

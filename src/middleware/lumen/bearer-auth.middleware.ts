@@ -39,10 +39,13 @@ export function requireAuth(): (req: Request, res: Response, next: NextFunction)
         return;
       }
 
-      // Bump lastUsedAt without blocking the response.
-      Session.updateOne({ _id: token }, { $set: { lastUsedAt: new Date() } }).exec().catch(() => {
-        /* non-critical */
-      });
+      // Bump lastUsedAt without blocking the response. lastActiveAt 与 auth_sessions 同义，
+      // 「设备与会话」用前者排序/展示，两处一起写避免两套时间线漂移。
+      Session.updateOne({ _id: token }, { $set: { lastUsedAt: new Date(), lastActiveAt: new Date() } })
+        .exec()
+        .catch(() => {
+          /* non-critical */
+        });
 
       req.lumenUserId = session.userId;
       req.lumenSession = session;

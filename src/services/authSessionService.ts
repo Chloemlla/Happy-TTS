@@ -92,6 +92,20 @@ function normalizeClientType(value: unknown): AuthClientType {
   const normalized = clampText(value, 64, "web").toLowerCase();
   if (normalized === "piliplus" || normalized.includes("pili")) return "PiliPlus";
   if (normalized === "synapse-client" || normalized.includes("synapse")) return "Synapse-Client";
+  // Project-Lumen 是 lumen 子系统的官方 Android 客户端；它的请求同时可能只带
+  // X-Client-Name: Project-Lumen，或在 /api/lumen/** 上干脆不带身份头（那条路径
+  // 只有 Project-Lumen 会走）。两种写法都要落到同一个 clientType 上，否则
+  // 「设备与会话」里会出现 Project-Lumen 与 other 两组同名设备。
+  if (
+    normalized === "project-lumen" ||
+    normalized === "projectlumen" ||
+    normalized === "project_lumen" ||
+    normalized === "project lumen" ||
+    normalized.includes("project-lumen") ||
+    normalized === "lumen"
+  ) {
+    return "Project-Lumen";
+  }
   if (normalized === "web" || normalized.includes("browser")) return "web";
   return "other";
 }

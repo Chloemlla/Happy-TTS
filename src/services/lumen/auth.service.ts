@@ -1,9 +1,32 @@
 import crypto from "node:crypto";
-import { User, PendingLogin, Session, type IUser } from "../../models/lumen/index.js";
+import { User, PendingLogin, Session, type IUser, type ISession } from "../../models/lumen/index.js";
 import { lumenConfig } from "../../config/lumen.js";
 import { ApiError } from "./errors.js";
 import { sendLoginCode } from "./outemail.service.js";
 import logger from "../../utils/logger.js";
+
+/**
+ * 官方客户端身份（S-02）。字段名与 Synapse 的 AuthSessionMetadata 对齐，
+ * 让两条账号体系在「设备与会话」里能用同一套展示逻辑。
+ */
+export interface LumenClientInfo {
+  clientType?: string;
+  platform?: string;
+  deviceName?: string;
+  userAgent?: string;
+  ipAddress?: string;
+}
+
+function clientInfoFromSession(session: ISession | null | undefined): LumenClientInfo | undefined {
+  if (!session) return undefined;
+  return {
+    clientType: session.clientType,
+    platform: session.platform,
+    deviceName: session.deviceName,
+    userAgent: session.userAgent,
+    ipAddress: session.ipAddress,
+  };
+}
 
 // ── Tier rank ──────────────────────────────────────────────────────────
 const TIER_RANK: Record<string, number> = {
@@ -130,6 +153,7 @@ export async function verifyEmailLogin(
   requestId: string,
   code: string,
   deviceInstallationId?: string,
+  clientInfo?: LumenClientInfo,
 ) {
   const normalized = email.trim().toLowerCase();
 
@@ -196,7 +220,7 @@ export async function verifyEmailLogin(
   }
 
   // Create session.
-  const sessionResponse = await createSessionResponse(user._id, deviceInstallationId);
+  const sessionResponse = await createSessionResponse(user._id, deviceInstallationId, clientInfo);
 
   return {
     ...sessionResponse,
@@ -215,6 +239,7 @@ export async function verifyEmailLogin(
 export async function refreshSession(
   refreshToken: string,
   deviceInstallationId?: string,
+  clientInfo?: LumenClientInfo,
 ) {
   if (typeof refreshToken !== "string") throw ApiError.unauthorized("Invalid refresh token");
 
@@ -239,8 +264,13 @@ export async function refreshSession(
     ).exec();
   }
 
-  // Create a new session.
-  return createSessionResponse(oldSession.userId, deviceInstallationId || oldSession.deviceInstallationId);
+  // Create a new session. 身份字段优先用本次请求带来的，其次沿用被轮换掉的那一份
+  // ——刷新请求常常只带 refreshToken，不能因此把「Project-Lumen / Android」洗成 unknown。
+  return createSessionResponse(
+    oldSession.userId,
+    deviceInstallationId || oldSession.deviceInstallationId,
+    clientInfo ?? clientInfoFromSession(oldSession),
+  );
 }
 
 /**
@@ -249,6 +279,7 @@ export async function refreshSession(
 export async function createSessionResponse(
   userId: string,
   deviceInstallationId?: string,
+  clientInfo?: LumenClientInfo,
 ) {
   const now = Date.now();
   const accessToken = generateAccessToken();
@@ -261,6 +292,12 @@ export async function createSessionResponse(
     refreshToken,
     userId,
     deviceInstallationId,
+    ...(clientInfo?.clientType ? { clientType: clientInfo.clientType } : {}),
+    ...(clientInfo?.platform ? { platform: clientInfo.platform } : {}),
+    ...(clientInfo?.deviceName ? { deviceName: clientInfo.deviceName } : {}),
+    ...(clientInfo?.userAgent ? { userAgent: clientInfo.userAgent } : {}),
+    ...(clientInfo?.ipAddress ? { ipAddress: clientInfo.ipAddress } : {}),
+    lastActiveAt: new Date(now),
     createdAt: now,
     expiresAt,
     refreshExpiresAt,

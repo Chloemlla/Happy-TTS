@@ -4,6 +4,7 @@ import { isLumenEnabled } from "../../config/lumen.js";
 import { lumenLimiter } from "../../middleware/routeLimiters.js";
 import healthRoutes from "./health.routes.js";
 import authRoutes from "./auth.routes.js";
+import sessionsRoutes from "./sessions.routes.js";
 import meRoutes from "./me.routes.js";
 import devicesRoutes from "./devices.routes.js";
 import entitlementsRoutes from "./entitlements.routes.js";
@@ -38,6 +39,7 @@ router.use("/api/lumen", lumenGate);
 // Build the /api/v1 sub-router with all versioned routes
 const v1Router = Router();
 v1Router.use("/auth", authRoutes);
+v1Router.use("/sessions", sessionsRoutes);
 v1Router.use("/me", meRoutes);
 v1Router.use("/devices", devicesRoutes);
 v1Router.use("/entitlements", entitlementsRoutes);

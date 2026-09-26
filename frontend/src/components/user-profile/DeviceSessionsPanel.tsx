@@ -34,7 +34,7 @@ export interface DeviceSessionsPanelProps {
 
 const getDeviceIcon = (session: UserDeviceSession) => {
   const identity = `${session.client} ${session.platform}`.toLowerCase();
-  return /android|ios|mobile|piliplus/.test(identity) ? FaMobileAlt : FaDesktop;
+  return /android|ios|mobile|piliplus|lumen/.test(identity) ? FaMobileAlt : FaDesktop;
 };
 
 const displayValue = (value?: string | null): string => value || '未记录';
@@ -69,7 +69,7 @@ const DeviceSessionsPanel: React.FC<DeviceSessionsPanelProps> = ({
             <span id="device-sessions-title">设备与会话</span>
           </div>
           <p className="mt-2 text-[13px] leading-6 text-slate-600 sm:text-sm">
-            查看网页、PiliPlus、Synapse-Client 等登录设备。退出操作会保留当前 Profile 设备。
+            查看网页、PiliPlus、Synapse-Client、Project-Lumen 等登录设备。退出操作会保留当前 Profile 设备。
           </p>
         </div>
         <button

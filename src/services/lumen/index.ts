@@ -5,7 +5,20 @@ export { ApiError, isApiError } from "./errors.js";
 export { sendLoginCode } from "./outemail.service.js";
 
 // Auth
-export { startEmailLogin, verifyEmailLogin, refreshSession, createSessionResponse, tierRank as authTierRank } from "./auth.service.js";
+// LumenClientInfo 是 lumen 会话的官方客户端身份字段（S-02），路由层要用它给
+// resolveLumenClientInfo 定类型。
+export {
+  startEmailLogin,
+  verifyEmailLogin,
+  refreshSession,
+  createSessionResponse,
+  tierRank as authTierRank,
+} from "./auth.service.js";
+export type { LumenClientInfo } from "./auth.service.js";
+
+// Sessions (设备与会话, S-03)
+export { listLumenDevices, revokeLumenDevice, LumenSessionError } from "./session.service.js";
+export type { LumenDeviceView, LumenSessionView } from "./session.service.js";
 
 // Entitlements
 export {
@@ -67,6 +80,7 @@ export { adminDashboardSnapshot } from "./admin-dashboard.service.js";
 //   import { authService, entitlementsService, ... } from "../../services/lumen/index.js";
 
 import * as authService from "./auth.service.js";
+import * as sessionService from "./session.service.js";
 import * as entitlementsService from "./entitlements.service.js";
 import * as syncService from "./sync.service.js";
 import * as backupsService from "./backups.service.js";
@@ -81,6 +95,7 @@ import * as adminDashboardService from "./admin-dashboard.service.js";
 
 export {
   authService,
+  sessionService,
   entitlementsService,
   syncService,
   backupsService,

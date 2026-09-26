@@ -26,6 +26,12 @@ const OPENAPI_SPEC = {
     "/devices/register": {
       post: { summary: "Register device", tags: ["Devices"], security: [{ bearerAuth: [] }], responses: { "200": { description: "Device registration" } } },
     },
+    "/sessions": {
+      get: { summary: "List active device sessions", tags: ["Sessions"], security: [{ bearerAuth: [] }], responses: { "200": { description: "Device groups with clientType/platform/deviceName" } } },
+    },
+    "/sessions/{deviceKey}/revoke": {
+      post: { summary: "Revoke a device session group (current device is protected)", tags: ["Sessions"], security: [{ bearerAuth: [] }], parameters: [{ name: "deviceKey", in: "path", required: true, schema: { type: "string" } }], responses: { "200": { description: "Revoked session count" }, "409": { description: "CURRENT_SESSION_PROTECTED" } } },
+    },
     "/entitlements": {
       get: { summary: "List entitlements", tags: ["Entitlements"], security: [{ bearerAuth: [] }], responses: { "200": { description: "Entitlement list" } } },
     },
