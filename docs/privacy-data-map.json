@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-09-25",
+  "updatedAt": "2026-09-26",
   "notes": [
     "This map is the machine-readable contract for fingerprint/IP privacy governance.",
     "Retention is enforced by Mongo TTL indexes, scheduled cleanup jobs, or documented manual admin actions.",
@@ -367,6 +367,34 @@
         "reason": "Anti-abuse telemetry, not part of user data export; also exposed read-only to superadmins through /api/admin/proxycheck/probe-reports"
       },
       "evidence": ["src/models/proxycheckProbeReportModel.ts", "src/controllers/ipRiskController.ts", "src/controllers/ipRiskLogController.ts", "frontend/src/components/ClientOriginProbe.tsx"]
+    },
+    {
+      "id": "mobile-client-tokens",
+      "collection": "mobile_client_tokens",
+      "fields": ["tokenHash", "userId", "deviceId", "deviceName", "createdAt", "expiresAt", "lastUsedAt", "lastUsedIp", "revokedAt", "ttlExpireAt", "lineageId", "rotationIndex", "rotatedFrom", "supersededAt", "supersededTo", "rotatedIp", "rotatedFingerprint"],
+      "purpose": "Rotating long-lived client login tokens (sml_) for mobile clients: only the SHA-256 hash of the token is stored, plus the device binding and the rotation lineage that lets a leaked token family be revoked as a unit",
+      "legalBasis": "security_and_service_integrity",
+      "retention": {
+        "type": "ttl",
+        "ttlField": "ttlExpireAt",
+        "expireAfterSeconds": 0,
+        "typicalLifetime": "90d per token generation",
+        "description": "Mongo TTL index on ttlExpireAt drops the document once the generation expires; rotation only marks the previous generation superseded (it does not set revokedAt), and replaying that generation after the grace window revokes the whole lineage"
+      },
+      "delete": {
+        "onUserDelete": "retain_until_ttl",
+        "automatic": "Mongo TTL on ttlExpireAt; admin user deletion and password reset call revokeAllAuthSessions(), which revokes these tokens by clientTokenHash",
+        "manual": "admin revoke-device / revoke-all-sessions surfaces",
+        "gap": "Superseded generations keep their lastUsedIp / rotatedIp rows until TTL expiry; there is no shorter security-hold job"
+      },
+      "export": {
+        "supported": false,
+        "reason": "Security telemetry keyed by token hash; the token itself is not recoverable from the stored hash"
+      },
+      "evidence": [
+        "src/models/mobileClientTokenModel.ts",
+        "src/services/mobileLoginService.ts"
+      ]
     }
   ]
 }
