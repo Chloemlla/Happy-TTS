@@ -86,6 +86,8 @@ const MEDIA_DEFAULT_SETTINGS: MediaToolSettings = {
   bili: {
     ytDlpPath: '',
     cookiesFile: '',
+    proxyUrl: '',
+    apiFallback: true,
     downloadDir: '',
     audioFormat: 'mp3',
     concurrency: 1,
@@ -189,7 +191,17 @@ export const MediaToolAdmin: React.FC = () => {
         { label: '工作目录', value: health.runtime.workDir || '(默认)' },
         { label: 'yt-dlp', value: health.runtime.ytDlp.ok ? (health.runtime.ytDlp.version ?? '可用') : '缺失' },
         { label: 'ffprobe', value: health.runtime.ffprobe.ok ? '可用' : '缺失' },
-        { label: 'cookies', value: health.runtime.cookies.configured ? (health.runtime.cookies.ok ? (health.runtime.cookies.path ?? '已配置') : '文件缺失') : '未配置' },
+        {
+          label: 'cookies',
+          // 三态：没配 / 配了但文件不在 / 已生效（还要区分是路径那份还是入库那份）
+          value: !health.runtime.cookies.configured
+            ? '未配置'
+            : health.runtime.cookies.ok
+              ? health.runtime.cookies.source === 'db'
+                ? '已入库'
+                : (health.runtime.cookies.path ?? '已配置')
+              : '不可用',
+        },
         { label: '账号凭据', value: health.runtime.lasrConfigured ? '已配置' : '未配置' },
         { label: '排队任务', value: String(health.runtime.queuedJobs) },
       ]

@@ -1,13 +1,14 @@
 import { type Request, type RequestHandler } from "express";
 import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
 import { createMediaToolRouter } from "../mediaTool/http/mediaToolHttp";
-import { ensureMediaJobRecovery, getMediaToolRunner, getServerMediaJobStore, getServerMediaSettingsStore, getServerTranscriptStore } from "../mediaTool/serverRuntime";
+import { ensureMediaJobRecovery, getMediaToolRunner, getServerMediaCookiesStore, getServerMediaJobStore, getServerMediaSettingsStore, getServerTranscriptStore } from "../mediaTool/serverRuntime";
 
 const router = createMediaToolRouter({
   mode: "server",
   store: getServerMediaJobStore(),
   transcripts: getServerTranscriptStore(),
   settingsStore: getServerMediaSettingsStore(),
+  cookies: getServerMediaCookiesStore(),
   runner: getMediaToolRunner(),
   requireAdmin: authenticateAdmin as unknown as RequestHandler,
   requireSuper: authenticateSuperAdmin as unknown as RequestHandler,

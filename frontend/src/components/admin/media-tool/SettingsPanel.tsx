@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { FaCheck, FaExclamationTriangle, FaMicrophone, FaSave, FaSlidersH } from 'react-icons/fa';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { FaCheck, FaExclamationTriangle, FaMicrophone, FaSave, FaSlidersH, FaTrash, FaUpload } from 'react-icons/fa';
 import { mediaToolApi } from '../../../api/mediaTool';
-import type { MediaTarget, MediaToolSettings, TranscribeOutput } from '../../../api/mediaTool';
+import type { BiliCookiesStatus, MediaTarget, MediaToolSettings, TranscribeOutput } from '../../../api/mediaTool';
 import { InfoSectionTitle, studioSurfaceClassName } from '../../studioTheme';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
 import { btnIndigo, ErrLine, Field, OkLine, Toggle, inputCls, cx } from './ui';
@@ -50,6 +50,22 @@ export const SettingsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => 
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [form, setForm] = useState<MediaToolSettings | null>(null);
+  // cookies 走独立端点（正文入库，不进设置快照）：状态 + 待保存文本 + 防竞态计数
+  const [cookies, setCookies] = useState<BiliCookiesStatus | null>(null);
+  const [cookieText, setCookieText] = useState('');
+  const [cookieBusy, setCookieBusy] = useState(false);
+  const cookiesSeq = useRef(0);
+
+  const reloadCookies = useCallback(async () => {
+    const seq = ++cookiesSeq.current;
+    try {
+      const status = await mediaToolApi.getCookies(target);
+      if (seq === cookiesSeq.current) setCookies(status);
+    } catch (err) {
+      if (seq === cookiesSeq.current) setCookies(null);
+      console.error('读取 B 站 cookies 状态失败:', err);
+    }
+  }, [target]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -68,6 +84,62 @@ export const SettingsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void reloadCookies();
+  }, [reloadCookies]);
+
+  const pickCookiesFile = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      setCookieText(await file.text());
+      setError(null);
+      setOk(`已读入 ${file.name}（${(file.size / 1024).toFixed(1)} KB），点「保存到数据库」才会生效。`);
+    } catch (err) {
+      setError('读取本地文件失败。');
+      console.error('读取 cookies 文件失败:', err);
+    }
+  };
+
+  const saveCookies = async () => {
+    const content = cookieText.trim();
+    if (!content) return;
+    setCookieBusy(true);
+    setError(null);
+    setOk(null);
+    try {
+      const res = await mediaToolApi.saveCookies(target, cookieText);
+      setOk(`cookies 已存进数据库（${res.entries} 条 / ${(res.bytes / 1024).toFixed(1)} KB），下载任务立即生效。`);
+      setCookieText('');
+      await reloadCookies();
+    } catch (err) {
+      // 400 带的是后端的格式诊断（比如“不是 Netscape 格式”），直接给人看比一句「保存失败」有用
+      const detail =
+        typeof err === 'object' && err !== null && 'response' in err
+          ? String((err as { response?: { data?: { error?: string } } }).response?.data?.error || '')
+          : '';
+      setError(detail || '保存 cookies 失败（需超级管理员，且格式要符合 Netscape cookies.txt）。');
+      console.error('保存 B 站 cookies 失败:', err);
+    } finally {
+      setCookieBusy(false);
+    }
+  };
+
+  const clearCookies = async () => {
+    setCookieBusy(true);
+    setError(null);
+    setOk(null);
+    try {
+      await mediaToolApi.clearCookies(target);
+      setOk('已清除数据库里的 cookies（后续 B 站下载按游客请求走，容易撞 412）。');
+      await reloadCookies();
+    } catch (err) {
+      setError('清除失败（需超级管理员）。');
+      console.error('清除 B 站 cookies 失败:', err);
+    } finally {
+      setCookieBusy(false);
+    }
+  };
 
   const setL = (patch: Partial<MediaToolSettings['lasr']>) =>
     setForm((f) => (f ? { ...f, lasr: { ...f.lasr, ...patch } } : f));
@@ -129,7 +201,7 @@ export const SettingsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => 
     <div className="space-y-4">
       <InfoSectionTitle
         title="媒体工具设置"
-        description="转写接口参数、yt-dlp / cookies 路径、并发与输出格式。密钥输入框显示 ******** 表示沿用当前值。"
+        description="转写接口参数、yt-dlp / cookies、代理与并发。密钥输入框显示 ******** 表示沿用当前值；cookies 正文单独入库保存。"
         icon={FaSlidersH}
         tone="slate"
       />
@@ -287,9 +359,68 @@ export const SettingsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => 
           <Field label="yt-dlp 路径" hint="留空自动探测 PATH;Windows 常需填绝对路径">
             <input className={inputCls} value={form.bili.ytDlpPath} onChange={(e) => setB({ ytDlpPath: e.target.value })} />
           </Field>
-          <Field label="cookies 文件" hint="下载需登录/会员内容时填 Netscape cookies 文件路径">
+          <Field label="cookies 文件路径（可选覆盖）" hint="填服务器/容器内的 Netscape 文件路径；镜像未挂持久卷时重新部署会丢，建议用下面的「上传/粘贴入库」">
             <input className={inputCls} value={form.bili.cookiesFile} onChange={(e) => setB({ cookiesFile: e.target.value })} />
           </Field>
+          <Field label="下载代理(proxyUrl)" hint="http:// 或 socks5:// 透传 yt-dlp --proxy；境外机器下 B 站常需国内出口，留空=直连">
+            <input className={inputCls} value={form.bili.proxyUrl ?? ''} onChange={(e) => setB({ proxyUrl: e.target.value })} placeholder="http://127.0.0.1:7890" />
+          </Field>
+
+          {/* cookies 正文走独立端点：存进数据库而不是只存一个路径，重启/重新部署后自动恢复 */}
+          <div className="md:col-span-2 space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            <div className="text-xs font-semibold text-slate-700">B 站 cookies（正文持久化到数据库）</div>
+            {cookies == null ? (
+              <ErrLine>读不到 cookies 状态（目标后端版本过旧或接口失败）。</ErrLine>
+            ) : cookies.configured && cookies.ok ? (
+              <OkLine>
+                {cookies.source === 'db'
+                  ? `已入库并生效：${typeof cookies.bytes === 'number' ? `${(cookies.bytes / 1024).toFixed(1)} KB` : '正文'}${
+                      cookies.updatedAt ? `，更新于 ${new Date(cookies.updatedAt).toLocaleString()}` : ''
+                    }`
+                  : `按路径生效：${cookies.path}`}
+              </OkLine>
+            ) : (
+              <ErrLine>
+                {cookies.configured
+                  ? cookies.hint || `cookies 不可用：${cookies.path || '(无路径)'}`
+                  : '未配置：B 站按游客请求处理，很容易撞风控 412'}
+              </ErrLine>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="file"
+                accept=".txt,.cookies,text/plain"
+                className="text-xs text-slate-500"
+                onChange={(e) => void pickCookiesFile(e.target.files?.[0])}
+              />
+              <button
+                onClick={() => void saveCookies()}
+                disabled={cookieBusy || !cookieText.trim()}
+                className={btnIndigo}
+              >
+                {cookieBusy ? <SimpleLoadingSpinner size={0.7} /> : <FaUpload className="text-xs" />}
+                保存到数据库
+              </button>
+              <button
+                onClick={() => void clearCookies()}
+                disabled={cookieBusy || !cookies?.configured}
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-1.5 text-xs text-slate-500 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+              >
+                <FaTrash className="text-xs" />
+                清除
+              </button>
+            </div>
+            <textarea
+              className={cx(inputCls, 'h-24 font-mono text-[11px]')}
+              placeholder={'# Netscape HTTP Cookie File\n.bilibili.com\tTRUE\t/\tTRUE\t1799999999\tSESSDATA\txxxx'}
+              value={cookieText}
+              onChange={(e) => setCookieText(e.target.value)}
+            />
+            <div className="text-[11px] leading-4 text-slate-400">
+              只接受 Netscape/curl 的 cookies.txt（每行 7 个 tab 分隔字段），不要粘请求头里那串 Cookie。
+              正文只写进后端，页面不再回显；保存后下一个下载任务立即生效，无需重启。
+            </div>
+          </div>
           <Field label="下载目录(downloadDir)" hint="留空=与 workDir 相同">
             <input className={inputCls} value={form.bili.downloadDir} onChange={(e) => setB({ downloadDir: e.target.value })} />
           </Field>
@@ -304,6 +435,11 @@ export const SettingsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => 
           <div className="flex items-end gap-6 pb-1">
             <Toggle checked={form.bili.videoMode} onChange={(v) => setB({ videoMode: v })} label="默认下载完整视频" />
             <Toggle checked={form.bili.transcribeAfter} onChange={(v) => setB({ transcribeAfter: v })} label="默认下载后自动转写" />
+            <Toggle
+              checked={form.bili.apiFallback !== false}
+              onChange={(v) => setB({ apiFallback: v })}
+              label="412 时走 API 直取"
+            />
           </div>
         </div>
       </div>

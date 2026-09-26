@@ -4,15 +4,9 @@ import { spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import {
-  CancelledError,
-  ensureDir,
-  isBareCommand,
-  makeConsoleDecoder,
-  resolveYtDlpBin,
-  runTool,
-  runToolChecked,
-} from "./runtime";
+import { biliBvid, maskStreamUrl, resolveBiliDirectTarget, listBiliParts, type BiliDirectTarget } from "./biliApi";
+import { BILI_DOWNLOAD_USER_AGENT, BILI_WEB_ORIGIN, BILI_WEB_REFERER, CancelledError, ensureDir, isBareCommand, makeConsoleDecoder, resolveBiliUserAgent, resolveYtDlpBin, runTool, runToolChecked, sanitizeFileName, statOrNull } from "./runtime";
+import { resolveCookiesFile } from "./biliCookies";
 import type { BiliOptions } from "./types";
 
 export interface BiliItem {
@@ -69,39 +63,31 @@ function isPlaylistUrl(url: string): boolean {
 const PLAYLIST_TEMPLATE = "%(playlist_title)s/%(playlist_index)02d-%(title)s.%(ext)s";
 const SINGLE_TEMPLATE = "%(title)s.%(ext)s";
 
-// B 站 WAF 会把缺少浏览器化请求头的请求直接判为爬虫并返回 412 Precondition Failed,
-// yt-dlp 内置的默认 UA 同样会被拦;因此凡是会访问 B 站的调用都必须显式带上桌面 Chrome UA
-// 与 Referer/Origin,否则表现为“无法下载网页: HTTP Error 412”。
-const DEFAULT_YTDLP_USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
-const BILI_REFERER = "https://www.bilibili.com/";
-const BILI_ORIGIN = "https://www.bilibili.com";
-
-/**
- * UA 覆盖入口:MEDIA_TOOL_YTDLP_USER_AGENT(留空/未设则用内置桌面 Chrome UA)。
- * 这里直接读进程环境而不落进 BiliOptions,是为了不改动设置快照(Mongo/JSON)的持久化结构;
- * 取值语义与本模块显式环境层一致:trim 后为空视作未设置。
- */
-function resolveYtDlpUserAgent(env: NodeJS.ProcessEnv = process.env): string {
-  const raw = env.MEDIA_TOOL_YTDLP_USER_AGENT;
-  return typeof raw === "string" && raw.trim() !== "" ? raw.trim() : DEFAULT_YTDLP_USER_AGENT;
-}
+// B 站对「网页」路径的风控看的是出口 IP，单靠请求头挡不住 412（现场实测）；但 yt-dlp
+// 内置默认 UA 本身也被归类为爬取工具，因此凡是访问 B 站的调用都统一带上桌面 Chrome UA
+// 与 Referer/Origin。真正的 412 兜底在 biliApi 的「API 直取」通道。
 
 /** 所有访问 B 站的 yt-dlp 调用共用(下载与合集展开两条路径都从这里取,避免只补一半)。 */
 function browserHeaderArgs(env: NodeJS.ProcessEnv = process.env): string[] {
   return [
     "--user-agent",
-    resolveYtDlpUserAgent(env),
+    resolveBiliUserAgent(env),
     "--add-header",
-    `Referer:${BILI_REFERER}`,
+    `Referer:${BILI_WEB_REFERER}`,
     "--add-header",
-    `Origin:${BILI_ORIGIN}`,
+    `Origin:${BILI_WEB_ORIGIN}`,
   ];
 }
 
+/** 代理只给 yt-dlp（下载与它自己的接口请求都走）；留空=直连。 */
+function proxyArgs(opts: BiliOptions): string[] {
+  const p = (opts.proxyUrl || "").trim();
+  return p ? ["--proxy", p] : [];
+}
+
 function cookiesArgs(opts: BiliOptions): string[] {
-  const cf = (opts.cookiesFile || "").trim();
-  if (!cf || !fs.existsSync(cf)) return [];
+  const cf = resolveCookiesFile(opts);
+  if (!cf || !statOrNull(cf)) return [];
   return ["--cookies", cf];
 }
 
@@ -113,8 +99,8 @@ function cookiesArgs(opts: BiliOptions): string[] {
  */
 export function assertCookiesUsable(opts: BiliOptions): void {
   const cf = (opts.cookiesFile || "").trim();
-  if (!cf) return; // 未配置：按游客下载，由日志/健康检查提示负责说明
-  if (!fs.existsSync(cf)) {
+  if (!cf) return; // 未显式指定：用持久化那份或按游客下载，由日志/健康检查提示负责说明
+  if (!statOrNull(cf)) {
     throw new Error(
       `cookies 文件不存在: ${cf}\n`
         + "设置页填的是【容器内路径】；镜像未挂载持久卷时，重新部署后该文件会消失。\n"
@@ -140,6 +126,7 @@ function describeToolFailure(code: number | null, tail: string): string {
 export function expandPlaylist(opts: BiliOptions, url: string): Array<{ index: number; url: string }> {
   try {
     const out = runToolChecked(resolveYtDlpBin(opts.ytDlpPath), [
+      ...proxyArgs(opts),
       ...browserHeaderArgs(),
       ...cookiesArgs(opts),
       "--flat-playlist",
@@ -160,20 +147,38 @@ export function expandPlaylist(opts: BiliOptions, url: string): Array<{ index: n
   return [];
 }
 
-/** 原始输入(URL/BV 号) → 去重后的逐集下载项。本地 .txt 列表文件亦支持(每行一项)。 */
-export function resolveItems(opts: BiliOptions, rawInputs: string[]): BiliItem[] {
+/**
+ * 原始输入(URL/BV 号) → 去重后的逐集下载项。本地 .txt 列表文件亦支持(每行一项)。
+ *
+ * 多 P 展开优先走 B 站 JSON 接口：yt-dlp 的 --flat-playlist 也要先抓视频网页，
+ * 被风控时它会静默返回空，于是十个分P 只会被当成“一项”处理。
+ * 接口拿不到（收藏夹/合集等非 BV 链）时仍回到 expandPlaylist 的老路。
+ */
+export async function resolveItems(opts: BiliOptions, rawInputs: string[]): Promise<BiliItem[]> {
   const items: BiliItem[] = [];
   const seen = new Set<string>();
-  const add = (raw: string) => {
+  const add = async (raw: string): Promise<void> => {
     const t = (raw || "").trim();
     if (!t) return;
     if (fs.existsSync(t) && fs.statSync(t).isFile()) {
-      for (const line of fs.readFileSync(t, "utf8").split(/\r?\n/)) add(line);
+      for (const line of fs.readFileSync(t, "utf8").split(/\r?\n/)) await add(line);
       return;
     }
     const u = normalize(t);
     if (!u) return;
-    const pairs = expandPlaylist(opts, u);
+    let pairs: Array<{ index: number; url: string }> = [];
+    const bvid = biliBvid(u);
+    if (bvid && opts.apiFallback !== false) {
+      try {
+        const info = await listBiliParts(opts, bvid);
+        if (info.parts.length > 1) {
+          pairs = info.parts.map((p) => ({ index: p.page, url: `${u}?p=${p.page}` }));
+        }
+      } catch {
+        /* 接口失败不阻断：回到 yt-dlp 展开，再不行就整条处理 */
+      }
+    }
+    if (!pairs.length) pairs = expandPlaylist(opts, u);
     if (pairs.length) {
       const multiPart = new Set(pairs.map((p) => bvIdOf(p.url))).size === 1;
       for (const p of pairs) {
@@ -189,7 +194,7 @@ export function resolveItems(opts: BiliOptions, rawInputs: string[]): BiliItem[]
       items.push({ url: u, playlistIndex: null, bvId: bvIdOf(u) });
     }
   };
-  for (const a of rawInputs) add(a);
+  for (const a of rawInputs) await add(a);
   return items;
 }
 
@@ -271,6 +276,7 @@ function seedFromDisk(opts: BiliOptions, state: BiliState): number {
 // ---------------------------------------------------------------------------
 function buildArgs(opts: BiliOptions, item: BiliItem, videoMode: boolean): string[] {
   const a = [
+    ...proxyArgs(opts),
     ...browserHeaderArgs(),
     ...cookiesArgs(opts),
     "--concurrent-fragments",
@@ -303,6 +309,64 @@ function buildArgs(opts: BiliOptions, item: BiliItem, videoMode: boolean): strin
   return a;
 }
 
+/** 直链带 upsig/deadline 这些「谁能下这个文件」的凭据，进日志前一律截掉 query。 */
+function redactArgs(args: string[]): string[] {
+  return args.map((arg) => {
+    if (!/^https?:\/\//i.test(arg)) return arg;
+    const q = arg.indexOf("?");
+    return q === -1 ? arg : `${arg.slice(0, q)}?<签名参数已省略>`;
+  });
+}
+
+/**
+ * 什么时候该改走「API 直取」。
+ *
+ * 只认 B 站风控的三个面孔：412 / Precondition Failed / 网页拉不下来，且链接得能提出 BV 号。
+ * 其他错（网络、磁盘、会员不足）换成 API 也一错到底，不要把真错掩盖成另一句错。
+ */
+function apiFallbackEligible(opts: BiliOptions, item: BiliItem, error?: string): boolean {
+  if (opts.apiFallback === false) return false;
+  if (!error) return false;
+  if (!/412|Precondition Failed|Unable to download webpage/i.test(error)) return false;
+  return Boolean(biliBvid(item.url));
+}
+
+/** 直链路径的参数：不再抓网页，只交给 yt-dlp 下载 + 抽音频/封 mp4。 */
+function buildDirectArgs(
+  opts: BiliOptions,
+  item: BiliItem,
+  target: BiliDirectTarget,
+  videoMode: boolean,
+): string[] {
+  // 产物名里带上 [BVxxx]（多 P 时 item.bvId 已是 BVxxx_pN），与 seedFromDisk 的回填规则对得上；
+  // 标题里的 % 在 outtmpl 里必须写成 %%。
+  const safeTitle = sanitizeFileName(target.title || item.bvId).replace(/%/g, "%%");
+  const a = [
+    ...proxyArgs(opts),
+    "--user-agent",
+    BILI_DOWNLOAD_USER_AGENT,
+    "--add-header",
+    `Referer:${BILI_WEB_REFERER}`,
+    ...cookiesArgs(opts),
+    "--newline",
+    "--retries",
+    "10",
+    "--fragment-retries",
+    "10",
+    "--paths",
+    opts.downloadDir,
+    "--output",
+    `${safeTitle} [${item.bvId}].%(ext)s`,
+  ];
+  if (videoMode) {
+    a.push("--merge-output-format", "mp4");
+  } else {
+    a.push("--extract-audio", "--audio-format", opts.audioFormat || "mp3", "--audio-quality", "0");
+  }
+  a.push(target.streamUrl);
+  return a;
+}
+
 async function downloadItem(
   opts: BiliOptions,
   item: BiliItem,
@@ -310,11 +374,41 @@ async function downloadItem(
   cb: BiliCallbacks,
 ): Promise<BiliBatchItemOutcome> {
   const label = item.playlistIndex !== null ? `${item.url}(第${item.playlistIndex}集)` : item.url;
+  const bin = resolveYtDlpBin(opts.ytDlpPath);
+  const primary = await runYtDlp(bin, buildArgs(opts, item, videoMode), label, cb);
+  if (primary.ok || !apiFallbackEligible(opts, item, primary.error)) return primary;
+
+  cb.log?.(`${label} 网页路径被 B 站风控拒掉(412)，改走 API 直取通道重试`);
+  const bvid = biliBvid(item.url) || "";
+  let target: BiliDirectTarget;
+  try {
+    target = await resolveBiliDirectTarget(opts, bvid, item.playlistIndex ?? 1, videoMode);
+    cb.log?.(`${label} 直链就绪: ${target.detail} → ${maskStreamUrl(target.streamUrl)}`);
+  } catch (e) {
+    return {
+      ok: false,
+      label,
+      error: `${primary.error}｜API 直取也没拿到流地址: ${(e as Error).message}`,
+    };
+  }
+  const retry = await runYtDlp(bin, buildDirectArgs(opts, item, target, videoMode), label, cb);
+  if (retry.ok || retry.cancelled) return retry;
+  return {
+    ...retry,
+    error: `${retry.error}｜API 直取仍失败，原始网页错: ${String(primary.error).slice(0, 160)}`,
+  };
+}
+
+/** 起一个 yt-dlp 子进程跑完一项（网页路径与 API 直链路径共用同一套日志/取消/产物解析）。 */
+function runYtDlp(
+  bin: string,
+  args: string[],
+  label: string,
+  cb: BiliCallbacks,
+): Promise<BiliBatchItemOutcome> {
   return new Promise<BiliBatchItemOutcome>((resolve) => {
-    const args = buildArgs(opts, item, videoMode);
-    const bin = resolveYtDlpBin(opts.ytDlpPath);
     cb.log?.(`下载 > ${label}`);
-    cb.log?.(`CMD> ${bin} ${args.join(" ")}`);
+    cb.log?.(`CMD> ${bin} ${redactArgs(args).join(" ")}`);
     let proc;
     try {
       proc = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
@@ -417,7 +511,7 @@ export async function downloadBatch(
   assertCookiesUsable(opts);
   const raw = (rawInputs || []).filter((x) => String(x).trim());
   if (raw.length === 0) throw new Error("没有输入任何下载项");
-  const items = resolveItems(opts, raw);
+  const items = await resolveItems(opts, raw);
   if (items.length === 0) throw new Error("没有解析出任何可下载项");
 
   return locked(async () => {

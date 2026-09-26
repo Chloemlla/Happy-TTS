@@ -100,7 +100,29 @@ export function runToolChecked(bin: string, args: string[], opts: { cwd?: string
 }
 
 /**
- * yt-dlp 可执行路径:未配置时回退到裸命令名 "yt-dlp",由 spawn 自行走 PATH 解析。
+ * B 站请求用的桌面 Chrome UA。原本只在 biliYtDlp 里，抽到这里是因为「API 直取」通道
+ * (biliApi) 必须用同一份，否则两处 UA 漂移会让风控行为不一致、也难排查。
+ * 注意：B 站对「网页」路径的风控是看 IP 的，实测换 UA/补 buvid 都挡不住 412。
+ */
+export const BILI_DESKTOP_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+
+export const BILI_WEB_REFERER = "https://www.bilibili.com/";
+export const BILI_WEB_ORIGIN = "https://www.bilibili.com";
+
+/** B 站 CDN 认的下载 UA（与 PiliPlus lib/http/download.dart 同口径；实测直链对 UA 不敏感，留着更稳）。 */
+export const BILI_DOWNLOAD_USER_AGENT = "Bilibili Freedoooooom/MarkII";
+
+/**
+ * UA 覆盖入口:MEDIA_TOOL_YTDLP_USER_AGENT（留空/未设则用内置桌面 Chrome UA）。
+ * 直接读进程环境而不落进 BiliOptions，是为了不改动设置快照(Mongo/JSON)的持久化结构。
+ */
+export function resolveBiliUserAgent(env: NodeJS.ProcessEnv = process.env): string {
+  const raw = env.MEDIA_TOOL_YTDLP_USER_AGENT;
+  return typeof raw === "string" && raw.trim() !== "" ? raw.trim() : BILI_DESKTOP_USER_AGENT;
+}
+
+/** yt-dlp 可执行路径:未配置时回退到裸命令名 "yt-dlp",由 spawn 自行走 PATH 解析。
  *
  * 设置页与 .env.example 都承诺「留空自动探测 PATH」,但配置有三层(启动默认 / Mongo 快照 /
  * 显式环境变量),任何一层给出空串都会原样落到 spawn 上——所以统一在使用点归一,

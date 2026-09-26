@@ -6,6 +6,14 @@ import fs from "node:fs";
 import multer from "multer";
 import path from "node:path";
 import { purgeJobArtifacts } from "../jobs/artifactCleanup";
+import {
+  MAX_COOKIES_BYTES,
+  biliCookiesStatus,
+  removeCookiesFile,
+  validateCookiesText,
+  writeCookiesFile,
+  type MediaCookiesStore,
+} from "../biliCookies";
 import { MediaJobRunner } from "../jobs/mediaJobRunner";
 import { MEDIA_EXTS, ensureDir, isAudioFile, relInsideRoot, resolveRootDir, resolveYtDlpBin, runTool, sanitizeFileName, statOrNull } from "../runtime";
 import { maskedView, type MediaSettingsPatch, type MediaSettingsStore } from "../settingsStore";
@@ -24,6 +32,8 @@ export interface MediaToolRouterDeps {
   store: MediaJobStore;
   transcripts: TranscriptStore;
   settingsStore: MediaSettingsStore;
+  /** B 站 cookies 正文的持久层（server 态 = Mongo，standalone 态 = 本地文件）。 */
+  cookies: MediaCookiesStore;
   runner: MediaJobRunner;
   /** 守卫(内部态 = authenticateAdmin;standalone 态 = 直通)。每个请求会被调用。 */
   requireAdmin: RequestHandler;
@@ -37,7 +47,7 @@ function genId(): string {
 }
 
 export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router {
-  const { store, transcripts, settingsStore, runner, requireAdmin, requireSuper, identity } = deps;
+  const { store, transcripts, settingsStore, cookies, runner, requireAdmin, requireSuper, identity } = deps;
   const router = express.Router();
 
   // 所有端点先过 admin 守卫
@@ -56,11 +66,8 @@ export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router
       }
       const ytRes = runTool(resolveYtDlpBin(settings.bili.ytDlpPath), ["--version"], { maxBuffer: 1024 * 1024 });
       const ffRes = runTool("ffprobe", ["-version"], { maxBuffer: 1024 * 1024 });
-      // 「没配 cookies」不能报成「已配置」：B 站游客请求会被风控直接拒(表现为下载网页 HTTP 412)，
-      // 健康检查把 ok 置 true 只会让人去查 UA/网络。配了路径但文件不存在也要说出来
-      // （容器没挂持久卷时，写在 workDir 里的 cookies 文件每次重新部署都会没）。
-      const cookiesFile = (settings.bili.cookiesFile || "").trim();
-      const cookiesExists = cookiesFile ? fs.existsSync(cookiesFile) : false;
+      // cookies 三态由 biliCookies 统一给出（没配 ≠ 健康；显式路径丢了 ≠ DB 那份丢了）。
+      const cookiesStatus = await biliCookiesStatus(cookies, settings.bili);
       res.json({
         ok: true,
         mode: deps.mode,
@@ -80,19 +87,7 @@ export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router
           })(),
           ytDlp: ytRes.status === 0 ? { ok: true, version: ytRes.stdout.trim().split("\n")[0] || null } : { ok: false, hint: (ytRes.stderr || ytRes.stdout || "无法启动").slice(0, 200) },
           ffprobe: ffRes.status === 0 ? { ok: true } : { ok: false, hint: "PATH 中未找到 ffprobe,音频时长取不到(不影响转写,服务器可能自动测) " },
-          cookies: cookiesFile
-            ? {
-                configured: true,
-                ok: cookiesExists,
-                path: cookiesFile,
-                hint: cookiesExists ? undefined : "文件不存在（容器无持久卷时重新部署会丢）",
-              }
-            : {
-                configured: false,
-                ok: false,
-                path: null,
-                hint: "未配置：B 站按游客请求处理，很容易撞风控 412",
-              },
+          cookies: cookiesStatus,
           lasrConfigured: Boolean(settings.lasr.appId && settings.lasr.appKey && settings.lasr.serverUrl),
           queuedJobs: runner.getQueuedCount(),
         },
@@ -115,6 +110,50 @@ export function createMediaToolRouter(deps: MediaToolRouterDeps): express.Router
       const patch = (req.body ?? {}) as MediaSettingsPatch;
       const next = await settingsStore.update(patch);
       res.json({ ok: true, settings: maskedView(next) });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: (e as Error).message });
+    }
+  });
+
+  // ---- B 站 cookies：正文存 DB，运行时落 0600 文件给 yt-dlp ----
+  // 只存正文不存路径：镜像没挂持久卷时，容器里任何路径的文件都会在重新部署后静默消失。
+  // 三个端点都绝不回传正文，只回元信息（字节数/条目数/更新时间）。
+  router.get("/bili/cookies", async (_req: Request, res: Response) => {
+    try {
+      const settings = await settingsStore.get();
+      res.json({ ok: true, cookies: await biliCookiesStatus(cookies, settings.bili) });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: (e as Error).message });
+    }
+  });
+
+  router.put("/bili/cookies", requireSuper, async (req: Request, res: Response) => {
+    try {
+      const body = (req.body ?? {}) as { content?: unknown };
+      const content = typeof body.content === "string" ? body.content : "";
+      if (!content.trim()) {
+        res.status(400).json({ ok: false, error: "cookies 内容为空；要清除请用 DELETE /bili/cookies" });
+        return;
+      }
+      const checked = validateCookiesText(content);
+      if (!checked.ok) {
+        res.status(400).json({ ok: false, error: checked.error, entries: checked.entries });
+        return;
+      }
+      const meta = await cookies.write(content, identity(req));
+      // 立即落盘，不用等下次重启才生效；写失败要报出来，否则下次任务又是游客请求
+      const runtimePath = writeCookiesFile(content);
+      res.json({ ok: true, entries: checked.entries, maxBytes: MAX_COOKIES_BYTES, runtimePath, ...meta });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: (e as Error).message });
+    }
+  });
+
+  router.delete("/bili/cookies", requireSuper, async (_req: Request, res: Response) => {
+    try {
+      await cookies.clear();
+      removeCookiesFile();
+      res.json({ ok: true });
     } catch (e) {
       res.status(500).json({ ok: false, error: (e as Error).message });
     }

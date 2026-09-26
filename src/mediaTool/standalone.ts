@@ -17,6 +17,7 @@ import { MediaJobRunner } from "./jobs/mediaJobRunner";
 import { createJsonTranscriptStore } from "./jobs/transcriptStore";
 import { ensureDir, resolveRootDir } from "./runtime";
 import { createJsonMediaSettingsStore } from "./settingsStore";
+import { createFileMediaCookiesStore, restoreBiliCookies } from "./biliCookies";
 
 const port = parseInt(process.env.MEDIA_TOOL_PORT || "4007", 10) || 4007;
 const host = process.env.MEDIA_TOOL_HOST || "127.0.0.1";
@@ -32,6 +33,9 @@ ensureDir(dataDir);
 const jobStore = createJsonMediaJobStore(path.join(dataDir, "jobs.json"));
 const transcriptStore = createJsonTranscriptStore(path.join(dataDir, "transcripts.json"));
 const settingsStore = createJsonMediaSettingsStore(path.join(dataDir, "settings.json"));
+// standalone 态没有 Mongo：cookies 正文落在同一个数据目录里（0600）。
+const cookiesStore = createFileMediaCookiesStore(path.join(dataDir, "bili-cookies.db"));
+void restoreBiliCookies(cookiesStore);
 const runner = new MediaJobRunner(
   { store: jobStore, transcripts: transcriptStore, getSettings: () => settingsStore.get(), mode: "standalone" },
   2,
@@ -80,6 +84,7 @@ const mediaRouter = createMediaToolRouter({
   store: jobStore,
   transcripts: transcriptStore,
   settingsStore,
+  cookies: cookiesStore,
   runner,
   requireAdmin: pass,
   requireSuper: pass,

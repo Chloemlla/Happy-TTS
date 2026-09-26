@@ -150,6 +150,30 @@ export const MediaToolJobModel =
 export const MediaToolTranscriptModel =
   (mongoose.models.MediaToolTranscript as mongoose.Model<MediaToolTranscriptDoc>) ||
   mongoose.model<MediaToolTranscriptDoc>("MediaToolTranscript", transcriptSchema);
+/** media_tool_cookies 集合:B 站 cookies 正文。存 DB 而不是磁盘，因为镜像未挂持久卷时
+ * 运行容器里的任何文件都会在重新部署后静默消失（这正是“cookies 明明配了却像没生效”的根源）。 */
+export interface MediaToolCookiesDoc {
+  key: string;
+  content: string;
+  bytes: number;
+  updatedAt: number;
+  updatedBy: string;
+}
+
+const cookiesSchema = new mongoose.Schema<MediaToolCookiesDoc>(
+  {
+    key: { type: String, required: true, unique: true },
+    content: { type: String, required: true },
+    bytes: { type: Number, required: true, default: 0 },
+    updatedAt: { type: Number, required: true },
+    updatedBy: { type: String, default: "" },
+  },
+  { collection: "media_tool_cookies", versionKey: false },
+);
+
 export const MediaToolSettingsModel =
   (mongoose.models.MediaToolSettings as mongoose.Model<MediaToolSettingsDoc>) ||
   mongoose.model<MediaToolSettingsDoc>("MediaToolSettings", settingsSchema);
+export const MediaToolCookiesModel =
+  (mongoose.models.MediaToolCookies as mongoose.Model<MediaToolCookiesDoc>) ||
+  mongoose.model<MediaToolCookiesDoc>("MediaToolCookies", cookiesSchema);

@@ -4,11 +4,13 @@
 // 各自 new 一份的话,进程重启自恢复会把同一条 queued 任务向两个 runner 各入队一次,
 // 表现为同一个音频被重复上传、重复转写(两个 runner 互不知晓对方的 in-flight 集合)。
 import { createMongoMediaJobStore, type MediaJobStore } from "./jobs/mediaJobStore";
+import { createMongoMediaCookiesStore, restoreBiliCookies, type MediaCookiesStore } from "./biliCookies";
 import { MediaJobRunner } from "./jobs/mediaJobRunner";
 import { createMongoTranscriptStore, type TranscriptStore } from "./jobs/transcriptStore";
 import { createMongoMediaSettingsStore, type MediaSettingsStore } from "./settingsStore";
 
 let jobStore: MediaJobStore | null = null;
+let cookiesStore: MediaCookiesStore | null = null;
 let transcriptStore: TranscriptStore | null = null;
 let settingsStore: MediaSettingsStore | null = null;
 let runner: MediaJobRunner | null = null;
@@ -28,6 +30,12 @@ export function getServerTranscriptStore(): TranscriptStore {
 export function getServerMediaSettingsStore(): MediaSettingsStore {
   if (!settingsStore) settingsStore = createMongoMediaSettingsStore();
   return settingsStore;
+}
+
+/** B 站 cookies 正文（存 Mongo；进程启动时由 restoreBiliCookies 重建运行时文件）。 */
+export function getServerMediaCookiesStore(): MediaCookiesStore {
+  if (!cookiesStore) cookiesStore = createMongoMediaCookiesStore();
+  return cookiesStore;
 }
 
 /** 全局并发上限:两类入口共用同一个队列,超限时任务排队而不是并发压垮上游。 */
@@ -54,6 +62,9 @@ export function ensureMediaJobRecovery(delayMs = 2500): void {
   if (recovered) return;
   recovered = true;
   setTimeout(() => {
+    // 容器是新的，临时目录里什么都没有：先把 DB 里的 cookies 正文落回运行位置。
+    // mongoose 会缓冲未连接前的查询，所以跟任务恢复同一拍做是安全的。
+    void restoreBiliCookies(getServerMediaCookiesStore());
     getServerMediaJobStore()
       .list(200)
       .then((records) => {

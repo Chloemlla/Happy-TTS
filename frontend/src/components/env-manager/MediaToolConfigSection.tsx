@@ -65,7 +65,9 @@ export const MEDIA_TOOL_ENV_GROUPS: MediaToolEnvGroup[] = [
     title: 'B 站下载（yt-dlp）',
     fields: [
       { key: 'MEDIA_TOOL_YTDLP', label: 'yt-dlp 路径', description: '留空自动探测 PATH；Windows 服机常需给绝对路径。', placeholder: 'yt-dlp' },
-      { key: 'MEDIA_TOOL_COOKIES', label: 'cookies 文件', description: '下载需登录/会员内容时的 Netscape cookies 文件路径。', placeholder: '/srv/cookies.txt' },
+      { key: 'MEDIA_TOOL_COOKIES', label: 'cookies 文件', description: '仅作路径覆盖；建到「媒体工具 → 设置 → B 站 cookies」上传/粘贴，正文会存进数据库且重启自动恢复。', placeholder: '/srv/cookies.txt' },
+      { key: 'MEDIA_TOOL_PROXY', label: '下载代理', description: '透传 yt-dlp --proxy（http:// 或 socks5://）。境外机器下 B 站撞风控时常需国内出口。', placeholder: 'http://127.0.0.1:7890' },
+      { key: 'MEDIA_TOOL_BILI_API_FALLBACK', label: '412 时走 API 直取', description: '默认开；填 0 关掉「视频网页被风控时改走官方 JSON 接口拿直链」。', placeholder: '1' },
     ],
   },
 ];

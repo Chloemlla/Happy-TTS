@@ -334,11 +334,17 @@ export function explicitEnvLayer(env: NodeJS.ProcessEnv = process.env): MediaSet
   const biliString: Array<[keyof BiliOptions, string]> = [
     ["ytDlpPath", "MEDIA_TOOL_YTDLP"],
     ["cookiesFile", "MEDIA_TOOL_COOKIES"],
+    ["proxyUrl", "MEDIA_TOOL_PROXY"],
     ["downloadDir", "MEDIA_TOOL_DOWNLOAD_DIR"],
   ];
   for (const [field, key] of biliString) {
     const value = pick(key);
     if (value !== undefined) (layer.bili as Record<string, unknown>)[field] = value;
+  }
+  // 布尔开关不能走上面的循环（会把字符串塞进 boolean 字段），单独解析。
+  const apiFallback = pick("MEDIA_TOOL_BILI_API_FALLBACK");
+  if (apiFallback !== undefined) {
+    layer.bili.apiFallback = !["0", "false", "no", "off"].includes(apiFallback.trim().toLowerCase());
   }
   return layer;
 }

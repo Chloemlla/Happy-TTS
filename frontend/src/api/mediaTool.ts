@@ -49,12 +49,29 @@ export interface LasrOptions {
 
 export interface BiliOptions {
   ytDlpPath: string;
+  /** 容器内 cookies 文件路径，只当覆盖用；留空则用下面上传/粘贴并持久化在 DB 的那份。 */
   cookiesFile: string;
+  /** 下载代理（http:// 或 socks5://），透传 yt-dlp --proxy；留空=直连。 */
+  proxyUrl: string;
+  /** B 站网页被风控(412)时改走官方 JSON 接口拿直链下载。 */
+  apiFallback: boolean;
   downloadDir: string;
   audioFormat: string;
   concurrency: number;
   videoMode: boolean;
   transcribeAfter: boolean;
+}
+
+/** B 站 cookies 现状（后端永不回传正文，只回元信息）。 */
+export interface BiliCookiesStatus {
+  configured: boolean;
+  /** path=设置/env 指定的文件；db=上传并持久化的正文；none=都没配 */
+  source: 'path' | 'db' | 'none';
+  ok: boolean;
+  path: string | null;
+  hint?: string;
+  bytes?: number;
+  updatedAt?: number;
 }
 
 export interface TranscribeUserSettings {
@@ -193,7 +210,7 @@ export interface MediaToolHealth {
     workDirWritable: boolean;
     ytDlp: { ok: boolean; version?: string | null; hint?: string };
     ffprobe: { ok: boolean; hint?: string };
-    cookies: { ok: boolean; configured?: boolean; path?: string | null; hint?: string };
+    cookies: BiliCookiesStatus;
     lasrConfigured: boolean;
     queuedJobs: number;
   };
@@ -242,6 +259,25 @@ export const mediaToolApi = {
   updateSettings: async (target: MediaTarget, patch: MediaSettingsPatch): Promise<MediaToolSettings> => {
     const res = await api.put(`${BASE}/settings`, patch, cfgFor(target));
     return res.data.settings;
+  },
+
+  /** B 站 cookies 现状（正文存在 DB，这里只看得着元信息）。 */
+  getCookies: async (target: MediaTarget): Promise<BiliCookiesStatus> => {
+    const res = await api.get(`${BASE}/bili/cookies`, cfgFor(target));
+    return res.data.cookies;
+  },
+
+  /** 上传/粘贴 Netscape cookies 正文：后端校验后存 DB 并立刻落运行时文件。 */
+  saveCookies: async (
+    target: MediaTarget,
+    content: string,
+  ): Promise<{ bytes: number; updatedAt: number; entries: number; runtimePath: string }> => {
+    const res = await api.put(`${BASE}/bili/cookies`, { content }, cfgFor(target));
+    return res.data;
+  },
+
+  clearCookies: async (target: MediaTarget): Promise<void> => {
+    await api.delete(`${BASE}/bili/cookies`, cfgFor(target));
   },
 
   listJobs: async (target: MediaTarget, limit = 40): Promise<MediaJobRecord[]> => {
