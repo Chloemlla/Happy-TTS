@@ -656,6 +656,7 @@ function normalizeStoredProxycheckConfig(
     timeoutMs: normalizeInteger(raw.timeoutMs, defaults.timeoutMs, 1000, 15000),
     dailyQuotaPerKey: normalizeInteger(raw.dailyQuotaPerKey, defaults.dailyQuotaPerKey, 100, 1000000),
     challengeRiskScore: normalizeInteger(raw.challengeRiskScore, defaults.challengeRiskScore, 0, 100),
+    blockRiskScore: normalizeInteger(raw.blockRiskScore, defaults.blockRiskScore, 0, 100),
     failOpen: normalizeBoolean(raw.failOpen, defaults.failOpen),
     usePublicKeyForClient: normalizeBoolean(raw.usePublicKeyForClient, defaults.usePublicKeyForClient),
   };
@@ -1422,6 +1423,7 @@ export class RuntimeConfigService {
         timeoutMs: number;
         dailyQuotaPerKey: number;
         challengeRiskScore: number;
+        blockRiskScore: number;
         failOpen: boolean;
         usePublicKeyForClient: boolean;
       };
@@ -1448,6 +1450,7 @@ export class RuntimeConfigService {
           timeoutMs: config.timeoutMs,
           dailyQuotaPerKey: config.dailyQuotaPerKey,
           challengeRiskScore: config.challengeRiskScore,
+          blockRiskScore: config.blockRiskScore,
           failOpen: config.failOpen,
           usePublicKeyForClient: config.usePublicKeyForClient,
         },
@@ -1493,6 +1496,9 @@ export class RuntimeConfigService {
       challengeRiskScore: hasOwnKey(obj, "challengeRiskScore")
         ? normalizeInteger(obj.challengeRiskScore, current.challengeRiskScore, 0, 100)
         : current.challengeRiskScore,
+      blockRiskScore: hasOwnKey(obj, "blockRiskScore")
+        ? normalizeInteger(obj.blockRiskScore, current.blockRiskScore, 0, 100)
+        : current.blockRiskScore,
       failOpen: hasOwnKey(obj, "failOpen") ? normalizeBoolean(obj.failOpen, current.failOpen) : current.failOpen,
       usePublicKeyForClient: hasOwnKey(obj, "usePublicKeyForClient")
         ? normalizeBoolean(obj.usePublicKeyForClient, current.usePublicKeyForClient)

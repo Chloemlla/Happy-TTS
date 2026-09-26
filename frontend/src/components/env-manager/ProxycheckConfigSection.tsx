@@ -15,7 +15,7 @@ const REFRESH_BUTTON_CLASS =
 const SECTION_KEY = 'proxycheck';
 
 export type ProxycheckSecretKey = 'apiKey' | 'publicApiKey' | 'payloadVerificationKey' | 'hmacSecret';
-export type ProxycheckNumericKey = 'cacheTtlHours' | 'timeoutMs' | 'dailyQuotaPerKey' | 'challengeRiskScore';
+export type ProxycheckNumericKey = 'cacheTtlHours' | 'timeoutMs' | 'dailyQuotaPerKey' | 'challengeRiskScore' | 'blockRiskScore';
 type ProxycheckSwitchKey = 'failOpen' | 'usePublicKeyForClient';
 
 /** 表单态：数值字段保留字符串，避免输入中途被钳制后无法继续输入。 */
@@ -29,6 +29,7 @@ export interface ProxycheckInputs {
   timeoutMs: string;
   dailyQuotaPerKey: string;
   challengeRiskScore: string;
+  blockRiskScore: string;
   failOpen: boolean;
   usePublicKeyForClient: boolean;
 }
@@ -44,6 +45,7 @@ export const DEFAULT_PROXYCHECK_INPUTS: ProxycheckInputs = {
   timeoutMs: '8000',
   dailyQuotaPerKey: '1000',
   challengeRiskScore: '66',
+  blockRiskScore: '90',
   failOpen: true,
   usePublicKeyForClient: true,
 };
@@ -100,6 +102,16 @@ export const PROXYCHECK_NUMERIC_FIELDS: ProxycheckNumericField[] = [
     step: 1,
     fallback: 66,
     hint: 'IP 风险分大于等于该值时，首访验证会被提升为挑战（加严，不放宽）。',
+  },
+  {
+    key: 'blockRiskScore',
+    label: '直接阻断的风险分阈值',
+    unit: '分',
+    min: 0,
+    max: 100,
+    step: 1,
+    fallback: 90,
+    hint: 'IP 风险分大于等于该值时不再给验证机会，直接封禁该 IP：前后端请求都会被拦下，只展示阻断页与申诉入口。',
   },
 ];
 

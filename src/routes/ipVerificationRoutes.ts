@@ -26,6 +26,16 @@ router.post("/session", sessionLimiter, async (req, res) => {
       userLanguage: typeof req.headers["accept-language"] === "string" ? req.headers["accept-language"] : undefined,
     });
 
+    if (result.banned) {
+      // 形状与 ipBanCheck 的封禁响应对齐：前端 ipVerification.ts 按 error==="IP已被封禁"
+      // 读出 banData，首访闸门据此直接渲染阻断页（与首访验闸同一套设计语言）。
+      return res.status(403).json({
+        error: "IP已被封禁",
+        reason: result.banReason || "IP 风险过高，已自动拦截",
+        expiresAt: result.banExpiresAt,
+      });
+    }
+
     if (!result.success) {
       return res.status(400).json(result);
     }

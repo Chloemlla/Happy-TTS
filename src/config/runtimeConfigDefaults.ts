@@ -170,6 +170,13 @@ export interface ProxycheckRuntimeConfig {
   dailyQuotaPerKey: number;
   /** 风险分达到该值即挑战（0..100）。 */
   challengeRiskScore: number;
+  /**
+   * 风险分达到该值直接阻断（0..100）。
+   *
+   * 高于 challengeRiskScore 时，首访闸门不再给人机验证的机会，而是把该 IP 写进
+   * 封禁表（前后端一起被 ipBanCheck 拦住），只展示阻断页与申诉入口。
+   */
+  blockRiskScore: number;
   /** proxycheck 是辅助信号而非唯一闸门，默认上游失败时放行。 */
   failOpen: boolean;
   /** 是否把 publicApiKey 下发给前端做直连查询。 */
@@ -415,6 +422,7 @@ export function buildRuntimeConfigDefaults(options: {
       timeoutMs: 8000,
       dailyQuotaPerKey: 1000,
       challengeRiskScore: 66,
+      blockRiskScore: 90,
       failOpen: true,
       usePublicKeyForClient: true,
     },

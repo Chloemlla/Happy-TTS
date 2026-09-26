@@ -90,6 +90,7 @@ export default function SelfContainedProxycheckConfigSection({
         timeoutMs: pickNumericInput(cfg, 'timeoutMs'),
         dailyQuotaPerKey: pickNumericInput(cfg, 'dailyQuotaPerKey'),
         challengeRiskScore: pickNumericInput(cfg, 'challengeRiskScore'),
+        blockRiskScore: pickNumericInput(cfg, 'blockRiskScore'),
         failOpen: pickBoolean(cfg, 'failOpen'),
         usePublicKeyForClient: pickBoolean(cfg, 'usePublicKeyForClient'),
       });
@@ -131,6 +132,7 @@ export default function SelfContainedProxycheckConfigSection({
       timeoutMs: 0,
       dailyQuotaPerKey: 0,
       challengeRiskScore: 0,
+      blockRiskScore: 0,
     };
     let clamped = false;
     for (const field of PROXYCHECK_NUMERIC_FIELDS) {

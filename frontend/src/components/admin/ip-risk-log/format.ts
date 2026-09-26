@@ -184,6 +184,11 @@ export const ACTION_CONFIG: Record<IpRiskDecisionAction, BadgeStyle & { descript
     description: '调用方是 GET /api/ip-risk：只把风险结论返回给调用方，本次请求不做任何拦截。',
     ...SKY,
   },
+  block: {
+    label: '直接阻断',
+    description: '风险分达到 blockRiskScore：闸门不再给验证机会，直接把该 IP 写进封禁表（前后端请求一起被拦）。',
+    ...ROSE,
+  },
   challenge: {
     label: '要求挑战',
     description: '首访闸门要求前端完成人机验证后可继续。',
@@ -208,6 +213,7 @@ export const ACTION_CONFIG: Record<IpRiskDecisionAction, BadgeStyle & { descript
 
 export const ACTION_ORDER: ReadonlyArray<IpRiskDecisionAction> = [
   'report',
+  'block',
   'challenge',
   'allow',
   'fail_open',

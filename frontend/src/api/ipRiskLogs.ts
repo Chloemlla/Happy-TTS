@@ -8,7 +8,7 @@ import { api, getApiBaseUrl } from './api';
 
 export type IpRiskCaller = 'api' | 'first_visit_gate' | 'batch';
 
-export type IpRiskDecisionAction = 'report' | 'challenge' | 'allow' | 'fail_open' | 'fail_closed';
+export type IpRiskDecisionAction = 'report' | 'block' | 'challenge' | 'allow' | 'fail_open' | 'fail_closed';
 
 export type IpRiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
@@ -43,6 +43,7 @@ export interface ProxycheckSettingConfig {
   timeoutMs: number;
   dailyQuotaPerKey: number;
   challengeRiskScore: number;
+  blockRiskScore: number;
   failOpen: boolean;
   usePublicKeyForClient: boolean;
 }

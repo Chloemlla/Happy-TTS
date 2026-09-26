@@ -139,6 +139,7 @@ export interface ProxycheckConfigSetting {
   timeoutMs: number;
   dailyQuotaPerKey: number;
   challengeRiskScore: number;
+  blockRiskScore: number;
   failOpen: boolean;
   usePublicKeyForClient: boolean;
 }

@@ -46,6 +46,7 @@ const DEFAULT_TIMEOUT_MS = 8000;
 const DEFAULT_CACHE_TTL_HOURS = 24;
 const DEFAULT_DAILY_QUOTA_PER_KEY = 1000;
 const DEFAULT_CHALLENGE_RISK_SCORE = 66;
+const DEFAULT_BLOCK_RISK_SCORE = 90;
 
 // 命中缓存的行用的 status 与 apiKeyHash 哨兵：这次判定零外呼、零配额，但决策照样交付了出去。
 // 与真实外呼行（ok / failed）分开，管理端才能把「上游挂了」和「走缓存」区分开。
@@ -64,14 +65,16 @@ export interface IpRiskEvaluation {
   level: IpRiskLevel;
   flags: string[];
   shouldChallenge: boolean;
+  /** 风险分达到 blockRiskScore：闸门应直接封禁该 IP，而不是给验证机会。 */
+  shouldBlock: boolean;
   reason: string;
 }
 
 /** 这一次决策是谁问的：闸门 / 公开 API / 批量路径。 */
 export type IpRiskCaller = "api" | "first_visit_gate" | "batch";
 
-/** 实际交给前端的动作。`report` 只上报结论、不拦截（GET /api/ip-risk 就是这种）。 */
-export type IpRiskDecisionAction = "report" | "challenge" | "allow" | "fail_open" | "fail_closed";
+/** 实际交给前端的动作。`report` 只上报结论、不拦截（GET /api/ip-risk 就是这种）。`block` 只由首访闸门产出。 */
+export type IpRiskDecisionAction = "report" | "block" | "challenge" | "allow" | "fail_open" | "fail_closed";
 
 /**
  * 「这次查询交给前端的决策」的完整快照，用于落库供管理端日志面板展示。
@@ -82,12 +85,18 @@ export interface IpRiskDecision {
   caller: IpRiskCaller;
   action: IpRiskDecisionAction;
   shouldChallenge: boolean;
+  /**
+   * 风险分达到 blockRiskScore（仅首访闸门会为 true）：闸门应直接把 IP 写进封禁表，
+   * 不再给人机验证的机会，前后端请求一起被 ipBanCheck 拦下。
+   */
+  shouldBlock: boolean;
   reason: string;
   risk: number;
   level: IpRiskLevel;
   flags: string[];
   source: "cache" | "proxycheck" | "unavailable";
   threshold: number;
+  blockThreshold: number;
   failOpen: boolean;
   closedOnFailure: boolean;
 }
@@ -99,34 +108,43 @@ export interface IpRiskDecision {
  * shouldChallenge 判据：上游给出了结论，且 risk >= challengeRiskScore，或命中 vpn/proxy/tor
  * 三类明确检测之一（hosting 单独命中不触发，机房出口太常见）。source 为 unavailable
  * （开关关闭 / 非法或内网地址 / 上游失败降级）时一律不挑战，只在 failOpen=false 时失败关闭。
+ * shouldBlock 判据（独立于 challenge）：上游给出结论、risk >= blockRiskScore、且 caller 是首访闸门。
  */
 export function buildIpRiskDecision(result: IpRiskResult, caller: IpRiskCaller): IpRiskDecision {
   const threshold = toScore(config.proxycheck.challengeRiskScore, DEFAULT_CHALLENGE_RISK_SCORE);
+  const blockThreshold = toScore(config.proxycheck.blockRiskScore, DEFAULT_BLOCK_RISK_SCORE);
   const failOpen = config.proxycheck.failOpen;
   const flagged = CHALLENGE_FLAGS.some((flag) => result.detections[flag]);
   const hasVerdict = result.source !== "unavailable";
   // failOpen=false 时拿不到结论 = 失败关闭：挑战而非放行（对齐 ipVerificationService 的 decision:"error"）。
   const closedOnFailure = !hasVerdict && !failOpen;
   const shouldChallenge = hasVerdict ? result.risk >= threshold || flagged : closedOnFailure;
+  // 阻断只认首访闸门：api / batch 是查询路径，只负责上报结论，不能替调用方封 IP。
+  // 阈值可配置：管理员把 blockRiskScore 调到 <= challengeRiskScore 时按「阻断优先」解释。
+  const shouldBlock = hasVerdict && caller === "first_visit_gate" && result.risk >= blockThreshold;
 
   return {
     caller,
     action: hasVerdict
       ? caller === "api"
         ? "report"
-        : shouldChallenge
-          ? "challenge"
-          : "allow"
+        : shouldBlock
+          ? "block"
+          : shouldChallenge
+            ? "challenge"
+            : "allow"
       : failOpen
         ? "fail_open"
         : "fail_closed",
     shouldChallenge,
+    shouldBlock,
     reason: hasVerdict ? `proxycheck_risk_${result.level}` : "proxycheck_unavailable",
     risk: result.risk,
     level: result.level,
     flags: result.flags,
     source: result.source,
     threshold,
+    blockThreshold,
     failOpen,
     closedOnFailure,
   };
@@ -671,6 +689,7 @@ export async function evaluateIpRisk(ip: string): Promise<IpRiskEvaluation> {
     level: result.level,
     flags: result.flags,
     shouldChallenge: decision.shouldChallenge,
+    shouldBlock: decision.shouldBlock,
     reason: decision.reason,
   };
 }

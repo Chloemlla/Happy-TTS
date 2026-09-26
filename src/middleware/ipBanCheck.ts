@@ -5,6 +5,7 @@ import { config } from "../config/config";
 import { IpBanModel } from "../models/ipBanModel";
 import { redisService } from "../services/redisService.js";
 import { MAX_VIOLATIONS } from "../services/turnstile/constants";
+import { renderIpBlockPage } from "../security/ipBlockPage";
 import { securityBypassPolicy } from "../security/securityPolicy";
 import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
@@ -437,6 +438,50 @@ function isWhitelistedPath(path: string): boolean {
 }
 
 /**
+ * 浏览器地址栏导航（而非 fetch/XHR 或静态资源）：这类请求期望 HTML，回 JSON 只会让用户
+ * 看到一串花括号。判断依据是 Accept 含 text/html 且不是 /api/ 下的接口调用。
+ */
+function wantsHtmlDocument(req: Request): boolean {
+  if (req.method !== "GET" && req.method !== "HEAD") return false;
+  if (req.path.startsWith("/api/")) return false;
+  const accept = req.headers.accept;
+  return typeof accept === "string" && accept.includes("text/html");
+}
+
+/**
+ * 封禁响应的唯一出口：导航请求回阻断页（与首访验闸同一套设计语言），其余回 JSON。
+ * JSON 里额外带 banned / errorCode，前端不靠比对中文文案就能认出这是封禁。
+ */
+function sendBanResponse(
+  req: Request,
+  res: Response,
+  options: { reason?: string; expiresAt?: Date | string },
+): void {
+  const ip = getClientIPFromRequest(req);
+
+  if (wantsHtmlDocument(req)) {
+    res
+      .status(403)
+      .type("html")
+      .set("Cache-Control", "no-store")
+      .send(renderIpBlockPage({ reason: options.reason, expiresAt: options.expiresAt, ip }));
+    return;
+  }
+
+  res.status(403).json({
+    banned: true,
+    errorCode: "IP_BANNED",
+    // error 用短文案：前端多处（fingerprint.ts / ipVerification.ts）以
+    // `error === "IP已被封禁"` 判定「这是封禁而不是普通 403」，改成长句会逐个失配。
+    // 完整说明放 message。
+    error: "IP已被封禁",
+    message: "您的IP地址已被封禁，无法访问此服务",
+    reason: options.reason,
+    expiresAt: options.expiresAt,
+  });
+}
+
+/**
  * 检查Redis是否应该被跳过（断路器模式）
  */
 function shouldSkipRedis(): boolean {
@@ -748,11 +793,7 @@ export const ipBanCheckMiddleware = async (req: Request, res: Response, next: Ne
           metrics.avgResponseTime =
             (metrics.avgResponseTime * (metrics.totalRequests - 1) + responseTime) / metrics.totalRequests;
 
-          res.status(403).json({
-            error: "您的IP地址已被封禁，无法访问此服务",
-            reason: cached.reason,
-            expiresAt: cached.expiresAt,
-          });
+          sendBanResponse(req, res, { reason: cached.reason, expiresAt: cached.expiresAt });
           return;
         }
       } else if (!cached.banned) {
@@ -779,11 +820,7 @@ export const ipBanCheckMiddleware = async (req: Request, res: Response, next: Ne
         const expiresAt = staleCache.expiresAt instanceof Date ? staleCache.expiresAt : new Date(staleCache.expiresAt);
         if (expiresAt > new Date()) {
           logger.warn(`⚠️ 封禁后端不可用，使用过期缓存拒绝可能被封禁的IP: ${normalizedIP}`);
-          res.status(403).json({
-            error: "您的IP地址已被封禁，无法访问此服务",
-            reason: staleCache.reason || "系统维护中",
-            expiresAt: staleCache.expiresAt,
-          });
+          sendBanResponse(req, res, { reason: staleCache.reason || "系统维护中", expiresAt: staleCache.expiresAt });
           return;
         }
         banCache.delete(normalizedIP);
@@ -821,11 +858,7 @@ export const ipBanCheckMiddleware = async (req: Request, res: Response, next: Ne
       metrics.avgResponseTime =
         (metrics.avgResponseTime * (metrics.totalRequests - 1) + responseTime) / metrics.totalRequests;
 
-      res.status(403).json({
-        error: "您的IP地址已被封禁，无法访问此服务",
-        reason: bannedInfo.reason,
-        expiresAt: bannedInfo.expiresAt,
-      });
+      sendBanResponse(req, res, { reason: bannedInfo.reason, expiresAt: bannedInfo.expiresAt });
       return;
     }
 
@@ -858,11 +891,7 @@ export const ipBanCheckMiddleware = async (req: Request, res: Response, next: Ne
         const staleCache = banCache.get(normalizedIP);
         if (staleCache?.banned) {
           logger.warn(`⚠️ 使用过期缓存拒绝可能被封禁的IP: ${normalizedIP}`);
-          res.status(403).json({
-            error: "您的IP地址已被封禁，无法访问此服务",
-            reason: staleCache.reason || "系统维护中",
-            expiresAt: staleCache.expiresAt,
-          });
+          sendBanResponse(req, res, { reason: staleCache.reason || "系统维护中", expiresAt: staleCache.expiresAt });
           return;
         }
 

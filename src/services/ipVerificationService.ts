@@ -9,6 +9,7 @@ import logger from "../utils/logger";
 import { buildScamalyticsLookupUrl, normalizeScamalyticsUser } from "../utils/scamalytics";
 import { mongoose } from "./mongoService";
 import { evaluateIpRisk } from "./ipRiskService";
+import { manualBanIp } from "./turnstile/ipBan";
 import { TurnstileService } from "./turnstileService";
 interface ScamalyticsResponse {
   scamalytics: {
@@ -74,6 +75,13 @@ export interface IpVerificationSessionResult {
   fraudScore?: number;
   riskFlags?: string[];
   tokenTtlMinutes: number;
+  /**
+   * 风险分达到 blockRiskScore、且封禁已落库：闸门直接阻断该 IP，不再给人机验证的机会。
+   * 路由据此回 403 + error="IP已被封禁"（前端 ipVerification.ts 已按这个形状读 banData）。
+   */
+  banned?: boolean;
+  banReason?: string;
+  banExpiresAt?: string;
 }
 
 function normalizeFingerprint(input: string): string | null {
@@ -529,6 +537,39 @@ export class IpVerificationService {
     // 不可用时完全交回下方原有的 IPQS 判定（failOpen 语义见 ipRiskService.evaluateIpRisk）。
     if (config.proxycheck.enabled) {
       const proxycheckRisk = await evaluateIpRisk(ipAddress);
+
+      // 风险分达到 blockRiskScore：直接封禁，不再给验证机会。封禁写进 IpBanModel 后
+      // ipBanCheck 会在最外层拦下该 IP 的**全部**请求（前端静态资源与后端 API 一起），
+      // 这里只需把结果告诉前端，让它渲染阻断页与申诉入口。
+      if (proxycheckRisk.shouldBlock) {
+        const banReason = `高风险 IP 自动拦截：proxycheck 风险分 ${proxycheckRisk.risk}（${proxycheckRisk.level}）`;
+        const banResult = await manualBanIp(ipAddress, banReason, 24 * 60);
+
+        if (banResult.success) {
+          return {
+            success: false,
+            verified: false,
+            requiresVerification: false,
+            fingerprint,
+            ipAddress,
+            reason: "ip_risk_blocked",
+            banned: true,
+            banReason,
+            banExpiresAt: banResult.expiresAt?.toISOString(),
+            fraudScore: proxycheckRisk.risk,
+            riskFlags: proxycheckRisk.flags,
+            tokenTtlMinutes: config.ipqs.tokenTtlMinutes,
+          };
+        }
+
+        // 封禁落库失败（Mongo 不可用等）：不能假装已阻断，退回挑战，至少不静默放行。
+        logger.warn("[IpVerification] 高风险 IP 封禁失败，退回挑战", {
+          ipAddress,
+          risk: proxycheckRisk.risk,
+          error: banResult.error,
+        });
+      }
+
       if (proxycheckRisk.shouldChallenge) {
         return {
           success: true,

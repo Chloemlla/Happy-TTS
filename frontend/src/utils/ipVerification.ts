@@ -160,6 +160,19 @@ function isIpVerificationErrorPayload(payload: unknown): payload is Record<strin
   );
 }
 
+/**
+ * 硬封禁载荷（ipBanCheck / 闸门高风险自动拦截）。
+ *
+ * 封禁不能只靠刷新页面才被发现：用户在站内被封时，后续请求会持续 403，但闸门页不会自己弹。
+ * 把它也当作「服务端正在拦我」的信号，交给同一个事件处理——处理链会重跑一次静默握手，
+ * 拿到带 banData 的 403 后渲染阻断页。
+ */
+function isIpBanPayload(payload: unknown): boolean {
+  if (!payload || typeof payload !== 'object') return false;
+  const record = payload as Record<string, unknown>;
+  return record.errorCode === 'IP_BANNED' || record.banned === true || record.error === 'IP已被封禁';
+}
+
 async function maybeHandleBlockedResponse(response: Response, url: URL): Promise<void> {
   // 同 emitIpVerificationRequired：只看响应本身，不看本地开关快照。
   if (response.status !== 403 || isExemptPath(url.pathname)) return;
@@ -169,7 +182,7 @@ async function maybeHandleBlockedResponse(response: Response, url: URL): Promise
     .json()
     .catch(() => null);
 
-  if (!isIpVerificationErrorPayload(payload)) return;
+  if (!isIpVerificationErrorPayload(payload) && !isIpBanPayload(payload)) return;
 
   // 这里刻意不抹掉本地令牌：一个 403 只说明"这一次请求没带上有效令牌"，不等于已存的令牌失效
   // ——请求可能在令牌落盘前就发出，也可能走了不注入验证头的路径。真正的判据是
@@ -227,7 +240,12 @@ export async function initializeIpVerificationSession(existingFingerprint?: stri
     // G9-14：后端以 403 + error=IP已被封禁 表达封禁，转成带 banData 的错误，供
     // useFirstVisitDetection 读取真实 isIpBanned。
     const errPayload = await response.json().catch(() => ({}));
-    if (response.status === 403 && errPayload?.error === 'IP已被封禁') {
+    if (
+      response.status === 403 &&
+      (errPayload?.error === 'IP已被封禁' ||
+        errPayload?.errorCode === 'IP_BANNED' ||
+        errPayload?.banned === true)
+    ) {
       const banError = new Error(`IP已被封禁: ${errPayload.reason || ''}`);
       (banError as { banData?: { reason?: string; expiresAt?: string } }).banData = {
         reason: errPayload.reason,

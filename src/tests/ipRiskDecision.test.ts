@@ -30,24 +30,48 @@ function verdict(overrides: Partial<IpRiskResult> = {}): IpRiskResult {
 
 describe("buildIpRiskDecision", () => {
   const THRESHOLD = buildIpRiskDecision(verdict(), "api").threshold;
+  const BLOCK_THRESHOLD = buildIpRiskDecision(verdict(), "api").blockThreshold;
   const BELOW = Math.max(0, THRESHOLD - 1);
 
-  it("上游给出高风险结论时，只有 api 是「只上报」，闸门与批量都挑战", () => {
+  it("上游给出满分风险时：api 只上报；闸门达到阻断阈值就直接阻断，否则才挑战；批量只挑战", () => {
     const high = verdict({ risk: 100, level: "critical" });
+    const gateBlocks = 100 >= BLOCK_THRESHOLD;
 
     for (const caller of ALL_CALLERS) {
       const decision = buildIpRiskDecision(high, caller);
+      const expectedAction =
+        caller === "api" ? "report" : caller === "first_visit_gate" && gateBlocks ? "block" : "challenge";
 
       expect(decision.caller).toBe(caller);
       expect(decision.shouldChallenge).toBe(true);
-      expect(decision.action).toBe(caller === "api" ? "report" : "challenge");
+      expect(decision.shouldBlock).toBe(caller === "first_visit_gate" && gateBlocks);
+      expect(decision.action).toBe(expectedAction);
       expect(decision.reason).toBe("proxycheck_risk_critical");
       expect(decision.source).toBe("proxycheck");
       expect(decision.closedOnFailure).toBe(false);
       expect(decision.risk).toBe(100);
       expect(decision.level).toBe("critical");
       expect(decision.threshold).toBe(THRESHOLD);
+      expect(decision.blockThreshold).toBe(BLOCK_THRESHOLD);
     }
+  });
+
+  it("阻断只由首访闸门产出：api / batch 超过阻断阈值也不 block（查询路径不替调用方封 IP）", () => {
+    const overBlock = verdict({ risk: 100, level: "critical" });
+
+    expect(buildIpRiskDecision(overBlock, "api").shouldBlock).toBe(false);
+    expect(buildIpRiskDecision(overBlock, "api").action).toBe("report");
+    expect(buildIpRiskDecision(overBlock, "batch").shouldBlock).toBe(false);
+  });
+
+  it("风险分低于阻断阈值时闸门不阻断（退回挑战或放行）", () => {
+    const belowBlock = verdict({ risk: Math.max(0, BLOCK_THRESHOLD - 1), level: "high" });
+    const decision = buildIpRiskDecision(belowBlock, "first_visit_gate");
+
+    if (BLOCK_THRESHOLD > 0) {
+      expect(decision.shouldBlock).toBe(false);
+    }
+    expect(decision.action).toBe(decision.shouldChallenge ? "challenge" : "allow");
   });
 
   it("分数低于阈值且没命中 flag 时不挑战，api 依旧只上报", () => {
@@ -104,6 +128,7 @@ describe("buildIpRiskDecision", () => {
     const decision = buildIpRiskDecision(verdict({ risk: 100, level: "high" }), "batch");
 
     expect(typeof decision.threshold).toBe("number");
+    expect(typeof decision.blockThreshold).toBe("number");
     expect(typeof decision.failOpen).toBe("boolean");
     expect(decision.flags).toEqual([]);
   });
@@ -148,11 +173,15 @@ describe("proxycheck_lookup_logs 的 decision 子文档", () => {
  * 缓存里那份结论给的（零外呼、零配额）。记录方式必须能把两者区分开。
  */
 describe("命中缓存的决策日志", () => {
+  // 取「高于挑战阈值、低于阻断阈值」的分数：这一组用例要测的是缓存结论仍被判为挑战。
+  const BLOCK_THRESHOLD = buildIpRiskDecision(verdict(), "api").blockThreshold;
+  const CACHE_RISK = Math.max(0, BLOCK_THRESHOLD - 1);
+
   const cachedResult = (): IpRiskResult => ({
     ...unavailableResult(IP),
     source: "cache",
     cached: true,
-    risk: 90,
+    risk: CACHE_RISK,
     level: "high",
   });
 
@@ -180,7 +209,7 @@ describe("命中缓存的决策日志", () => {
       apiKeyHash: "cache",
       status: "cache",
       ok: true,
-      risk: 90,
+      risk: CACHE_RISK,
       deduped: false,
       durationMs: 1,
       error: "",

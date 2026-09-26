@@ -6,14 +6,16 @@ import { mongoose } from "../services/mongoService";
  */
 export interface ProxycheckLookupLogDecisionDoc {
   caller: "api" | "first_visit_gate" | "batch";
-  action: "report" | "challenge" | "allow" | "fail_open" | "fail_closed";
+  action: "report" | "block" | "challenge" | "allow" | "fail_open" | "fail_closed";
   shouldChallenge: boolean;
+  shouldBlock: boolean;
   reason: string;
   risk: number;
   level: "low" | "medium" | "high" | "critical";
   flags: string[];
   source: "cache" | "proxycheck" | "unavailable";
   threshold: number;
+  blockThreshold: number;
   failOpen: boolean;
   closedOnFailure: boolean;
 }
@@ -44,6 +46,8 @@ const ProxycheckLookupLogDecisionSchema = new mongoose.Schema<ProxycheckLookupLo
     caller: { type: String, required: true },
     action: { type: String, required: true },
     shouldChallenge: { type: Boolean, required: true, default: false },
+    // 旧行的 decision 没有这两个字段，default 保证反序列化时不会是 undefined。
+    shouldBlock: { type: Boolean, required: true, default: false },
     // 见下面 `error` 的说明：Mongoose 的 String required 会把 "" 判为缺失。
     reason: { type: String, default: "" },
     risk: { type: Number, required: true, default: 0 },
@@ -51,6 +55,7 @@ const ProxycheckLookupLogDecisionSchema = new mongoose.Schema<ProxycheckLookupLo
     flags: { type: [String], default: [] },
     source: { type: String, required: true },
     threshold: { type: Number, required: true, default: 0 },
+    blockThreshold: { type: Number, required: true, default: 0 },
     failOpen: { type: Boolean, required: true, default: false },
     closedOnFailure: { type: Boolean, required: true, default: false },
   },

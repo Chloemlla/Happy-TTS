@@ -413,11 +413,12 @@ export const DecisionLegend: React.FC = () => (
       <li>
         <span className="font-semibold">缓存页的决策是重算</span>：命中 <code>proxycheck_risk_cache</code>
         时后端不写任何 lookup 日志（零上游、零写入），所以「那次给了前端什么决策」没有历史记录。
-        风险缓存页里的 decision 是按<span className="font-semibold">当前</span> <code>challengeRiskScore</code> / <code>failOpen</code> 重新推算的，仅用于解释当下配置的含义。
+        风险缓存页里的 decision 是按<span className="font-semibold">当前</span> <code>challengeRiskScore</code> / <code>blockRiskScore</code> / <code>failOpen</code> 重新推算的，仅用于解释当下配置的含义。
       </li>
       <li>
-        <span className="font-semibold">挑战判据</span>：<code>risk ≥ challengeRiskScore</code> 或命中
-        {CHALLENGE_FLAGS.join(' / ')} 任一即要求挑战；hosting 单独命中不挑战。上游不可用时按
+        <span className="font-semibold">挑战与阻断判据</span>：<code>risk ≥ challengeRiskScore</code> 或命中
+        {CHALLENGE_FLAGS.join(' / ')} 任一即要求挑战；<code>risk ≥ blockRiskScore</code>（仅闸门
+        caller）则直接封禁该 IP，action 记 <code>block</code>；hosting 单独命中不挑战。上游不可用时按
         <code>failOpen</code> 决定 fail_open / fail_closed。
       </li>
       <li>

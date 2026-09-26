@@ -186,6 +186,11 @@ const OverviewTab: React.FC<Props> = ({ overview, loading, error, onRefresh }) =
                 value={config.challengeRiskScore}
                 hint="风险分 ≥ 该值即要求挑战（0..100）。注意本页显示的是「当前」值，历史日志里的阈值看各行的 decision.threshold。"
               />
+              <NumberField
+                label="blockRiskScore"
+                value={config.blockRiskScore}
+                hint="风险分 ≥ 该值时不再给验证机会，直接封禁该 IP（前后端一起被拦，只展示阻断页）。应高于 challengeRiskScore。"
+              />
               <BoolField label="failOpen" value={config.failOpen} hint="上游失败是否放行。proxycheck 是辅助信号而非唯一闸门，默认放行。" />
               <BoolField
                 label="usePublicKeyForClient"
